@@ -1,0 +1,12 @@
+provider:
+  name: openfaas
+  gateway: https://faas.srv.disarm.io
+functions:
+  fn-prevalence-predictor:
+    lang: python-geospatial
+    handler: ./fn-prevalence-predictor
+    image: disarm/fn-prevalence-predictor:1.3.0
+    environment:
+      combine_output: false
+    labels:
+      com.openfaas.scale.zero: true

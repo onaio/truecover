@@ -1,0 +1,9 @@
+template
+build
+
+.Rhistory
+.Rproj.user
+template
+.DS_Store
+fwatchdog
+.RData
