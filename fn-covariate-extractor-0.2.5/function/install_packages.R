@@ -1,6 +1,8 @@
 install.packages(c('downloader',
 					 'geosphere',
 				   'RANN',
-					 'jsonlite'))
+					 'jsonlite',
+					 'raster',
+					 'sf'))
 
 
