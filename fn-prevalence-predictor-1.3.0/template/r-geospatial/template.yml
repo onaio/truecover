@@ -1,0 +1,4 @@
+language: r-geospatial
+fprocess: Rscript main.R
+welcome_message: |
+  Well done.
