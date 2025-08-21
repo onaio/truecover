@@ -1,0 +1,855 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 14,
+        "predicted_prevalence": 0.1562387,
+        "prediction_uncertainty": 0.7260688,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3946571,
+          23.6689
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 129,
+        "predicted_prevalence": 0.0007653,
+        "prediction_uncertainty": 0.778848,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4493612,
+          23.6777571
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 146,
+        "predicted_prevalence": 1.29e-05,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5113592,
+          23.6777571
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 153,
+        "predicted_prevalence": 0.0056122,
+        "prediction_uncertainty": 0.7788817,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3545408,
+          23.6821857
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 221,
+        "predicted_prevalence": 0.1064098,
+        "prediction_uncertainty": 0.7447545,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4201857,
+          23.6866143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 260,
+        "predicted_prevalence": 0.1348802,
+        "prediction_uncertainty": 0.6979735,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3800694,
+          23.6910429
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 278,
+        "predicted_prevalence": 0.0347566,
+        "prediction_uncertainty": 0.7576594,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4457143,
+          23.6910429
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 290,
+        "predicted_prevalence": 0.0001704,
+        "prediction_uncertainty": 0.7789277,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4894776,
+          23.6910429
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 399,
+        "predicted_prevalence": 0.0165631,
+        "prediction_uncertainty": 0.7783551,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5223,
+          23.6999
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 428,
+        "predicted_prevalence": 0.1275625,
+        "prediction_uncertainty": 0.7110746,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4457143,
+          23.7043286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 533,
+        "predicted_prevalence": 0.0552909,
+        "prediction_uncertainty": 0.772714,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.463949,
+          23.7131857
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 661,
+        "predicted_prevalence": 1.1076747,
+        "prediction_uncertainty": 0.336568,
+        "exceedance_probability": 1,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3837163,
+          23.7264714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 737,
+        "predicted_prevalence": 0.0031081,
+        "prediction_uncertainty": 0.778919,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4785367,
+          23.7309
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 779,
+        "predicted_prevalence": 0.3201796,
+        "prediction_uncertainty": 0.6439295,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4493612,
+          23.7353286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 794,
+        "predicted_prevalence": 0.1510968,
+        "prediction_uncertainty": 0.7297299,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5040653,
+          23.7353286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 934,
+        "predicted_prevalence": 0.0045192,
+        "prediction_uncertainty": 0.7788926,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4675959,
+          23.7486143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 942,
+        "predicted_prevalence": 0.0053868,
+        "prediction_uncertainty": 0.7788672,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4967714,
+          23.7486143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 969,
+        "predicted_prevalence": 0.2179526,
+        "prediction_uncertainty": 0.2413369,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4128918,
+          23.7530429
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1002,
+        "predicted_prevalence": 0.4918057,
+        "prediction_uncertainty": 0.4750707,
+        "exceedance_probability": 1,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3508939,
+          23.7574714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1024,
+        "predicted_prevalence": 0.2985511,
+        "prediction_uncertainty": 0.4370555,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4311265,
+          23.7574714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1056,
+        "predicted_prevalence": 0.2839561,
+        "prediction_uncertainty": 0.3608196,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3654816,
+          23.7619
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1100,
+        "predicted_prevalence": 0.0347575,
+        "prediction_uncertainty": 0.6024174,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3436,
+          23.7663286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1107,
+        "predicted_prevalence": 0.2132003,
+        "prediction_uncertainty": 0.173688,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3691286,
+          23.7663286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1115,
+        "predicted_prevalence": 0.3437067,
+        "prediction_uncertainty": 0.3589073,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3983041,
+          23.7663286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1190,
+        "predicted_prevalence": 4.5773275e-07,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4894776,
+          23.7707571
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1248,
+        "predicted_prevalence": 5.3023918e-07,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5186531,
+          23.7751857
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1276,
+        "predicted_prevalence": 0.3577621,
+        "prediction_uncertainty": 0.4809679,
+        "exceedance_probability": 1,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4384204,
+          23.7796143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1289,
+        "predicted_prevalence": 1.7866105e-07,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4858306,
+          23.7796143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1312,
+        "predicted_prevalence": 0.1216278,
+        "prediction_uncertainty": 0.7487172,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3873633,
+          23.7840429
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1395,
+        "predicted_prevalence": 2.4855356e-10,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5077122,
+          23.7884714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1447,
+        "predicted_prevalence": 1.3517139e-11,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5150061,
+          23.7929
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1451,
+        "predicted_prevalence": 0.091573,
+        "prediction_uncertainty": 0.7587086,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3472469,
+          23.7973286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1471,
+        "predicted_prevalence": 0.2425252,
+        "prediction_uncertainty": 0.3966879,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4201857,
+          23.7973286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1596,
+        "predicted_prevalence": 2.863555e-13,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5113592,
+          23.8061857
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1729,
+        "predicted_prevalence": 0.0822035,
+        "prediction_uncertainty": 0.634595,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4493612,
+          23.8194714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1735,
+        "predicted_prevalence": 0.0007458,
+        "prediction_uncertainty": 0.7789164,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4712429,
+          23.8194714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1754,
+        "predicted_prevalence": 0.1303094,
+        "prediction_uncertainty": 0.5174188,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3581878,
+          23.8239
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1809,
+        "predicted_prevalence": 0.1304831,
+        "prediction_uncertainty": 0.648446,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3764224,
+          23.8283286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1871,
+        "predicted_prevalence": 0.0124851,
+        "prediction_uncertainty": 0.7774707,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4201857,
+          23.8327571
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1884,
+        "predicted_prevalence": 0.0007516,
+        "prediction_uncertainty": 0.7789162,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4675959,
+          23.8327571
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2019,
+        "predicted_prevalence": 0.0007302,
+        "prediction_uncertainty": 0.7789246,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4128918,
+          23.8460429
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2142,
+        "predicted_prevalence": 7.733514e-12,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4967714,
+          23.8549
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2167,
+        "predicted_prevalence": 0.0020524,
+        "prediction_uncertainty": 0.7788949,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.405598,
+          23.8593286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2197,
+        "predicted_prevalence": 6.7181574e-18,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5150061,
+          23.8593286
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2307,
+        "predicted_prevalence": 0.0871421,
+        "prediction_uncertainty": 0.6394985,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.3691286,
+          23.8726143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2318,
+        "predicted_prevalence": 0.0015132,
+        "prediction_uncertainty": 0.7788858,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4092449,
+          23.8726143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2427,
+        "predicted_prevalence": 5.3288748e-10,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4420673,
+          23.8814714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2435,
+        "predicted_prevalence": 1.1883537e-12,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4712429,
+          23.8814714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2444,
+        "predicted_prevalence": 1.3342641e-19,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.5040653,
+          23.8814714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2472,
+        "predicted_prevalence": 4.1135186e-06,
+        "prediction_uncertainty": 0.7789278,
+        "exceedance_probability": 0,
+        "adaptively_selected": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.4238327,
+          23.8859
+        ]
+      }
+    }
+  ]
+}
