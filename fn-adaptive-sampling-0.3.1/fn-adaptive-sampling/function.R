@@ -1,5 +1,6 @@
 library(RANN)
 library(sf)
+library(jsonlite)
 
 function(params) {
   # 1. Handle input
@@ -55,5 +56,12 @@ function(params) {
   # Return points with additional column
   candidates_copy$adaptively_selected <- 0
   candidates_copy$adaptively_selected[in_sample] <- 1
-  return(geojson_list(candidates_copy))
+  
+  # Convert to geojson and handle NA values properly
+  result <- geojson_list(candidates_copy)
+  
+  # Convert the geo_list to a regular list to avoid serialization issues
+  result_list <- unclass(result)
+  
+  return(result_list)
 }
