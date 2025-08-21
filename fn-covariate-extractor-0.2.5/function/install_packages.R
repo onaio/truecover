@@ -1,10 +1,6 @@
-install.packages(c('geojsonio',
-				   'downloader',
-				   'geojsonlint',
+install.packages(c('downloader',
 					 'geosphere',
 				   'RANN',
-					 'readr',
-					 'rjson',
-				   'rworldmap'))
+					 'jsonlite'))
 
 
