@@ -1,0 +1,763 @@
+{
+  "point_data": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH001",
+          "n_trials": 45,
+          "n_positive": 8,
+          "prevalence": 0.178,
+          "district": "Dhaka",
+          "area": "Dhanmondi"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3742, 23.7461]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH002",
+          "n_trials": 52,
+          "n_positive": 12,
+          "prevalence": 0.231,
+          "district": "Dhaka",
+          "area": "Gulshan"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4125, 23.7925]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH003",
+          "n_trials": 38,
+          "n_positive": 15,
+          "prevalence": 0.395,
+          "district": "Dhaka",
+          "area": "Old Dhaka"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4086, 23.7104]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH004",
+          "n_trials": 41,
+          "n_positive": 6,
+          "prevalence": 0.146,
+          "district": "Dhaka",
+          "area": "Uttara"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3792, 23.8759]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH005",
+          "n_trials": 47,
+          "n_positive": 19,
+          "prevalence": 0.404,
+          "district": "Dhaka",
+          "area": "Mirpur"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3644, 23.7956]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH006",
+          "n_trials": 33,
+          "n_positive": 7,
+          "prevalence": 0.212,
+          "district": "Dhaka",
+          "area": "Ramna"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4152, 23.7378]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH007",
+          "n_trials": 56,
+          "n_positive": 11,
+          "prevalence": 0.196,
+          "district": "Dhaka",
+          "area": "Tejgaon"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3913, 23.7644]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH008",
+          "n_trials": 29,
+          "n_positive": 13,
+          "prevalence": 0.448,
+          "district": "Dhaka",
+          "area": "Lalbagh"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3842, 23.7127]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH009",
+          "n_trials": 44,
+          "n_positive": 9,
+          "prevalence": 0.205,
+          "district": "Dhaka",
+          "area": "Motijheel"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4206, 23.7335]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH010",
+          "n_trials": 35,
+          "n_positive": 14,
+          "prevalence": 0.400,
+          "district": "Dhaka",
+          "area": "Wari"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4298, 23.7206]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH011",
+          "n_trials": 49,
+          "n_positive": 8,
+          "prevalence": 0.163,
+          "district": "Dhaka",
+          "area": "Banani"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4039, 23.7937]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH012",
+          "n_trials": 37,
+          "n_positive": 16,
+          "prevalence": 0.432,
+          "district": "Dhaka",
+          "area": "Kotwali"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4142, 23.7085]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH013",
+          "n_trials": 42,
+          "n_positive": 10,
+          "prevalence": 0.238,
+          "district": "Dhaka",
+          "area": "Mohammadpur"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3536, 23.7656]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH014",
+          "n_trials": 31,
+          "n_positive": 5,
+          "prevalence": 0.161,
+          "district": "Dhaka",
+          "area": "Baridhara"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4254, 23.8067]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH015",
+          "n_trials": 53,
+          "n_positive": 21,
+          "prevalence": 0.396,
+          "district": "Dhaka",
+          "area": "Hazaribagh"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3619, 23.7289]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH016",
+          "n_trials": 26,
+          "n_positive": 4,
+          "prevalence": 0.154,
+          "district": "Dhaka",
+          "area": "Kalabagan"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3825, 23.7512]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH017",
+          "n_trials": 48,
+          "n_positive": 18,
+          "prevalence": 0.375,
+          "district": "Dhaka",
+          "area": "Sutrapur"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4195, 23.7158]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH018",
+          "n_trials": 39,
+          "n_positive": 7,
+          "prevalence": 0.179,
+          "district": "Dhaka",
+          "area": "Pallabi"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3658, 23.8245]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH019",
+          "n_trials": 45,
+          "n_positive": 20,
+          "prevalence": 0.444,
+          "district": "Dhaka",
+          "area": "Chawkbazar"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4089, 23.7042]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH020",
+          "n_trials": 34,
+          "n_positive": 6,
+          "prevalence": 0.176,
+          "district": "Dhaka",
+          "area": "Cantonment"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3967, 23.8156]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH021",
+          "n_trials": 51,
+          "n_positive": 17,
+          "prevalence": 0.333,
+          "district": "Dhaka",
+          "area": "Shyampur"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4456, 23.7234]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH022",
+          "n_trials": 28,
+          "n_positive": 11,
+          "prevalence": 0.393,
+          "district": "Dhaka",
+          "area": "Gendaria"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4312, 23.7189]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH023",
+          "n_trials": 46,
+          "n_positive": 9,
+          "prevalence": 0.196,
+          "district": "Dhaka",
+          "area": "Kafrul"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3756, 23.8467]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH024",
+          "n_trials": 40,
+          "n_positive": 16,
+          "prevalence": 0.400,
+          "district": "Dhaka",
+          "area": "Newmarket"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3954, 23.7398]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH025",
+          "n_trials": 32,
+          "n_positive": 5,
+          "prevalence": 0.156,
+          "district": "Dhaka",
+          "area": "Bashundhara"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4389, 23.8178]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH026",
+          "n_trials": 54,
+          "n_positive": 22,
+          "prevalence": 0.407,
+          "district": "Dhaka",
+          "area": "Islambagh"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3892, 23.7267]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH027",
+          "n_trials": 36,
+          "n_positive": 8,
+          "prevalence": 0.222,
+          "district": "Dhaka",
+          "area": "Khilgaon"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4234, 23.7567]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH028",
+          "n_trials": 43,
+          "n_positive": 19,
+          "prevalence": 0.442,
+          "district": "Dhaka",
+          "area": "Jatrabari"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4298, 23.7012]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH029",
+          "n_trials": 27,
+          "n_positive": 4,
+          "prevalence": 0.148,
+          "district": "Dhaka",
+          "area": "Segunbagicha"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4078, 23.7445]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH030",
+          "n_trials": 50,
+          "n_positive": 15,
+          "prevalence": 0.300,
+          "district": "Dhaka",
+          "area": "Elephant Road"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3889, 23.7423]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH031",
+          "n_trials": 38,
+          "n_positive": 17,
+          "prevalence": 0.447,
+          "district": "Dhaka",
+          "area": "Kamrangirchar"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3567, 23.7178]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH032",
+          "n_trials": 41,
+          "n_positive": 7,
+          "prevalence": 0.171,
+          "district": "Dhaka",
+          "area": "Sher-e-Bangla Nagar"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3698, 23.7689]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH033",
+          "n_trials": 47,
+          "n_positive": 18,
+          "prevalence": 0.383,
+          "district": "Dhaka",
+          "area": "Badda"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4312, 23.7789]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH034",
+          "n_trials": 29,
+          "n_positive": 5,
+          "prevalence": 0.172,
+          "district": "Dhaka",
+          "area": "Rampura"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4189, 23.7623]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH035",
+          "n_trials": 52,
+          "n_positive": 21,
+          "prevalence": 0.404,
+          "district": "Dhaka",
+          "area": "Adabor"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3612, 23.7534]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH036",
+          "n_trials": 33,
+          "n_positive": 6,
+          "prevalence": 0.182,
+          "district": "Dhaka",
+          "area": "Hatirjheel"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4067, 23.7534]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH037",
+          "n_trials": 44,
+          "n_positive": 19,
+          "prevalence": 0.432,
+          "district": "Dhaka",
+          "area": "Demra"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.5123, 23.7234]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH038",
+          "n_trials": 35,
+          "n_positive": 8,
+          "prevalence": 0.229,
+          "district": "Dhaka",
+          "area": "Panthapath"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3834, 23.7567]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH039",
+          "n_trials": 48,
+          "n_positive": 20,
+          "prevalence": 0.417,
+          "district": "Dhaka",
+          "area": "Mugda"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4367, 23.7456]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH040",
+          "n_trials": 31,
+          "n_positive": 4,
+          "prevalence": 0.129,
+          "district": "Dhaka",
+          "area": "Niketan"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4156, 23.7834]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH041",
+          "n_trials": 56,
+          "n_positive": 23,
+          "prevalence": 0.411,
+          "district": "Dhaka",
+          "area": "Armanitola"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4234, 23.7089]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH042",
+          "n_trials": 37,
+          "n_positive": 9,
+          "prevalence": 0.243,
+          "district": "Dhaka",
+          "area": "Sabujbagh"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4145, 23.7712]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH043",
+          "n_trials": 42,
+          "n_positive": 18,
+          "prevalence": 0.429,
+          "district": "Dhaka",
+          "area": "Keraniganj"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3845, 23.6789]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH044",
+          "n_trials": 39,
+          "n_positive": 6,
+          "prevalence": 0.154,
+          "district": "Dhaka",
+          "area": "Eskaton"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4098, 23.7412]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH045",
+          "n_trials": 45,
+          "n_positive": 19,
+          "prevalence": 0.422,
+          "district": "Dhaka",
+          "area": "Dholaikhal"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4167, 23.7156]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH046",
+          "n_trials": 34,
+          "n_positive": 7,
+          "prevalence": 0.206,
+          "district": "Dhaka",
+          "area": "Shahbagh"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3956, 23.7389]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH047",
+          "n_trials": 49,
+          "n_positive": 22,
+          "prevalence": 0.449,
+          "district": "Dhaka",
+          "area": "Rayerbazar"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3634, 23.7345]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH048",
+          "n_trials": 30,
+          "n_positive": 5,
+          "prevalence": 0.167,
+          "district": "Dhaka",
+          "area": "Karwan Bazar"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3978, 23.7523]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH049",
+          "n_trials": 53,
+          "n_positive": 24,
+          "prevalence": 0.453,
+          "district": "Dhaka",
+          "area": "Gandaria"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.4278, 23.7134]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "household_id": "HH050",
+          "n_trials": 38,
+          "n_positive": 8,
+          "prevalence": 0.211,
+          "district": "Dhaka",
+          "area": "Jigatola"
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [90.3756, 23.7456]
+        }
+      }
+    ]
+  },
+  "layer_names": ["population_density", "elevation", "distance_to_water", "income_level"],
+  "exceedance_threshold": 0.35,
+  "batch_size": 2500,
+  "uncertainty": true,
+  "mesh_size": 0.005,
+  "predict_level": "household"
+}

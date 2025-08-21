@@ -1,0 +1,61 @@
+{
+  "point_data": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": {
+          "n_trials": 100,
+          "n_positive": 25,
+          "prevalence": 0.25
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [35.2517, -1.2921]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "n_trials": 80,
+          "n_positive": 12,
+          "prevalence": 0.15
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [35.2845, -1.2678]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "n_trials": 120,
+          "n_positive": 36,
+          "prevalence": 0.30
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [35.3123, -1.3045]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "n_trials": 95,
+          "n_positive": 19,
+          "prevalence": 0.20
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [35.2234, -1.2456]
+        }
+      }
+    ]
+  },
+  "layer_names": ["population_density", "elevation", "rainfall"],
+  "exceedance_threshold": 0.3,
+  "batch_size": 1000,
+  "uncertainty": true,
+  "mesh_size": 0.01,
+  "predict_level": "admin2"
+}
