@@ -13,6 +13,22 @@ module.exports = {
   transpileDependencies: [
     /[\\\/]node_modules[\\\/]quasar[\\\/]/
   ],
+  devServer: {
+    host: 'localhost',
+    port: 8086,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api': ''
+        },
+        onError: function (err, req, res) {
+          console.log('Proxy error:', err);
+        }
+      }
+    }
+  },
   configureWebpack: config => {
     return {
       plugins: [

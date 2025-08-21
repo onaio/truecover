@@ -11,7 +11,7 @@ const config: Config = {
   api: {
     url: context === 'production' ?
     'https://node-streaming-server-prod-mk5i33k6ua-uc.a.run.app/' :
-    'https://node-streaming-server-stage-mk5i33k6ua-uc.a.run.app/',
+    (process.env.NODE_ENV === 'development' ? '/api/' : 'https://node-streaming-server-stage-mk5i33k6ua-uc.a.run.app/'),
     key: context === 'production' ? 'F6545581-2F87-424B-9830-81FEFDA2AE25' : 'stage_key',
     localStorage_key: 'api_key',
   },

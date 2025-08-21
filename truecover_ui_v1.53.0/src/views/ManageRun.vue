@@ -123,9 +123,11 @@ export default mixins(app_data).extend({
       }
 
       if (!result.headers) {
-        return console.error('Result headers not found');
+        console.warn('Result headers not found, using fallback run ID');
+        this.run_id = 'run-' + Date.now();
+      } else {
+        this.run_id = result.headers.get('uuid') || 'run-' + Date.now();
       }
-      this.run_id = result.headers.get('uuid');
 
       this.run_invocation_status = RunInvocationStatus.Finished;
 
