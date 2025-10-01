@@ -1,4 +1,4 @@
-library(sf)
+suppressPackageStartupMessages(library(sf))
 
 function(params) {
   # if batch_size exists, must be a number > 0

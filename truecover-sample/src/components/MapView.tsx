@@ -7,9 +7,10 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 interface MapViewProps {
   data: GeoJSONFeatureCollection;
   selectedData?: GeoJSONFeatureCollection | null;
+  mode?: 'sampling' | 'prediction';
 }
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
@@ -54,11 +55,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData }) => {
     );
   }, [data, selectedData]);
 
-  // Check if we have prediction data (predicted_prevalence field)
-  const isPredictionData = useMemo(() => {
-    const checkData = selectedData || data;
-    return checkData.features.some(f => 'predicted_prevalence' in (f.properties || {}));
-  }, [data, selectedData]);
+  // Use mode prop to determine visualization type
+  const isPredictionData = mode === 'prediction';
 
   // Early return AFTER all hooks
   if (!mapboxToken) {

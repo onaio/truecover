@@ -157,85 +157,76 @@ ports:
 
 ## Development Workflow
 
-### Making Changes to the App
+### Local Development (Recommended for Active Development)
 
-When running in Docker, code changes require rebuilding the image:
+For faster development with hot reloading, run locally without Docker:
 
+1. **Ensure backend services are running** on Docker:
+   ```bash
+   docker run -d --name adaptive-sampling -p 8083:8080 disarm/fn-adaptive-sampling:0.3.1
+   docker run -d --name prevalence-predictor -p 8081:8080 -e exec_timeout=910 disarm/fn-prevalence-predictor:1.3.0
+   docker run -d --name covariate-extractor -p 8082:8080 disarm/fn-covariate-extractor:0.2.5
+   ```
+
+2. **Start local development server**:
+   ```bash
+   npm run dev
+   ```
+
+3. **Access at http://localhost:3050** with hot reload enabled
+
+The app uses `setupProxy.js` to automatically proxy API requests to the backend services running on Docker (ports 8081 and 8083).
+
+### Docker Deployment
+
+When ready to deploy or test the production build:
+
+**Build and deploy to Docker:**
 ```bash
-docker-compose build --no-cache truecover-ui
+npm run docker:deploy
+```
+
+This command builds the Docker image and starts the container on port 3030.
+
+**Individual Docker commands:**
+```bash
+# Build Docker image
+npm run docker:build
+
+# Run container
+npm run docker:run
+
+# Stop and remove container
+npm run docker:stop
+
+# Or use docker-compose
 docker-compose up -d
 ```
 
-### Development with Hot Reload (Alternative)
+### Available NPM Scripts
 
-For faster development with hot reloading, you can run locally without Docker:
+- `npm run dev` - Start local development server on port 3050 (with hot reload)
+- `npm start` - Same as `npm run dev`
+- `npm run build` - Build production assets
+- `npm run docker:build` - Build Docker image
+- `npm run docker:run` - Run Docker container on port 3030
+- `npm run docker:stop` - Stop and remove Docker container
+- `npm run docker:deploy` - Build and deploy to Docker (runs build, stop, run)
+- `npm test` - Run tests
 
-1. **Start backend services** (if not already running):
-```bash
-docker run -d --name adaptive-sampling -p 8083:8080 disarm/fn-adaptive-sampling:0.3.1
-docker run -d --name prevalence-predictor -p 8081:8080 -e exec_timeout=910 disarm/fn-prevalence-predictor:1.3.0
-docker run -d --name covariate-extractor -p 8082:8080 disarm/fn-covariate-extractor:0.2.5
-```
+### Development Setup Notes
 
-2. **Create a development proxy server** (create `dev-proxy.js`):
-```javascript
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
-const app = express();
-
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-
-app.post('/api', async (req, res) => {
-  try {
-    const response = await axios.post('http://localhost:8083', req.body, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    res.json(response.data);
-  } catch (error) {
-    res.status(error.response?.status || 500).json({
-      message: error.message
-    });
-  }
-});
-
-app.post('/api/prediction', async (req, res) => {
-  try {
-    const response = await axios.post('http://localhost:8081', req.body, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    res.json(response.data);
-  } catch (error) {
-    res.status(error.response?.status || 500).json({
-      message: error.message
-    });
-  }
-});
-
-app.listen(3001, () => {
-  console.log('Dev proxy running on http://localhost:3001');
-});
-```
-
-3. **Run the development server**:
-```bash
-# Terminal 1: Start proxy
-node dev-proxy.js
-
-# Terminal 2: Start React dev server
-npm start
-```
-
-4. **Access at http://localhost:3003** with hot reload enabled
-
-5. **When ready to deploy**: Build and run in Docker using `docker-compose up -d`
+- **Proxy Configuration**: API proxying is handled by `src/setupProxy.js` using `http-proxy-middleware`
+  - `/api/prediction` → `http://localhost:8081` (prevalence predictor)
+  - `/api` → `http://localhost:8083` (adaptive sampling)
+- **Port**: Local dev runs on port 3050 (configured in `.env`)
+- **Docker**: Production build runs on port 3030
 
 ### Recommended Workflow
 
-- **During active development**: Use `npm start` with hot reload
-- **For testing production build**: Use Docker
-- **For deployment**: Use Docker
+- **During active development**: Use `npm run dev` for hot reload
+- **For testing production build**: Use `npm run docker:deploy`
+- **For deployment**: Use Docker Compose or `npm run docker:deploy`
 
 ## Additional Documentation
 

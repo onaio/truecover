@@ -1,6 +1,8 @@
-library(RANN)
-library(sf)
-library(jsonlite)
+suppressPackageStartupMessages({
+  library(RANN)
+  library(sf)
+  library(jsonlite)
+})
 
 function(params) {
   # 1. Handle input

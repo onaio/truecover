@@ -274,6 +274,7 @@ function App() {
                   return null;
                 }
               })() : null}
+              mode="sampling"
             />
 
             <SamplingForm
@@ -530,6 +531,7 @@ function App() {
                 <MapView
                   data={predictionFile.data}
                   selectedData={predictionResult}
+                  mode="prediction"
                 />
               )}
             </>
