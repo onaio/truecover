@@ -1,6 +1,6 @@
-FROM openfaas/classic-watchdog:0.18.0 as watchdog
+FROM --platform=linux/amd64 ghcr.io/openfaas/classic-watchdog:0.3.4 as watchdog
 
-FROM rocker/geospatial
+FROM --platform=linux/amd64 rocker/geospatial:4.2
 
 # Allows you to add additional packages via build-arg
 # ARG ADDITIONAL_PACKAGE

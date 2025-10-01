@@ -1,175 +1,123 @@
 import json
 import sys
 import uuid
-import warnings
 
 import numpy as np
 import pandas as pd
 import geopandas as gp
 import requests
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
+import disarm_gears
+
+# Monkey-patch disarm_gears to fix rpy2 3.4.5 compatibility
+from rpy2.robjects import pandas2ri
+def pdframe2rdframe_fixed(data):
+    '''Fix for rpy2 3.4.5 - use pandas2ri.py2rpy instead of pandas2ri.DataFrame'''
+    assert isinstance(data, pd.DataFrame)
+    return pandas2ri.py2rpy(data)
+
+# Replace the broken function
+disarm_gears.r_plugins.r_methods.pdframe2rdframe = pdframe2rdframe_fixed
 
 
 def run_function(params: dict):
-    """
-    Simplified prevalence predictor without R dependencies for testing
-    """
-    # Capture warnings to include in response metadata
-    captured_warnings = []
+    #
+    # 1. Handle input
+    #
 
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    # Set random seed
+    np.random.seed(1000)
 
-        # Set random seed
-        np.random.seed(1000)
+    layer_names = params.get('layer_names')
+    exceedance_threshold = params.get('exceedance_threshold')
+    point_data = params.get('point_data')
 
-        layer_names = params.get('layer_names', [])
-        exceedance_threshold = params.get('exceedance_threshold', 0.3)
-        point_data = params.get('point_data')
+    # Make a GeoPandas DataFrame
+    gdf = gp.GeoDataFrame.from_features(point_data['features'])
 
-        # Make a GeoPandas DataFrame
-        gdf = gp.GeoDataFrame.from_features(point_data['features'])
+    # Use some ~~unlikely~~ IMPOSSIBLE to collide column name
+    id_column_name = f'ID{uuid.uuid4().int}_hard_to_collide_id'
+    if id_column_name in gdf.columns:
+        id_column_name = f'ID_seriously_{uuid.uuid4().int}_hard_to_collide_id'
+    gdf[id_column_name] = list(range(len(gdf)))
 
-        # Calculate prevalence from n_trials and n_positive (per SPECS.md)
-        # Support backward compatibility with pre-calculated prevalence
-        if 'prevalence' not in gdf.columns:
-            # Check for required fields per specification
-            if 'n_trials' not in gdf.columns or 'n_positive' not in gdf.columns:
-                available_cols = ', '.join(gdf.columns.tolist())
-                raise ValueError(
-                    f"Input data must contain either:\n"
-                    f"  1. 'n_trials' and 'n_positive' fields (number examined and number positive), OR\n"
-                    f"  2. 'prevalence' field (pre-calculated prevalence values)\n"
-                    f"Available columns: {available_cols}"
-                )
-
-            # Calculate prevalence from n_trials and n_positive
-            # Handle division by zero and null values
-            gdf['prevalence'] = np.where(
-                (gdf['n_trials'].notna()) & (gdf['n_trials'] > 0),
-                gdf['n_positive'] / gdf['n_trials'],
-                np.nan
-            )
-
-            # Filter out points with null prevalence (no observations)
-            valid_mask = gdf['prevalence'].notna()
-            n_filtered = (~valid_mask).sum()
-
-            if n_filtered > 0:
-                print(f"Filtered out {n_filtered} points with null/invalid prevalence values", file=sys.stderr)
-
-            gdf = gdf[valid_mask].copy()
-
-            if len(gdf) == 0:
-                raise ValueError("No valid training points found. All points have null or zero n_trials.")
-
-        # Validate prevalence values are in valid range
-        if not ((gdf['prevalence'] >= 0) & (gdf['prevalence'] <= 1)).all():
-            invalid_count = ((gdf['prevalence'] < 0) | (gdf['prevalence'] > 1)).sum()
-            raise ValueError(
-                f"Prevalence values must be between 0 and 1. Found {invalid_count} invalid values."
-            )
-
-        # Extract coordinates and prevalence values for modeling
-        coords = np.array([[geom.x, geom.y] for geom in gdf.geometry])
-        prevalence_values = gdf['prevalence'].values
-
-        # Simple Gaussian Process model
-        kernel = C(1.0, (1e-3, 1e3)) * RBF(1.0, (1e-2, 1e2))
-        gp_model = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10)
-
-        # Fit the model
-        gp_model.fit(coords, prevalence_values)
-
-        # Create prediction grid
-        x_min, x_max = coords[:, 0].min() - 0.01, coords[:, 0].max() + 0.01
-        y_min, y_max = coords[:, 1].min() - 0.01, coords[:, 1].max() + 0.01
-
-        # Generate prediction points
-        n_points = 50
-        x_pred = np.linspace(x_min, x_max, n_points)
-        y_pred = np.linspace(y_min, y_max, n_points)
-        xx, yy = np.meshgrid(x_pred, y_pred)
-        pred_coords = np.column_stack([xx.ravel(), yy.ravel()])
-
-        # Make predictions
-        pred_mean, pred_std = gp_model.predict(pred_coords, return_std=True)
-
-        # Calculate exceedance probability
-        exceedance_prob = 1 - (pred_mean < exceedance_threshold).astype(float)
-
-        # Create result features
-        result_features = []
-        for i, (coord, mean_val, std_val, exc_prob) in enumerate(
-            zip(pred_coords, pred_mean, pred_std, exceedance_prob)
-        ):
-            feature = {
-                "type": "Feature",
-                "properties": {
-                    "id": i,
-                    "predicted_prevalence": float(mean_val),
-                    "prediction_uncertainty": float(std_val),
-                    "exceedance_probability": float(exc_prob)
-                },
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [float(coord[0]), float(coord[1])]
-                }
-            }
-            result_features.append(feature)
-
-        # Capture any warnings that occurred
-        for warning in w:
-            captured_warnings.append({
-                'message': str(warning.message),
-                'category': warning.category.__name__,
-                'filename': warning.filename,
-                'lineno': warning.lineno
-            })
-
-    # Build metadata with warnings if any occurred
-    metadata = {
-        "model": "gaussian_process_sklearn",
-        "exceedance_threshold": exceedance_threshold,
-        "n_training_points": len(gdf),
-        "n_predictions": len(result_features),
-        "layer_names": layer_names,
-        "status": "success"
-    }
-
-    if captured_warnings:
-        metadata["warnings"] = captured_warnings
-
-    # Return result
-    result = {
-        "type": "FeatureCollection",
-        "features": result_features,
-        "metadata": metadata
-    }
-
-    return result
+    # TODO: Fix this hack, use GeoPandas DataFrame throughout (except for pandas2ri.DataFrame)
+    input_data = pd.DataFrame(gdf)
+    input_data = input_data.drop('geometry', axis = 1)
+    input_data['lat'] = gdf.geometry.y
+    input_data['lng'] = gdf.geometry.x
 
 
-def handle(req):
-    """OpenFaaS handler function"""
-    try:
-        # Parse input
-        if isinstance(req, str):
-            params = json.loads(req)
-        else:
-            params = req
+    #
+    # 2. Process
+    #
 
-        # Run the function
-        result = run_function(params)
+    # Drop NA coordinates
+    # TODO: Check if Geopandas allows creating of a GeoDataFrame if some of the geoms are empty - would be a separate issue of checking params if not
+    #input_data.dropna(axis=0, subset=['lng', 'lat']) # TODO: this does nothing: should be catching return
 
-        # Return JSON response
-        return json.dumps(result, indent=2)
-
-    except Exception as e:
-        error_result = {
-            "error": str(e),
-            "status": "failed",
-            "type": "error"
+    # Find covariates
+    if layer_names is not None:
+        # Call fn-covariate-extractor
+        open_faas_link = 'http://faas.srv.disarm.io/function/fn-covariate-extractor'
+        just_id_and_geom = gdf.filter(['geometry', id_column_name])
+        req_options = {
+            'points': json.loads(just_id_and_geom.to_json()),  # TODO: Need to to-and-from JSON here?
+            'layer_names': layer_names
         }
-        return json.dumps(error_result, indent=2)
+        covs_response = requests.post(open_faas_link, json=req_options)
+        # TODO define how to handle NA entries in the covariates
+
+        covs_response_json = covs_response.json()
+        if covs_response_json['type'] == 'error':
+            msg = "Problem with remote function call: " + covs_response_json['result']
+            raise Exception(msg)
+        # Merge output into input_data
+        # covs_data = disarm_gears.util.geojson_decoder_1(covs_response.json()['result'])
+        covs_result = covs_response.json()['result']
+        covs_gdf = gp.GeoDataFrame.from_features(covs_result['features'])
+        covs_data = pd.DataFrame(covs_gdf[[col for col in covs_gdf.columns if col != covs_gdf._geometry_column_name]])
+        covs_data = covs_data.drop('id', axis = 1) # TODO: Get fn-cov-extr to not return an `id` col
+        input_data = pd.merge(input_data, covs_data, how='left', left_on=[id_column_name], right_on=[id_column_name])
+
+    # Define and fit mgcv model
+    # TODO: Fix formula to use GeoPandas `geometry` column (e.g. `geometry.x`?)
+    gam_formula = "cbind(n_positive, n_trials - n_positive) ~ te(lng, lat, bs='gp', m=c(2), k=-1)"
+    if layer_names is not None:
+        gam_formula = [gam_formula] + [f'{i}' for i in layer_names]
+        gam_formula = '+'.join(gam_formula)
+
+    train_data = input_data.dropna(axis=0)
+    gam = disarm_gears.r_plugins.mgcv_fit(gam_formula, family='binomial', data=train_data)
+
+    # Make predictions/simulations
+    gam_pred = disarm_gears.r_plugins.mgcv_predict(gam, data=input_data, response_type='response')
+    link_sims = disarm_gears.r_plugins.mgcv_posterior_samples(gam, data=input_data, n_samples=200,
+                                                              response_type='link')
+
+    # Credible interval
+    bci = np.percentile(link_sims, q=[2.5, 97.5], axis=0)
+    bci = 1. / (1. + np.exp(-bci))
+
+    # Exceedance probability
+    ex_prob = None
+    ex_uncert = None
+
+    if exceedance_threshold is not None:
+        link_threshold = np.log(exceedance_threshold / (1 - exceedance_threshold))
+        ex_prob = (link_sims > link_threshold).mean(axis=0)
+        ex_uncert = 0.5 - abs(ex_prob - 0.5)
+
+    #
+    # 3. Package output
+    #
+
+    input_data['prevalence_prediction'] = gam_pred
+    input_data['prevalence_bci_width'] = bci[1] - bci[0]
+    input_data['exceedance_probability'] = ex_prob
+    input_data['exceedance_uncertainty'] = ex_uncert
+
+    output_gdf = gp.GeoDataFrame(input_data, geometry=gp.points_from_xy(input_data.lng, input_data.lat))
+    slimmer_gdf = output_gdf.drop(['lat', 'lng', id_column_name], axis=1)
+
+    # return response.get('point_data')
+    return json.loads(slimmer_gdf.to_json())

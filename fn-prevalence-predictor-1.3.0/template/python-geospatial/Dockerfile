@@ -34,13 +34,15 @@ WORKDIR /home/app/function/
 COPY function/requirements.txt	.
 
 # Install packages - geopandas and pandas should already be in base image
-# Skip rpy2 for now to test basic functionality
-RUN pip install --no-deps git+https://github.com/disarm-platform/disarm-gears.git@v0.2.6 --target=/home/app/python && \
+# Install cffi first, then rpy2 for R integration
+RUN pip install cffi --target=/home/app/python && \
+    pip install 'rpy2>=3.4,<3.5' --target=/home/app/python && \
+    pip install --no-deps git+https://github.com/disarm-platform/disarm-gears.git@v0.2.6 --target=/home/app/python && \
     pip install numpy scikit-learn matplotlib pygam descartes requests --no-deps --target=/home/app/python && \
     pip install scipy joblib threadpoolctl future progressbar2 python-utils \
                 certifi idna 'urllib3<2' charset-normalizer \
                 pyparsing pillow kiwisolver fonttools cycler packaging typing-extensions \
-                six python-dateutil pytz tzlocal \
+                six python-dateutil pytz tzlocal jinja2 \
                 --target=/home/app/python
 
 WORKDIR /home/app/
