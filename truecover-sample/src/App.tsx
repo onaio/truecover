@@ -402,14 +402,29 @@ function App() {
         }
       });
 
-      console.log('Response from prevalence predictor:', response.data);
+      console.log('Response type:', typeof response.data);
+      console.log('Response length:', typeof response.data === 'string' ? response.data.length : 'N/A');
+
+      // Parse response if it's a string
+      let resultData = response.data;
+      if (typeof resultData === 'string') {
+        console.log('Parsing string response as JSON');
+        // Debug: Check for issues around error position
+        const errorPos = 640757;
+        if (resultData.length > errorPos) {
+          console.log('Content around error position:', resultData.substring(errorPos - 50, errorPos + 50));
+        }
+        resultData = JSON.parse(resultData);
+      }
 
       // Extract result from function_status wrapper
-      let resultData = response.data;
-      if (resultData?.function_status === 'success' && resultData?.result) {
+      if (resultData && typeof resultData === 'object' && 'function_status' in resultData && resultData.function_status === 'success' && 'result' in resultData) {
+        console.log('Unwrapping function_status wrapper');
         resultData = resultData.result;
       }
 
+      console.log('Setting prediction result:', resultData);
+      console.log('Has features?', resultData?.features?.length);
       setPredictionResult(resultData);
     } catch (err: any) {
       console.error('Error generating prediction:', err);
@@ -533,7 +548,7 @@ function App() {
             </div>
           )}
 
-          {predictionResult && (
+          {predictionResult && predictionResult.features && (
             <div style={{
               marginTop: '20px',
               padding: '20px',
@@ -551,7 +566,7 @@ function App() {
                 borderRadius: '4px',
                 color: '#155724'
               }}>
-                <strong>Summary:</strong> Generated predictions for {predictionResult.features.length} points
+                <strong>Summary:</strong> Generated predictions for {predictionResult.features?.length || 0} points
                 <div style={{ marginTop: '5px', fontSize: '12px' }}>
                   Fields: predicted_prevalence, prediction_uncertainty, exceedance_probability
                 </div>

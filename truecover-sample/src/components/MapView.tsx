@@ -54,6 +54,12 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData }) => {
     );
   }, [data, selectedData]);
 
+  // Check if we have prediction data (predicted_prevalence field)
+  const isPredictionData = useMemo(() => {
+    const checkData = selectedData || data;
+    return checkData.features.some(f => 'predicted_prevalence' in (f.properties || {}));
+  }, [data, selectedData]);
+
   // Early return AFTER all hooks
   if (!mapboxToken) {
     return (
@@ -75,7 +81,34 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData }) => {
     features: selectedFeatures
   };
 
-  // Layer styles
+  // Use prediction data if available, otherwise use input data
+  const displayData = selectedData || data;
+
+  // Layer styles for predictions - color by prevalence
+  const predictionLayer: LayerProps = {
+    id: 'prediction-points',
+    type: 'circle',
+    paint: {
+      'circle-radius': 4,
+      'circle-color': [
+        'interpolate',
+        ['linear'],
+        ['get', 'predicted_prevalence'],
+        -1, '#2166ac',    // Low (blue)
+        0, '#4393c3',
+        0.3, '#92c5de',
+        0.5, '#fddbc7',
+        0.7, '#f4a582',
+        1, '#d6604d',     // Medium (orange)
+        2, '#b2182b'      // High (red)
+      ],
+      'circle-opacity': 0.8,
+      'circle-stroke-width': 1,
+      'circle-stroke-color': '#ffffff'
+    }
+  };
+
+  // Layer styles for sampling
   const allPointsLayer: LayerProps = {
     id: 'all-points',
     type: 'circle',
@@ -130,21 +163,30 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData }) => {
           }}
           style={{ width: '100%', height: '100%' }}
           mapStyle="mapbox://styles/mapbox/light-v11"
-          interactiveLayerIds={['all-points', 'selected-points']}
+          interactiveLayerIds={isPredictionData ? ['prediction-points'] : ['all-points', 'selected-points']}
           onClick={handleMapClick}
         >
           <NavigationControl position="top-right" />
 
-          {/* All points layer */}
-          <Source id="all-points-source" type="geojson" data={data as any}>
-            <Layer {...allPointsLayer} />
-          </Source>
-
-          {/* Selected points layer */}
-          {selectedFeatures.length > 0 && (
-            <Source id="selected-points-source" type="geojson" data={selectedGeoJSON as any}>
-              <Layer {...selectedPointsLayer} />
+          {isPredictionData ? (
+            /* Prediction visualization */
+            <Source id="prediction-source" type="geojson" data={displayData as any}>
+              <Layer {...predictionLayer} />
             </Source>
+          ) : (
+            <>
+              {/* All points layer */}
+              <Source id="all-points-source" type="geojson" data={data as any}>
+                <Layer {...allPointsLayer} />
+              </Source>
+
+              {/* Selected points layer */}
+              {selectedFeatures.length > 0 && (
+                <Source id="selected-points-source" type="geojson" data={selectedGeoJSON as any}>
+                  <Layer {...selectedPointsLayer} />
+                </Source>
+              )}
+            </>
           )}
 
           {/* Popup */}
@@ -188,29 +230,56 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData }) => {
           zIndex: 1
         }}>
           <div style={{ marginBottom: '5px', fontWeight: 'bold' }}>Legend</div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-            <div style={{
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#999',
-              border: '1px solid #666',
-              marginRight: '8px'
-            }}></div>
-            <span>All Points ({data.features.length})</span>
-          </div>
-          {selectedFeatures.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+
+          {isPredictionData ? (
+            /* Prediction legend */
+            <div>
+              <div style={{ marginBottom: '5px', fontSize: '11px', color: '#666' }}>
+                Predicted Prevalence
+              </div>
               <div style={{
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                backgroundColor: '#28a745',
-                border: '2px solid #1e7e34',
-                marginRight: '8px'
+                height: '100px',
+                width: '20px',
+                background: 'linear-gradient(to top, #2166ac, #4393c3, #92c5de, #fddbc7, #f4a582, #d6604d, #b2182b)',
+                border: '1px solid #ccc',
+                marginBottom: '5px'
               }}></div>
-              <span>Adaptively Selected ({selectedFeatures.length})</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                <span>Low</span>
+                <span>High</span>
+              </div>
+              <div style={{ marginTop: '5px', fontSize: '11px' }}>
+                {displayData.features.length} prediction points
+              </div>
             </div>
+          ) : (
+            /* Sampling legend */
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  backgroundColor: '#999',
+                  border: '1px solid #666',
+                  marginRight: '8px'
+                }}></div>
+                <span>All Points ({data.features.length})</span>
+              </div>
+              {selectedFeatures.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '50%',
+                    backgroundColor: '#28a745',
+                    border: '2px solid #1e7e34',
+                    marginRight: '8px'
+                  }}></div>
+                  <span>Adaptively Selected ({selectedFeatures.length})</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
