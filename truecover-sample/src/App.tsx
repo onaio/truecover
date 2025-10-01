@@ -7,7 +7,10 @@ import ResultsTable from './components/ResultsTable';
 import MapView from './components/MapView';
 import { FileData, SamplingRequest } from './types';
 
+type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction';
+
 function App() {
+  const [currentView, setCurrentView] = useState<AppView>('home');
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -90,15 +93,140 @@ function App() {
     alert('Result copied to clipboard!');
   };
 
-  return (
+  const renderHomePage = () => (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#f5f5f5',
+      padding: '20px'
+    }}>
+      <h1 style={{
+        fontSize: '48px',
+        marginBottom: '20px',
+        color: '#282c34'
+      }}>
+        TrueCover
+      </h1>
+      <p style={{
+        fontSize: '18px',
+        color: '#666',
+        marginBottom: '50px'
+      }}>
+        Select a tool to get started
+      </p>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '30px',
+        maxWidth: '800px',
+        width: '100%'
+      }}>
+        <div
+          onClick={() => setCurrentView('adaptive-sampling')}
+          style={{
+            backgroundColor: 'white',
+            padding: '40px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            cursor: 'pointer',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+            textAlign: 'center'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-5px)';
+            e.currentTarget.style.boxShadow = '0 8px 12px rgba(0, 0, 0, 0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+          }}
+        >
+          <h2 style={{
+            fontSize: '24px',
+            marginBottom: '15px',
+            color: '#282c34'
+          }}>
+            Adaptive Sampling
+          </h2>
+          <p style={{
+            color: '#666',
+            lineHeight: '1.6'
+          }}>
+            Optimize your survey sampling with intelligent adaptive algorithms
+          </p>
+        </div>
+
+        <div
+          onClick={() => setCurrentView('coverage-prediction')}
+          style={{
+            backgroundColor: 'white',
+            padding: '40px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            cursor: 'pointer',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+            textAlign: 'center'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-5px)';
+            e.currentTarget.style.boxShadow = '0 8px 12px rgba(0, 0, 0, 0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+          }}
+        >
+          <h2 style={{
+            fontSize: '24px',
+            marginBottom: '15px',
+            color: '#282c34'
+          }}>
+            Coverage Prediction
+          </h2>
+          <p style={{
+            color: '#666',
+            lineHeight: '1.6'
+          }}>
+            Predict and analyze coverage patterns for your survey data
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAdaptiveSampling = () => (
     <div className="App">
-      <header style={{ 
+      <header style={{
         backgroundColor: '#282c34',
         padding: '20px',
         color: 'white',
         marginBottom: '30px'
       }}>
-        <h1>TrueCover Adaptive Sampling Tool</h1>
+        <button
+          onClick={() => {
+            setCurrentView('home');
+            setFileData(null);
+            setResult(null);
+            setError(null);
+          }}
+          style={{
+            backgroundColor: 'transparent',
+            color: 'white',
+            border: '1px solid white',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginBottom: '15px',
+            fontSize: '14px'
+          }}
+        >
+          ← Back to Home
+        </button>
+        <h1>Adaptive Sampling</h1>
         <p>Upload a GeoJSON or CSV file to perform adaptive sampling</p>
       </header>
 
@@ -146,18 +274,18 @@ function App() {
             border: '1px solid #dee2e6'
           }}>
             <h3>Sampling Results</h3>
-            
+
             {/* Show summary of selected points */}
             {(() => {
               try {
                 const data = JSON.parse(result);
                 const features = data.features || data.result?.features || [];
-                const selectedCount = features.filter((f: any) => 
-                  f.properties?.adaptively_selected === 1 || 
+                const selectedCount = features.filter((f: any) =>
+                  f.properties?.adaptively_selected === 1 ||
                   f.properties?.adaptively_selected === true
                 ).length;
                 const totalCount = features.length;
-                
+
                 return (
                   <div style={{
                     marginBottom: '15px',
@@ -181,7 +309,7 @@ function App() {
                 return null;
               }
             })()}
-            
+
             <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
               <button
                 onClick={handleCopy}
@@ -215,6 +343,60 @@ function App() {
         )}
       </div>
     </div>
+  );
+
+  const renderCoveragePrediction = () => (
+    <div className="App">
+      <header style={{
+        backgroundColor: '#282c34',
+        padding: '20px',
+        color: 'white',
+        marginBottom: '30px'
+      }}>
+        <button
+          onClick={() => setCurrentView('home')}
+          style={{
+            backgroundColor: 'transparent',
+            color: 'white',
+            border: '1px solid white',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginBottom: '15px',
+            fontSize: '14px'
+          }}
+        >
+          ← Back to Home
+        </button>
+        <h1>Coverage Prediction</h1>
+        <p>Predict and analyze coverage patterns</p>
+      </header>
+
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: '20px',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          padding: '60px 40px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px',
+          border: '1px solid #dee2e6'
+        }}>
+          <h2 style={{ color: '#666', marginBottom: '20px' }}>Coming Soon</h2>
+          <p style={{ color: '#999' }}>Coverage Prediction tool is under development</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {currentView === 'home' && renderHomePage()}
+      {currentView === 'adaptive-sampling' && renderAdaptiveSampling()}
+      {currentView === 'coverage-prediction' && renderCoveragePrediction()}
+    </>
   );
 }
 
