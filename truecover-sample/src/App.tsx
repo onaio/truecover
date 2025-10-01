@@ -403,7 +403,14 @@ function App() {
       });
 
       console.log('Response from prevalence predictor:', response.data);
-      setPredictionResult(response.data);
+
+      // Extract result from function_status wrapper
+      let resultData = response.data;
+      if (resultData?.function_status === 'success' && resultData?.result) {
+        resultData = resultData.result;
+      }
+
+      setPredictionResult(resultData);
     } catch (err: any) {
       console.error('Error generating prediction:', err);
       setPredictionError(
