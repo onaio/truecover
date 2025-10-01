@@ -16,6 +16,12 @@ function App() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Coverage Prediction state
+  const [predictionFile, setPredictionFile] = useState<FileData | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [predictionResult, setPredictionResult] = useState<any>(null);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
+
   const handleFileLoaded = (data: FileData) => {
     setFileData(data);
     setResult(null);
@@ -35,41 +41,60 @@ function App() {
     };
 
     try {
-      const response = await axios.post('http://localhost:3001/api', request, {
+      const response = await axios.post('/api', request, {
         headers: {
           'Content-Type': 'application/json'
         }
       });
 
       console.log('Response from service:', response.data);
-      
-      // Just store the response as a formatted JSON string
-      let resultStr = '';
+
+      // Extract the actual result from the response
+      let resultData = response.data;
+
+      // Handle string responses with log messages
       if (typeof response.data === 'string') {
-        // If it's a string, try to extract JSON part
         const jsonMatch = response.data.match(/\{.*\}$/s);
         if (jsonMatch) {
           try {
-            const parsed = JSON.parse(jsonMatch[0]);
-            resultStr = JSON.stringify(parsed, null, 2);
+            resultData = JSON.parse(jsonMatch[0]);
           } catch {
-            resultStr = response.data;
+            resultData = response.data;
           }
-        } else {
-          resultStr = response.data;
         }
-      } else {
-        resultStr = JSON.stringify(response.data, null, 2);
       }
-      
-      setResult(resultStr);
+
+      // If response has function_status wrapper, extract the result
+      if (resultData?.function_status === 'success' && resultData?.result) {
+        resultData = resultData.result;
+      }
+
+      setResult(JSON.stringify(resultData, null, 2));
     } catch (err: any) {
       console.error('Error calling adaptive sampling service:', err);
-      setError(
-        err.response?.data?.message || 
-        err.message || 
-        'Failed to connect to the adaptive sampling service on localhost:8081'
-      );
+
+      // Extract error from response
+      let errorMsg = 'Failed to connect to the adaptive sampling service';
+
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          try {
+            const parsed = JSON.parse(data.match(/\{.*\}$/s)?.[0] || data);
+            errorMsg = parsed.result || parsed.message || data;
+          } catch {
+            errorMsg = data;
+          }
+        } else if (data.result) {
+          errorMsg = data.result;
+        } else if (data.message) {
+          errorMsg = data.message;
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+
+      setError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -241,7 +266,14 @@ function App() {
           <>
             <MapView
               data={fileData.data}
-              selectedData={result ? JSON.parse(result) : null}
+              selectedData={result ? (() => {
+                try {
+                  return JSON.parse(result);
+                } catch (e) {
+                  console.error('Failed to parse result:', e);
+                  return null;
+                }
+              })() : null}
             />
 
             <SamplingForm
@@ -345,51 +377,214 @@ function App() {
     </div>
   );
 
-  const renderCoveragePrediction = () => (
-    <div className="App">
-      <header style={{
-        backgroundColor: '#282c34',
-        padding: '20px',
-        color: 'white',
-        marginBottom: '30px'
-      }}>
-        <button
-          onClick={() => setCurrentView('home')}
-          style={{
-            backgroundColor: 'transparent',
-            color: 'white',
-            border: '1px solid white',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            marginBottom: '15px',
-            fontSize: '14px'
-          }}
-        >
-          ← Back to Home
-        </button>
-        <h1>Coverage Prediction</h1>
-        <p>Predict and analyze coverage patterns</p>
-      </header>
+  const handlePredictionFileLoaded = (data: FileData) => {
+    setPredictionFile(data);
+    setPredictionResult(null);
+    setPredictionError(null);
+  };
 
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '20px',
-        textAlign: 'center'
-      }}>
-        <div style={{
-          padding: '60px 40px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '8px',
-          border: '1px solid #dee2e6'
+  const handleGeneratePrediction = async () => {
+    if (!predictionFile) return;
+
+    setIsProcessing(true);
+    setPredictionError(null);
+
+    const request = {
+      point_data: predictionFile.data,
+      exceedance_threshold: 0.5,
+      layer_names: []
+    };
+
+    try {
+      const response = await axios.post('/api/prediction', request, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Response from prevalence predictor:', response.data);
+      setPredictionResult(response.data);
+    } catch (err: any) {
+      console.error('Error generating prediction:', err);
+      setPredictionError(
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to connect to the prevalence predictor service'
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDownloadPrediction = () => {
+    if (!predictionResult) return;
+
+    const dataStr = JSON.stringify(predictionResult, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const exportFileDefaultName = 'coverage_prediction.geojson';
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleCopyPrediction = () => {
+    if (!predictionResult) return;
+    const dataStr = JSON.stringify(predictionResult, null, 2);
+    navigator.clipboard.writeText(dataStr);
+    alert('Prediction copied to clipboard!');
+  };
+
+  const renderCoveragePrediction = () => {
+    return (
+      <div className="App">
+        <header style={{
+          backgroundColor: '#282c34',
+          padding: '20px',
+          color: 'white',
+          marginBottom: '30px'
         }}>
-          <h2 style={{ color: '#666', marginBottom: '20px' }}>Coming Soon</h2>
-          <p style={{ color: '#999' }}>Coverage Prediction tool is under development</p>
+          <button
+            onClick={() => setCurrentView('home')}
+            style={{
+              backgroundColor: 'transparent',
+              color: 'white',
+              border: '1px solid white',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              marginBottom: '15px',
+              fontSize: '14px'
+            }}
+          >
+            ← Back to Home
+          </button>
+          <h1>Coverage Prediction</h1>
+          <p>Upload survey data to predict coverage patterns</p>
+        </header>
+
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '20px'
+        }}>
+          <FileUpload onFileLoaded={handlePredictionFileLoaded} />
+
+          {predictionFile && (
+            <>
+              <div style={{
+                marginTop: '20px',
+                padding: '20px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '8px',
+                border: '1px solid #dee2e6'
+              }}>
+                <h3>Survey Data Loaded</h3>
+                <p>
+                  <strong>Features:</strong> {predictionFile.data.features.length}<br />
+                  <strong>Fields:</strong> {predictionFile.fields.join(', ')}
+                </p>
+
+                <button
+                  onClick={handleGeneratePrediction}
+                  disabled={isProcessing}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: isProcessing ? '#6c757d' : '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isProcessing ? 'not-allowed' : 'pointer',
+                    fontSize: '16px',
+                    marginTop: '15px'
+                  }}
+                >
+                  {isProcessing ? 'Generating Prediction...' : 'Generate Coverage Prediction'}
+                </button>
+              </div>
+
+              {predictionFile.data && (
+                <MapView
+                  data={predictionFile.data}
+                  selectedData={predictionResult}
+                />
+              )}
+            </>
+          )}
+
+          {predictionError && (
+            <div style={{
+              padding: '15px',
+              backgroundColor: '#f8d7da',
+              border: '1px solid #f5c6cb',
+              borderRadius: '4px',
+              color: '#721c24',
+              marginTop: '20px'
+            }}>
+              <strong>Error:</strong> {predictionError}
+            </div>
+          )}
+
+          {predictionResult && (
+            <div style={{
+              marginTop: '20px',
+              padding: '20px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '8px',
+              border: '1px solid #dee2e6'
+            }}>
+              <h3>Prediction Results</h3>
+
+              <div style={{
+                marginBottom: '15px',
+                padding: '10px',
+                backgroundColor: '#d4edda',
+                border: '1px solid #c3e6cb',
+                borderRadius: '4px',
+                color: '#155724'
+              }}>
+                <strong>Summary:</strong> Generated predictions for {predictionResult.features.length} points
+                <div style={{ marginTop: '5px', fontSize: '12px' }}>
+                  Fields: predicted_prevalence, prediction_uncertainty, exceedance_probability
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleCopyPrediction}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Copy to Clipboard
+                </button>
+                <button
+                  onClick={handleDownloadPrediction}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Download as GeoJSON
+                </button>
+              </div>
+              <ResultsTable resultText={JSON.stringify(predictionResult, null, 2)} />
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>

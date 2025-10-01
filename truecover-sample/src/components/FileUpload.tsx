@@ -12,8 +12,10 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded }) => {
     if (!content) return;
 
     try {
-      // Try parsing as GeoJSON first
+      // Try parsing as JSON first
       const parsed = JSON.parse(content);
+
+      // Check if it's a GeoJSON FeatureCollection directly
       if (parsed.type === 'FeatureCollection' && Array.isArray(parsed.features)) {
         const fields = extractFieldsFromGeoJSON(parsed);
         onFileLoaded({
@@ -21,9 +23,22 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded }) => {
           data: parsed,
           fields
         });
-      } else {
-        throw new Error('Not a valid GeoJSON FeatureCollection');
+        return;
       }
+
+      // Check if it has a point_data wrapper (like survey files)
+      if (parsed.point_data && parsed.point_data.type === 'FeatureCollection' && Array.isArray(parsed.point_data.features)) {
+        const fields = extractFieldsFromGeoJSON(parsed.point_data);
+        onFileLoaded({
+          type: 'geojson',
+          data: parsed.point_data,
+          fields
+        });
+        return;
+      }
+
+      // If neither format matches, throw error to try CSV parsing
+      throw new Error('Not a valid GeoJSON FeatureCollection');
     } catch {
       // Try parsing as CSV
       Papa.parse(content, {
