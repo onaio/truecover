@@ -4,6 +4,7 @@ import './App.css';
 import FileUpload from './components/FileUpload';
 import SamplingForm from './components/SamplingForm';
 import ResultsTable from './components/ResultsTable';
+import MapView from './components/MapView';
 import { FileData, SamplingRequest } from './types';
 
 function App() {
@@ -101,19 +102,26 @@ function App() {
         <p>Upload a GeoJSON or CSV file to perform adaptive sampling</p>
       </header>
 
-      <div style={{ 
-        maxWidth: '800px', 
+      <div style={{
+        maxWidth: '1200px',
         margin: '0 auto',
         padding: '20px'
       }}>
         <FileUpload onFileLoaded={handleFileLoaded} />
-        
+
         {fileData && (
-          <SamplingForm 
-            fileData={fileData}
-            onSubmit={handleSubmit}
-            isLoading={isLoading}
-          />
+          <>
+            <MapView
+              data={fileData.data}
+              selectedData={result ? JSON.parse(result) : null}
+            />
+
+            <SamplingForm
+              fileData={fileData}
+              onSubmit={handleSubmit}
+              isLoading={isLoading}
+            />
+          </>
         )}
 
         {error && (

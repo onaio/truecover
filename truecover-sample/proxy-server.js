@@ -8,7 +8,7 @@ app.use(express.json({ limit: '50mb' }));
 
 app.post('/api', async (req, res) => {
   try {
-    const response = await axios.post('http://localhost:8081', req.body, {
+    const response = await axios.post('http://localhost:8083', req.body, {
       headers: {
         'Content-Type': 'application/json'
       }
@@ -70,5 +70,5 @@ app.post('/api', async (req, res) => {
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);
-  console.log('Forwarding requests to http://localhost:8081');
+  console.log('Forwarding requests to http://localhost:8083');
 });

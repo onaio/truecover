@@ -8,23 +8,24 @@ interface SamplingFormProps {
 }
 
 const SamplingForm: React.FC<SamplingFormProps> = ({ fileData, onSubmit, isLoading }) => {
-  const [batchSize, setBatchSize] = useState<number>(10);
+  const [batchSize, setBatchSize] = useState<string>('10');
   const [selectedField, setSelectedField] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedField) {
       alert('Please select an uncertainty field');
       return;
     }
-    
-    if (batchSize < 1) {
-      alert('Batch size must be at least 1');
+
+    const batchSizeNum = parseInt(batchSize);
+    if (isNaN(batchSizeNum) || batchSizeNum < 1) {
+      alert('Batch size must be a number greater than 0');
       return;
     }
-    
-    onSubmit(batchSize, selectedField);
+
+    onSubmit(batchSizeNum, selectedField);
   };
 
   if (!fileData) {
@@ -65,10 +66,9 @@ const SamplingForm: React.FC<SamplingFormProps> = ({ fileData, onSubmit, isLoadi
         </label>
         <input
           id="batch-size"
-          type="number"
-          min="1"
+          type="text"
           value={batchSize}
-          onChange={(e) => setBatchSize(parseInt(e.target.value) || 1)}
+          onChange={(e) => setBatchSize(e.target.value)}
           style={{
             width: '100%',
             padding: '8px',
@@ -76,6 +76,7 @@ const SamplingForm: React.FC<SamplingFormProps> = ({ fileData, onSubmit, isLoadi
             borderRadius: '4px',
             fontSize: '14px'
           }}
+          placeholder="Enter number of points"
           required
         />
       </div>
