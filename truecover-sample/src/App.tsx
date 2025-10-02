@@ -389,6 +389,7 @@ function App() {
 
     setIsProcessing(true);
     setPredictionError(null);
+    setPredictionResult(null);
 
     const request = {
       point_data: predictionFile.data,
@@ -397,43 +398,103 @@ function App() {
     };
 
     try {
+      console.log('Sending request to /api/prediction...');
+      console.log('Request payload:', JSON.stringify(request, null, 2).substring(0, 500));
       const response = await axios.post('/api/prediction', request, {
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        responseType: 'json'
       });
 
-      console.log('Response type:', typeof response.data);
-      console.log('Response length:', typeof response.data === 'string' ? response.data.length : 'N/A');
+      console.log('Raw response:', response);
+      console.log('Response data type:', typeof response.data);
 
-      // Parse response if it's a string
+      // Just display whatever we got back
       let resultData = response.data;
+
+      // If it's a string, try to parse it
       if (typeof resultData === 'string') {
-        console.log('Parsing string response as JSON');
-        // Debug: Check for issues around error position
-        const errorPos = 640757;
-        if (resultData.length > errorPos) {
-          console.log('Content around error position:', resultData.substring(errorPos - 50, errorPos + 50));
+        console.log('Response is a string, length:', resultData.length);
+        console.log('First 500 chars:', resultData.substring(0, 500));
+
+        // Try to clean up the string - remove any non-JSON content
+        let jsonStr = resultData.trim();
+
+        // Find the actual JSON content (starts with { or [)
+        const jsonStart = jsonStr.search(/[{\[]/);
+        if (jsonStart > 0) {
+          console.log('Found non-JSON prefix, removing first', jsonStart, 'chars');
+          console.log('Prefix content:', jsonStr.substring(0, jsonStart));
+          jsonStr = jsonStr.substring(jsonStart);
         }
-        resultData = JSON.parse(resultData);
+
+        // Try to find where the JSON ends and remove any trailing content (like Python warnings)
+        // We'll try to parse, and if it fails due to trailing content, we'll try to fix it
+        let lastValidJson = jsonStr;
+        try {
+          resultData = JSON.parse(jsonStr);
+          console.log('Successfully parsed JSON');
+        } catch (parseErr: any) {
+          console.error('Failed to parse JSON:', parseErr);
+          console.error('Error position:', parseErr.message);
+
+          // Check if there's content after valid JSON
+          const match = parseErr.message.match(/position (\d+)/);
+          if (match) {
+            const errorPos = parseInt(match[1]);
+            console.error('Content around error:', jsonStr.substring(Math.max(0, errorPos - 100), errorPos + 100));
+
+            // Try to extract just the JSON part by finding the last valid closing brace/bracket
+            // Look backwards from the error position to find a complete JSON object
+            for (let i = errorPos - 1; i >= 0; i--) {
+              const char = jsonStr[i];
+              if (char === '}' || char === ']') {
+                const candidate = jsonStr.substring(0, i + 1);
+                try {
+                  resultData = JSON.parse(candidate);
+                  console.log('Successfully parsed JSON after trimming trailing content at position', i + 1);
+                  console.log('Removed trailing content:', jsonStr.substring(i + 1, Math.min(jsonStr.length, i + 200)));
+                  break;
+                } catch {
+                  // Keep trying
+                }
+              }
+            }
+
+            // If we still don't have valid JSON, show the error
+            if (typeof resultData === 'string') {
+              setPredictionError('Response is a string but not valid JSON. Error: ' + parseErr.message + '\n\nFirst 500 chars: ' + jsonStr.substring(0, 500));
+              return;
+            }
+          } else {
+            setPredictionError('Response is a string but not valid JSON. Error: ' + parseErr.message + '\n\nFirst 500 chars: ' + jsonStr.substring(0, 500));
+            return;
+          }
+        }
       }
 
-      // Extract result from function_status wrapper
-      if (resultData && typeof resultData === 'object' && 'function_status' in resultData && resultData.function_status === 'success' && 'result' in resultData) {
-        console.log('Unwrapping function_status wrapper');
-        resultData = resultData.result;
+      // Extract result from function_status wrapper if present
+      if (resultData && typeof resultData === 'object' && 'function_status' in resultData) {
+        console.log('Found function_status wrapper:', resultData.function_status);
+        if (resultData.function_status === 'success' && 'result' in resultData) {
+          resultData = resultData.result;
+        } else if (resultData.function_status === 'error') {
+          setPredictionError('Server returned error: ' + JSON.stringify(resultData));
+          return;
+        }
       }
 
-      console.log('Setting prediction result:', resultData);
+      console.log('Final result:', resultData);
       console.log('Has features?', resultData?.features?.length);
       setPredictionResult(resultData);
     } catch (err: any) {
       console.error('Error generating prediction:', err);
-      setPredictionError(
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to connect to the prevalence predictor service'
-      );
+      const errorMessage = err.response?.data ?
+        JSON.stringify(err.response.data, null, 2) :
+        err.message || 'Failed to connect to the prevalence predictor service';
+      setPredictionError(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -550,7 +611,7 @@ function App() {
             </div>
           )}
 
-          {predictionResult && predictionResult.features && (
+          {predictionResult && (
             <div style={{
               marginTop: '20px',
               padding: '20px',
@@ -570,7 +631,7 @@ function App() {
               }}>
                 <strong>Summary:</strong> Generated predictions for {predictionResult.features?.length || 0} points
                 <div style={{ marginTop: '5px', fontSize: '12px' }}>
-                  Fields: predicted_prevalence, prediction_uncertainty, exceedance_probability
+                  Type: {predictionResult.type || 'N/A'}
                 </div>
               </div>
 
@@ -602,6 +663,28 @@ function App() {
                   Download as GeoJSON
                 </button>
               </div>
+
+              <div style={{
+                marginTop: '20px',
+                padding: '15px',
+                backgroundColor: 'white',
+                borderRadius: '4px',
+                border: '1px solid #dee2e6'
+              }}>
+                <h4 style={{ marginTop: 0, marginBottom: '10px' }}>Raw Response:</h4>
+                <pre style={{
+                  backgroundColor: '#f8f9fa',
+                  padding: '15px',
+                  borderRadius: '4px',
+                  overflow: 'auto',
+                  maxHeight: '400px',
+                  fontSize: '12px',
+                  margin: 0
+                }}>
+                  {JSON.stringify(predictionResult, null, 2)}
+                </pre>
+              </div>
+
               <ResultsTable resultText={JSON.stringify(predictionResult, null, 2)} />
             </div>
           )}

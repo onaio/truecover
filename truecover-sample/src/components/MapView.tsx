@@ -91,7 +91,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
       'circle-color': [
         'interpolate',
         ['linear'],
-        ['get', 'predicted_prevalence'],
+        ['get', 'prevalence_prediction'],
         -1, '#2166ac',    // Low (blue)
         0, '#4393c3',
         0.3, '#92c5de',
