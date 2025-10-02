@@ -66,11 +66,15 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
     'id',
     'n_trials',
     'n_positive',
+    'prevalence',
     'prevalence_prediction',
     'prevalence_bci_width',
     'exceedance_probability',
     'exceedance_uncertainty',
   ];
+
+  // Add 'prevalence' as a calculated column
+  propertyKeys.add('prevalence');
 
   // Sort headers by preferred order
   const headers = Array.from(propertyKeys).sort((a, b) => {
@@ -135,25 +139,43 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
               <tr key={index} style={rowStyle}>
                 <td style={cellStyle}>{index + 1}</td>
                 <td style={cellStyle}>{coordString}</td>
-                {headers.map(header => (
-                  <td key={header} style={{
-                    ...cellStyle,
-                    backgroundColor: isSelected && header === 'adaptively_selected'
-                      ? '#0d6efd'
-                      : undefined,
-                    color: isSelected && header === 'adaptively_selected'
-                      ? 'white'
-                      : undefined
-                  }}>
-                    {feature.properties?.[header] !== undefined && feature.properties?.[header] !== null
-                      ? (typeof feature.properties[header] === 'number'
-                          ? (header === 'id' || header === 'n_trials' || header === 'n_positive'
-                              ? Math.round(feature.properties[header])
-                              : feature.properties[header].toFixed(6))
-                          : String(feature.properties[header]))
+                {headers.map(header => {
+                  // Calculate prevalence for rows with survey data
+                  if (header === 'prevalence') {
+                    const nTrials = feature.properties?.n_trials;
+                    const nPositive = feature.properties?.n_positive;
+                    if (nTrials !== undefined && nTrials !== null && nTrials > 0 &&
+                        nPositive !== undefined && nPositive !== null) {
+                      const prevalence = Number(nPositive) / Number(nTrials);
+                      return (
+                        <td key={header} style={cellStyle}>
+                          {prevalence.toFixed(2)}
+                        </td>
+                      );
+                    }
+                    return <td key={header} style={cellStyle}></td>;
+                  }
+
+                  return (
+                    <td key={header} style={{
+                      ...cellStyle,
+                      backgroundColor: isSelected && header === 'adaptively_selected'
+                        ? '#0d6efd'
+                        : undefined,
+                      color: isSelected && header === 'adaptively_selected'
+                        ? 'white'
+                        : undefined
+                    }}>
+                      {feature.properties?.[header] !== undefined && feature.properties?.[header] !== null
+                        ? (typeof feature.properties[header] === 'number'
+                            ? (header === 'id' || header === 'n_trials' || header === 'n_positive'
+                                ? Math.round(feature.properties[header])
+                                : feature.properties[header].toFixed(6))
+                            : String(feature.properties[header]))
                       : ''}
-                  </td>
-                ))}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}
