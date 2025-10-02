@@ -26,7 +26,23 @@ function App() {
   const [mergeStats, setMergeStats] = useState<any>(null);
 
   const handleFileLoaded = (data: FileData) => {
-    setFileData(data);
+    // Reset adaptively_selected to 0 for all features
+    // This ensures we start fresh and select new points
+    if (data.data && data.data.features) {
+      const cleanedData = {
+        ...data.data,
+        features: data.data.features.map((feature: any) => ({
+          ...feature,
+          properties: {
+            ...feature.properties,
+            adaptively_selected: 0
+          }
+        }))
+      };
+      setFileData({ ...data, data: cleanedData });
+    } else {
+      setFileData(data);
+    }
     setResult(null);
     setError(null);
   };
