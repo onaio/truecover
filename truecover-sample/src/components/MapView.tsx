@@ -58,6 +58,32 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
   // Use mode prop to determine visualization type
   const isPredictionData = mode === 'prediction';
 
+  // Use prediction data if available, otherwise use input data
+  const displayData = selectedData || data;
+
+  // Calculate min and max prevalence values dynamically - BEFORE early return
+  const prevalenceRange = useMemo(() => {
+    if (!displayData.features.length) return { min: 0, max: 1 };
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    displayData.features.forEach(feature => {
+      const prevalence = feature.properties?.prevalence_prediction;
+      if (typeof prevalence === 'number' && !isNaN(prevalence)) {
+        min = Math.min(min, prevalence);
+        max = Math.max(max, prevalence);
+      }
+    });
+
+    // If no valid values found, use defaults
+    if (min === Infinity || max === -Infinity) {
+      return { min: 0, max: 1 };
+    }
+
+    return { min, max };
+  }, [displayData]);
+
   // Early return AFTER all hooks
   if (!mapboxToken) {
     return (
@@ -79,28 +105,93 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     features: selectedFeatures
   };
 
-  // Use prediction data if available, otherwise use input data
-  const displayData = selectedData || data;
+  // Heatmap layer for smooth interpolation
+  const heatmapLayer: LayerProps = {
+    id: 'prediction-heatmap',
+    type: 'heatmap',
+    paint: {
+      // Weight points by their prevalence value
+      'heatmap-weight': [
+        'interpolate',
+        ['linear'],
+        ['number', ['coalesce', ['get', 'prevalence_prediction'], 0.5]],
+        prevalenceRange.min, 0,
+        prevalenceRange.max, 1
+      ],
+      // Intensity increases with zoom
+      'heatmap-intensity': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        0, 1,
+        9, 3
+      ],
+      // Color ramp for heatmap - matches our point colors
+      'heatmap-color': [
+        'interpolate',
+        ['linear'],
+        ['heatmap-density'],
+        0, 'rgba(33, 102, 172, 0)',
+        0.2, '#2166ac',
+        0.35, '#4393c3',
+        0.5, '#92c5de',
+        0.65, '#fddbc7',
+        0.8, '#f4a582',
+        0.9, '#d6604d',
+        1, '#b2182b'
+      ],
+      // Radius increases with zoom
+      'heatmap-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        0, 15,
+        9, 40
+      ],
+      // Fade out heatmap at higher zooms to show points
+      'heatmap-opacity': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        7, 0.8,
+        9, 0
+      ]
+    }
+  };
 
   // Layer styles for predictions - color by prevalence
+  // Dynamically adjusted scale based on actual data range
   const predictionLayer: LayerProps = {
     id: 'prediction-points',
     type: 'circle',
     paint: {
-      'circle-radius': 4,
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        7, 1,
+        9, 4
+      ],
       'circle-color': [
         'interpolate',
         ['linear'],
-        ['number', ['coalesce', ['get', 'prevalence_prediction'], 0.5]],
-        -1, '#2166ac',    // Low (blue)
-        0, '#4393c3',
-        0.3, '#92c5de',
-        0.5, '#fddbc7',
-        0.7, '#f4a582',
-        1, '#d6604d',     // Medium (orange)
-        2, '#b2182b'      // High (red)
+        ['number', ['coalesce', ['get', 'prevalence_prediction'], (prevalenceRange.min + prevalenceRange.max) / 2]],
+        prevalenceRange.min, '#2166ac',    // Low (dark blue)
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.2, '#4393c3',   // Blue
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.35, '#92c5de',  // Light blue
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.5, '#fddbc7',    // Tan/neutral
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.65, '#f4a582',  // Light orange
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.8, '#d6604d',   // Orange
+        prevalenceRange.max, '#b2182b'     // High (red)
       ],
-      'circle-opacity': 0.8,
+      // Fade in points as heatmap fades out
+      'circle-opacity': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        7, 0,
+        9, 0.8
+      ],
       'circle-stroke-width': 1,
       'circle-stroke-color': '#ffffff'
     }
@@ -161,14 +252,15 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
           }}
           style={{ width: '100%', height: '100%' }}
           mapStyle="mapbox://styles/mapbox/light-v11"
-          interactiveLayerIds={isPredictionData ? ['prediction-points'] : ['all-points', 'selected-points']}
+          interactiveLayerIds={isPredictionData ? ['prediction-heatmap', 'prediction-points'] : ['all-points', 'selected-points']}
           onClick={handleMapClick}
         >
           <NavigationControl position="top-right" />
 
           {isPredictionData ? (
-            /* Prediction visualization */
+            /* Prediction visualization with heatmap interpolation */
             <Source id="prediction-source" type="geojson" data={displayData as any}>
+              <Layer {...heatmapLayer} />
               <Layer {...predictionLayer} />
             </Source>
           ) : (

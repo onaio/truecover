@@ -4,9 +4,10 @@ import { GeoJSONFeatureCollection, FileData } from '../types';
 
 interface FileUploadProps {
   onFileLoaded: (data: FileData) => void;
+  label?: string;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded }) => {
+const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, label = 'Upload File' }) => {
   const handleFileRead = useCallback((event: ProgressEvent<FileReader>) => {
     const content = event.target?.result as string;
     if (!content) return;
@@ -133,7 +134,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded }) => {
 
   return (
     <div style={{ marginBottom: '20px' }}>
-      <h3>Upload File</h3>
+      <h3>{label}</h3>
       <input
         type="file"
         accept=".geojson,.json,.csv"

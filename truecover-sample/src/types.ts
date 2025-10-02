@@ -23,3 +23,17 @@ export interface FileData {
   data: GeoJSONFeatureCollection;
   fields: string[];
 }
+
+export interface PredictionRequest {
+  point_data: GeoJSONFeatureCollection;
+  exceedance_threshold: number;
+  layer_names: string[];
+}
+
+export interface MergeStats {
+  sampleFrameCount: number;
+  surveyDataCount: number;
+  matchedCount: number;
+  addedFromSurvey: number;
+  totalInMerged: number;
+}

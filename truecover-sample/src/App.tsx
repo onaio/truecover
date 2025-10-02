@@ -6,6 +6,7 @@ import SamplingForm from './components/SamplingForm';
 import ResultsTable from './components/ResultsTable';
 import MapView from './components/MapView';
 import { FileData, SamplingRequest } from './types';
+import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 
 type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction';
 
@@ -17,10 +18,12 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   // Coverage Prediction state
-  const [predictionFile, setPredictionFile] = useState<FileData | null>(null);
+  const [sampleFrameFile, setSampleFrameFile] = useState<FileData | null>(null);
+  const [surveyDataFile, setSurveyDataFile] = useState<FileData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [predictionResult, setPredictionResult] = useState<any>(null);
   const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [mergeStats, setMergeStats] = useState<any>(null);
 
   const handleFileLoaded = (data: FileData) => {
     setFileData(data);
@@ -378,24 +381,147 @@ function App() {
     </div>
   );
 
-  const handlePredictionFileLoaded = (data: FileData) => {
-    setPredictionFile(data);
+  const handleSampleFrameLoaded = (data: FileData) => {
+    setSampleFrameFile(data);
     setPredictionResult(null);
     setPredictionError(null);
+    setMergeStats(null);
+  };
+
+  const handleSurveyDataLoaded = (data: FileData) => {
+    setSurveyDataFile(data);
+    setPredictionResult(null);
+    setPredictionError(null);
+    setMergeStats(null);
   };
 
   const handleGeneratePrediction = async () => {
-    if (!predictionFile) return;
+    if (!sampleFrameFile || !surveyDataFile) {
+      setPredictionError('Please upload both sample frame and survey data files');
+      return;
+    }
+
+    // Validate survey data has required fields
+    const surveyHasRequiredFields = surveyDataFile.data.features.some(f => {
+      const props = f.properties || {};
+      return typeof props.n_trials === 'number' && typeof props.n_positive === 'number';
+    });
+
+    if (!surveyHasRequiredFields) {
+      setPredictionError(
+        'Survey data must include n_trials and n_positive fields. ' +
+        'Found fields: ' + surveyDataFile.fields.join(', ')
+      );
+      return;
+    }
 
     setIsProcessing(true);
     setPredictionError(null);
     setPredictionResult(null);
 
+    // Merge the two datasets
+    const mergeResult = mergeSampleFrameAndSurvey(
+      sampleFrameFile.data,
+      surveyDataFile.data
+    );
+
+    // Validate and count points with survey data (for training)
+    let pointsWithSurveyData = 0;
+    let invalidPoints: string[] = [];
+
+    mergeResult.mergedData.features.forEach((feature, idx) => {
+      const props = feature.properties || {};
+      if (typeof props.n_trials === 'number' && typeof props.n_positive === 'number') {
+        if (props.n_trials <= 0) {
+          invalidPoints.push(`Point ${idx}: n_trials must be > 0 (found ${props.n_trials})`);
+        } else if (props.n_positive < 0) {
+          invalidPoints.push(`Point ${idx}: n_positive must be >= 0 (found ${props.n_positive})`);
+        } else if (props.n_positive > props.n_trials) {
+          invalidPoints.push(`Point ${idx}: n_positive (${props.n_positive}) > n_trials (${props.n_trials})`);
+        } else {
+          pointsWithSurveyData++;
+        }
+      }
+    });
+
+    if (invalidPoints.length > 0) {
+      setPredictionError(
+        'Invalid survey data found:\n' + invalidPoints.slice(0, 5).join('\n') +
+        (invalidPoints.length > 5 ? `\n... and ${invalidPoints.length - 5} more` : '')
+      );
+      setIsProcessing(false);
+      return;
+    }
+
+    if (pointsWithSurveyData === 0) {
+      setPredictionError(
+        'No points with valid n_trials and n_positive fields found. ' +
+        'Survey data must include n_trials and n_positive fields for at least some points to train the model.'
+      );
+      setIsProcessing(false);
+      return;
+    }
+
+    // Save merge stats for display (including training data count)
+    setMergeStats({
+      ...mergeResult.stats,
+      pointsWithSurveyData: pointsWithSurveyData
+    });
+
+    // Prepare data for prediction - keep all fields but ensure consistent types
+    // The model will use n_trials/n_positive for training and prior predictions for context
+    const cleanedFeatures = mergeResult.mergedData.features.map((feature, idx) => {
+      const props = { ...feature.properties } || {};
+
+      // Normalize ID to be numeric (important for pandas DataFrame)
+      if (props.id !== undefined && props.id !== null) {
+        const numId = typeof props.id === 'number' ? props.id : parseInt(String(props.id), 10);
+        props.id = isNaN(numId) ? idx : numId;
+      } else {
+        props.id = idx;
+      }
+
+      // Ensure numeric fields are actually numbers
+      if (props.n_trials !== undefined) {
+        props.n_trials = Number(props.n_trials);
+      }
+      if (props.n_positive !== undefined) {
+        props.n_positive = Number(props.n_positive);
+      }
+
+      return {
+        type: 'Feature' as const,
+        geometry: feature.geometry,
+        properties: props
+      };
+    });
+
+    const cleanedData = {
+      type: 'FeatureCollection' as const,
+      features: cleanedFeatures
+    };
+
+    // Send cleaned data - the algorithm will:
+    // 1. Train on points WITH n_trials/n_positive
+    // 2. Predict for ALL points (including those without survey data)
     const request = {
-      point_data: predictionFile.data,
+      point_data: cleanedData,
       exceedance_threshold: 0.5,
       layer_names: []
     };
+
+    // Find a feature with survey data for logging
+    const featureWithSurveyData = mergeResult.mergedData.features.find(f => {
+      const props = f.properties || {};
+      return typeof props.n_trials === 'number' && typeof props.n_positive === 'number';
+    });
+
+    console.log('Sending prediction request:');
+    console.log('- Total points:', cleanedData.features.length);
+    console.log('- Points with survey data (for training):', pointsWithSurveyData);
+    console.log('Cleaned sample (first point):', cleanedData.features[0]?.properties);
+    console.log('Cleaned sample WITH survey data:', cleanedData.features.find(f => f.properties?.n_trials !== undefined)?.properties);
+    console.log('First 5 cleaned features:', cleanedData.features.slice(0, 5).map(f => f.properties));
 
     try {
       const response = await axios.post('/api/prediction', request, {
@@ -469,9 +595,22 @@ function App() {
       setPredictionResult(resultData);
     } catch (err: any) {
       console.error('Error generating prediction:', err);
-      const errorMessage = err.response?.data ?
-        JSON.stringify(err.response.data, null, 2) :
-        err.message || 'Failed to connect to the prevalence predictor service';
+      console.error('Error response:', err.response);
+      console.error('Error response data:', err.response?.data);
+
+      let errorMessage = 'Failed to connect to the prevalence predictor service';
+
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'object' && data.result) {
+          errorMessage = `Server error: ${data.result}`;
+        } else {
+          errorMessage = JSON.stringify(data, null, 2);
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
       setPredictionError(errorMessage);
     } finally {
       setIsProcessing(false);
@@ -508,7 +647,14 @@ function App() {
           marginBottom: '30px'
         }}>
           <button
-            onClick={() => setCurrentView('home')}
+            onClick={() => {
+              setCurrentView('home');
+              setSampleFrameFile(null);
+              setSurveyDataFile(null);
+              setPredictionResult(null);
+              setPredictionError(null);
+              setMergeStats(null);
+            }}
             style={{
               backgroundColor: 'transparent',
               color: 'white',
@@ -523,7 +669,7 @@ function App() {
             ← Back to Home
           </button>
           <h1>Coverage Prediction</h1>
-          <p>Upload survey data to predict coverage patterns</p>
+          <p>Upload sample frame and survey data to predict coverage patterns</p>
         </header>
 
         <div style={{
@@ -531,49 +677,108 @@ function App() {
           margin: '0 auto',
           padding: '20px'
         }}>
-          <FileUpload onFileLoaded={handlePredictionFileLoaded} />
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '20px',
+            marginBottom: '20px'
+          }}>
+            <FileUpload
+              onFileLoaded={handleSampleFrameLoaded}
+              label="Upload Sample Frame"
+            />
+            <FileUpload
+              onFileLoaded={handleSurveyDataLoaded}
+              label="Upload Survey Data"
+            />
+          </div>
 
-          {predictionFile && (
-            <>
-              <div style={{
-                marginTop: '20px',
-                padding: '20px',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '8px',
-                border: '1px solid #dee2e6'
-              }}>
-                <h3>Survey Data Loaded</h3>
-                <p>
-                  <strong>Features:</strong> {predictionFile.data.features.length}<br />
-                  <strong>Fields:</strong> {predictionFile.fields.join(', ')}
-                </p>
+          {(sampleFrameFile || surveyDataFile) && (
+            <div style={{
+              marginTop: '20px',
+              padding: '20px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '8px',
+              border: '1px solid #dee2e6'
+            }}>
+              <h3>Files Loaded</h3>
 
-                <button
-                  onClick={handleGeneratePrediction}
-                  disabled={isProcessing}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: isProcessing ? '#6c757d' : '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: isProcessing ? 'not-allowed' : 'pointer',
-                    fontSize: '16px',
-                    marginTop: '15px'
-                  }}
-                >
-                  {isProcessing ? 'Generating Prediction...' : 'Generate Coverage Prediction'}
-                </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <h4 style={{ marginTop: 0 }}>Sample Frame</h4>
+                  {sampleFrameFile ? (
+                    <p>
+                      <strong>Features:</strong> {sampleFrameFile.data.features.length}<br />
+                      <strong>Fields:</strong> {sampleFrameFile.fields.join(', ')}
+                    </p>
+                  ) : (
+                    <p style={{ color: '#999' }}>Not loaded</p>
+                  )}
+                </div>
+
+                <div>
+                  <h4 style={{ marginTop: 0 }}>Survey Data</h4>
+                  {surveyDataFile ? (
+                    <p>
+                      <strong>Features:</strong> {surveyDataFile.data.features.length}<br />
+                      <strong>Fields:</strong> {surveyDataFile.fields.join(', ')}
+                    </p>
+                  ) : (
+                    <p style={{ color: '#999' }}>Not loaded</p>
+                  )}
+                </div>
               </div>
 
-              {predictionFile.data && (
-                <MapView
-                  data={predictionFile.data}
-                  selectedData={predictionResult}
-                  mode="prediction"
-                />
+              {mergeStats && (
+                <div style={{
+                  marginTop: '15px',
+                  padding: '15px',
+                  backgroundColor: '#d4edda',
+                  border: '1px solid #c3e6cb',
+                  borderRadius: '4px',
+                  color: '#155724'
+                }}>
+                  <strong>Merge Summary:</strong>
+                  <ul style={{ marginBottom: 0, marginTop: '5px' }}>
+                    <li>Sample frame points: {mergeStats.sampleFrameCount}</li>
+                    <li>Survey data points: {mergeStats.surveyDataCount}</li>
+                    <li>Matched points (survey overrode sample frame): {mergeStats.matchedCount}</li>
+                    <li>Added from survey: {mergeStats.addedFromSurvey}</li>
+                    <li><strong>Total in merged dataset: {mergeStats.totalInMerged}</strong></li>
+                    {mergeStats.pointsWithSurveyData !== undefined && (
+                      <li style={{ color: '#0c5460', fontWeight: 'bold' }}>
+                        Points with survey data (for model training): {mergeStats.pointsWithSurveyData}
+                      </li>
+                    )}
+                  </ul>
+                </div>
               )}
-            </>
+
+              <button
+                onClick={handleGeneratePrediction}
+                disabled={isProcessing || !sampleFrameFile || !surveyDataFile}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: (isProcessing || !sampleFrameFile || !surveyDataFile) ? '#6c757d' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: (isProcessing || !sampleFrameFile || !surveyDataFile) ? 'not-allowed' : 'pointer',
+                  fontSize: '16px',
+                  marginTop: '15px'
+                }}
+              >
+                {isProcessing ? 'Generating Prediction...' : 'Generate Coverage Prediction'}
+              </button>
+            </div>
+          )}
+
+          {sampleFrameFile && surveyDataFile && predictionResult && (
+            <MapView
+              data={sampleFrameFile.data}
+              selectedData={predictionResult}
+              mode="prediction"
+            />
           )}
 
           {predictionError && (
