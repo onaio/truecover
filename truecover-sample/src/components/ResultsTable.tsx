@@ -60,7 +60,35 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
       Object.keys(feature.properties).forEach(key => propertyKeys.add(key));
     }
   });
-  const headers = Array.from(propertyKeys);
+
+  // Define preferred column order
+  const columnOrder = [
+    'id',
+    'n_trials',
+    'n_positive',
+    'prevalence_prediction',
+    'prevalence_bci_width',
+    'exceedance_probability',
+    'exceedance_uncertainty',
+  ];
+
+  // Sort headers by preferred order
+  const headers = Array.from(propertyKeys).sort((a, b) => {
+    const aIndex = columnOrder.indexOf(a);
+    const bIndex = columnOrder.indexOf(b);
+
+    // If both are in preferred order, sort by that order
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    }
+
+    // If only one is in preferred order, it comes first
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+
+    // Otherwise, alphabetical
+    return a.localeCompare(b);
+  });
 
   return (
     <div style={{ width: '100%', height: '400px', overflow: 'auto' }}>
@@ -110,16 +138,18 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
                 {headers.map(header => (
                   <td key={header} style={{
                     ...cellStyle,
-                    backgroundColor: isSelected && header === 'adaptively_selected' 
-                      ? '#0d6efd' 
+                    backgroundColor: isSelected && header === 'adaptively_selected'
+                      ? '#0d6efd'
                       : undefined,
-                    color: isSelected && header === 'adaptively_selected' 
-                      ? 'white' 
+                    color: isSelected && header === 'adaptively_selected'
+                      ? 'white'
                       : undefined
                   }}>
-                    {feature.properties?.[header] !== undefined 
-                      ? (typeof feature.properties[header] === 'number' 
-                          ? feature.properties[header].toFixed(6) 
+                    {feature.properties?.[header] !== undefined && feature.properties?.[header] !== null
+                      ? (typeof feature.properties[header] === 'number'
+                          ? (header === 'id' || header === 'n_trials' || header === 'n_positive'
+                              ? Math.round(feature.properties[header])
+                              : feature.properties[header].toFixed(6))
                           : String(feature.properties[header]))
                       : ''}
                   </td>

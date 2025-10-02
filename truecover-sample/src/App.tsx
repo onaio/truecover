@@ -519,9 +519,6 @@ function App() {
     console.log('Sending prediction request:');
     console.log('- Total points:', cleanedData.features.length);
     console.log('- Points with survey data (for training):', pointsWithSurveyData);
-    console.log('Cleaned sample (first point):', cleanedData.features[0]?.properties);
-    console.log('Cleaned sample WITH survey data:', cleanedData.features.find(f => f.properties?.n_trials !== undefined)?.properties);
-    console.log('First 5 cleaned features:', cleanedData.features.slice(0, 5).map(f => f.properties));
 
     try {
       const response = await axios.post('/api/prediction', request, {
@@ -590,6 +587,23 @@ function App() {
           setPredictionError('Server returned error: ' + JSON.stringify(resultData));
           return;
         }
+      }
+
+      // Clean up the result - remove old/stale fields from prior predictions
+      if (resultData && resultData.features) {
+        resultData.features = resultData.features.map((feature: any) => {
+          const props = { ...feature.properties };
+
+          // Remove old prediction fields that are now replaced
+          delete props.predicted_prevalence;
+          delete props.prediction_uncertainty;
+          delete props.adaptively_selected;
+
+          return {
+            ...feature,
+            properties: props
+          };
+        });
       }
 
       setPredictionResult(resultData);
