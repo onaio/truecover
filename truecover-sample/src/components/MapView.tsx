@@ -10,13 +10,46 @@ interface MapViewProps {
   mode?: 'sampling' | 'prediction';
 }
 
+// Helper function to extract all coordinates from any geometry type
+const extractCoordinates = (geometry: any): [number, number][] => {
+  switch (geometry.type) {
+    case 'Point':
+      return [geometry.coordinates as [number, number]];
+    case 'Polygon':
+      // Flatten the polygon rings
+      return geometry.coordinates.flat();
+    case 'MultiPolygon':
+      // Flatten all polygon rings
+      return geometry.coordinates.flat(2);
+    case 'LineString':
+      return geometry.coordinates;
+    case 'MultiLineString':
+      return geometry.coordinates.flat();
+    default:
+      return [];
+  }
+};
+
+// Helper function to get centroid for popup
+const getCentroid = (geometry: any): [number, number] => {
+  const coords = extractCoordinates(geometry);
+  if (coords.length === 0) return [0, 0];
+
+  const sum = coords.reduce((acc, [lng, lat]) => {
+    return [acc[0] + lng, acc[1] + lat];
+  }, [0, 0]);
+
+  return [sum[0] / coords.length, sum[1] / coords.length];
+};
+
 const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
+  const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/light-v11');
   const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
-  // Calculate bounds from all points - BEFORE the early return
+  // Calculate bounds from all features - BEFORE the early return
   const bounds = useMemo(() => {
-    if (!data.features.length) return undefined;
+    if (!data || !data.features || !data.features.length) return undefined;
 
     let minLng = Infinity;
     let minLat = Infinity;
@@ -24,13 +57,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     let maxLat = -Infinity;
 
     data.features.forEach(feature => {
-      if (feature.geometry.type === 'Point') {
-        const [lng, lat] = feature.geometry.coordinates;
+      const coords = extractCoordinates(feature.geometry);
+      coords.forEach(([lng, lat]) => {
         minLng = Math.min(minLng, lng);
         minLat = Math.min(minLat, lat);
         maxLng = Math.max(maxLng, lng);
         maxLat = Math.max(maxLat, lat);
-      }
+      });
     });
 
     // Add padding
@@ -45,14 +78,17 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
-    if (selectedData) {
+    if (selectedData && selectedData.features) {
       return selectedData.features.filter(
         f => f.properties?.adaptively_selected === 1 || f.properties?.adaptively_selected === true
       );
     }
-    return data.features.filter(
-      f => f.properties?.adaptively_selected === 1 || f.properties?.adaptively_selected === true
-    );
+    if (data && data.features) {
+      return data.features.filter(
+        f => f.properties?.adaptively_selected === 1 || f.properties?.adaptively_selected === true
+      );
+    }
+    return [];
   }, [data, selectedData]);
 
   // Use mode prop to determine visualization type
@@ -63,7 +99,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
 
   // Calculate min and max prevalence values dynamically - BEFORE early return
   const prevalenceRange = useMemo(() => {
-    if (!displayData.features.length) return { min: 0, max: 1 };
+    if (!displayData || !displayData.features || !displayData.features.length) return { min: 0, max: 1 };
 
     let min = Infinity;
     let max = -Infinity;
@@ -96,6 +132,21 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
         marginBottom: '20px'
       }}>
         <strong>Error:</strong> Mapbox token not found. Please create a .env file with REACT_APP_MAPBOX_TOKEN
+      </div>
+    );
+  }
+
+  if (!data || !data.features) {
+    return (
+      <div style={{
+        padding: '20px',
+        backgroundColor: '#f8d7da',
+        border: '1px solid #f5c6cb',
+        borderRadius: '4px',
+        color: '#721c24',
+        marginBottom: '20px'
+      }}>
+        <strong>Error:</strong> No data provided to MapView component
       </div>
     );
   }
@@ -159,11 +210,46 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     }
   };
 
-  // Layer styles for predictions - color by prevalence
+  // Polygon fill layer for predictions
+  const predictionPolygonFillLayer: LayerProps = {
+    id: 'prediction-polygons-fill',
+    type: 'fill',
+    filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+    paint: {
+      'fill-color': [
+        'interpolate',
+        ['linear'],
+        ['number', ['coalesce', ['get', 'prevalence_prediction'], (prevalenceRange.min + prevalenceRange.max) / 2]],
+        prevalenceRange.min, '#2166ac',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.2, '#4393c3',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.35, '#92c5de',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.5, '#fddbc7',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.65, '#f4a582',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.8, '#d6604d',
+        prevalenceRange.max, '#b2182b'
+      ],
+      'fill-opacity': 0.6
+    }
+  };
+
+  // Polygon outline layer for predictions
+  const predictionPolygonOutlineLayer: LayerProps = {
+    id: 'prediction-polygons-outline',
+    type: 'line',
+    filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+    paint: {
+      'line-color': '#ffffff',
+      'line-width': 1,
+      'line-opacity': 0.8
+    }
+  };
+
+  // Layer styles for predictions - color by prevalence (for Points)
   // Dynamically adjusted scale based on actual data range
   const predictionLayer: LayerProps = {
     id: 'prediction-points',
     type: 'circle',
+    filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': [
         'interpolate',
@@ -197,10 +283,54 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     }
   };
 
-  // Layer styles for sampling
+  // Layer styles for sampling - Polygons
+  const allPolygonsFillLayer: LayerProps = {
+    id: 'all-polygons-fill',
+    type: 'fill',
+    filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+    paint: {
+      'fill-color': '#999',
+      'fill-opacity': 0.2
+    }
+  };
+
+  const allPolygonsOutlineLayer: LayerProps = {
+    id: 'all-polygons-outline',
+    type: 'line',
+    filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+    paint: {
+      'line-color': '#666',
+      'line-width': 1,
+      'line-opacity': 0.4
+    }
+  };
+
+  const selectedPolygonsFillLayer: LayerProps = {
+    id: 'selected-polygons-fill',
+    type: 'fill',
+    filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+    paint: {
+      'fill-color': '#28a745',
+      'fill-opacity': 0.6
+    }
+  };
+
+  const selectedPolygonsOutlineLayer: LayerProps = {
+    id: 'selected-polygons-outline',
+    type: 'line',
+    filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+    paint: {
+      'line-color': '#1e7e34',
+      'line-width': 2,
+      'line-opacity': 1
+    }
+  };
+
+  // Layer styles for sampling - Points
   const allPointsLayer: LayerProps = {
     id: 'all-points',
     type: 'circle',
+    filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': 3,
       'circle-color': '#999',
@@ -213,6 +343,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
   const selectedPointsLayer: LayerProps = {
     id: 'selected-points',
     type: 'circle',
+    filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': 3,
       'circle-color': '#28a745',
@@ -225,9 +356,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
   const handleMapClick = (event: any) => {
     const feature = event.features && event.features[0];
     if (feature) {
+      const [lng, lat] = getCentroid(feature.geometry);
       setPopupInfo({
-        longitude: feature.geometry.coordinates[0],
-        latitude: feature.geometry.coordinates[1],
+        longitude: lng,
+        latitude: lat,
         properties: feature.properties
       });
     }
@@ -251,8 +383,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
             fitBoundsOptions: { padding: 40 }
           }}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/light-v11"
-          interactiveLayerIds={isPredictionData ? ['prediction-heatmap', 'prediction-points'] : ['all-points', 'selected-points']}
+          mapStyle={mapStyle}
+          interactiveLayerIds={isPredictionData
+            ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline']
+            : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
           onClick={handleMapClick}
         >
           <NavigationControl position="top-right" />
@@ -261,18 +395,24 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
             /* Prediction visualization with heatmap interpolation */
             <Source id="prediction-source" type="geojson" data={displayData as any}>
               <Layer {...heatmapLayer} />
+              <Layer {...predictionPolygonFillLayer} />
+              <Layer {...predictionPolygonOutlineLayer} />
               <Layer {...predictionLayer} />
             </Source>
           ) : (
             <>
-              {/* All points layer */}
-              <Source id="all-points-source" type="geojson" data={data as any}>
+              {/* All features layer */}
+              <Source id="all-source" type="geojson" data={data as any}>
+                <Layer {...allPolygonsFillLayer} />
+                <Layer {...allPolygonsOutlineLayer} />
                 <Layer {...allPointsLayer} />
               </Source>
 
-              {/* Selected points layer */}
+              {/* Selected features layer */}
               {selectedFeatures.length > 0 && (
-                <Source id="selected-points-source" type="geojson" data={selectedGeoJSON as any}>
+                <Source id="selected-source" type="geojson" data={selectedGeoJSON as any}>
+                  <Layer {...selectedPolygonsFillLayer} />
+                  <Layer {...selectedPolygonsOutlineLayer} />
                   <Layer {...selectedPointsLayer} />
                 </Source>
               )}
@@ -306,6 +446,38 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
             </Popup>
           )}
         </Map>
+
+        {/* Map Style Selector */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          backgroundColor: 'white',
+          padding: '8px',
+          borderRadius: '4px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          fontSize: '12px',
+          zIndex: 1
+        }}>
+          <div style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '11px' }}>Map Style</div>
+          <select
+            value={mapStyle}
+            onChange={(e) => setMapStyle(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '4px',
+              fontSize: '11px',
+              border: '1px solid #ccc',
+              borderRadius: '3px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="mapbox://styles/mapbox/light-v11">Light</option>
+            <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
+            <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite Streets</option>
+            <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
+          </select>
+        </div>
 
         {/* Legend */}
         <div style={{

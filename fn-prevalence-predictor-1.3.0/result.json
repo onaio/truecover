@@ -1,0 +1,4008 @@
+{
+  "function_status": "success",
+  "result": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "id": "0",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "3",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.3436929199358262,
+          "prevalence_prediction": 0.5718627017922993
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3545408,
+            23.6689
+          ]
+        }
+      },
+      {
+        "id": "1",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "10",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.25644841527481116,
+          "prevalence_prediction": 0.5868303979816608
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3800694,
+            23.6689
+          ]
+        }
+      },
+      {
+        "id": "2",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "11",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.24529767821087073,
+          "prevalence_prediction": 0.5891072026781897
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3837163,
+            23.6689
+          ]
+        }
+      },
+      {
+        "id": "3",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "15",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2388077218644366,
+          "prevalence_prediction": 0.5972192685481373
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3983041,
+            23.6689
+          ]
+        }
+      },
+      {
+        "id": "4",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "18",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2579507316139571,
+          "prevalence_prediction": 0.6013297101616447
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4092449,
+            23.6689
+          ]
+        }
+      },
+      {
+        "id": "5",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "25",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2878854177717838,
+          "prevalence_prediction": 0.600638451236843
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4347735,
+            23.6689
+          ]
+        }
+      },
+      {
+        "id": "6",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "28",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2782114743265661,
+          "prevalence_prediction": 0.5956467308772971
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4457143,
+            23.6689
+          ]
+        }
+      },
+      {
+        "id": "7",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "50",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.35486018426320076,
+          "prevalence_prediction": 0.5643652618041859
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3436,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "8",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "53",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.3220629720040001,
+          "prevalence_prediction": 0.5686981584220457
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3545408,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "9",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "65",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.23737319741502683,
+          "prevalence_prediction": 0.5873541293914338
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3983041,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "10",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "67",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.24098566424523327,
+          "prevalence_prediction": 0.5894693066834022
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.405598,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "11",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "68",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.23640565388442814,
+          "prevalence_prediction": 0.5903024646953159
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4092449,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "12",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "72",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2478834344186338,
+          "prevalence_prediction": 0.5919191489853904
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4238327,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "13",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "83",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.28003270169777944,
+          "prevalence_prediction": 0.5832120843091888
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "14",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "87",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2909330753344956,
+          "prevalence_prediction": 0.578122810343921
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4785367,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "15",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "88",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2935164980317442,
+          "prevalence_prediction": 0.5770105442308111
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4821837,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "16",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "97",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.36855299171202843,
+          "prevalence_prediction": 0.5744102318029695
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5150061,
+            23.6733286
+          ]
+        }
+      },
+      {
+        "id": "17",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "104",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2848322024306141,
+          "prevalence_prediction": 0.5680227572855427
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3581878,
+            23.6777571
+          ]
+        }
+      },
+      {
+        "id": "18",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "108",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.24551993128663313,
+          "prevalence_prediction": 0.5725701056848718
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3727755,
+            23.6777571
+          ]
+        }
+      },
+      {
+        "id": "19",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "147",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.3391999433518891,
+          "prevalence_prediction": 0.5883118838366932
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5150061,
+            23.6777571
+          ]
+        }
+      },
+      {
+        "id": "20",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "148",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.35636473559261433,
+          "prevalence_prediction": 0.5892077298032564
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5186531,
+            23.6777571
+          ]
+        }
+      },
+      {
+        "id": "21",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "150",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.31618017914134033,
+          "prevalence_prediction": 0.5625848241038748
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3436,
+            23.6821857
+          ]
+        }
+      },
+      {
+        "id": "22",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "154",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.26486640863590843,
+          "prevalence_prediction": 0.5669788935230491
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3581878,
+            23.6821857
+          ]
+        }
+      },
+      {
+        "id": "23",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "165",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.22428533348139634,
+          "prevalence_prediction": 0.5707648109839762
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3983041,
+            23.6821857
+          ]
+        }
+      },
+      {
+        "id": "24",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "170",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.24517328436345265,
+          "prevalence_prediction": 0.5714643222542037
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4165388,
+            23.6821857
+          ]
+        }
+      },
+      {
+        "id": "25",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "189",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.28576102886968846,
+          "prevalence_prediction": 0.5889497992102035
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4858306,
+            23.6821857
+          ]
+        }
+      },
+      {
+        "id": "26",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "194",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.30036886494762605,
+          "prevalence_prediction": 0.5954288325255395
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5040653,
+            23.6821857
+          ]
+        }
+      },
+      {
+        "id": "27",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "227",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2605009301337056,
+          "prevalence_prediction": 0.5676901823138022
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4420673,
+            23.6866143
+          ]
+        }
+      },
+      {
+        "id": "28",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "254",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.25130818163267266,
+          "prevalence_prediction": 0.5682995532658054
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3581878,
+            23.6910429
+          ]
+        }
+      },
+      {
+        "id": "29",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "259",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.22321730884883134,
+          "prevalence_prediction": 0.5654476302953121
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3764224,
+            23.6910429
+          ]
+        }
+      },
+      {
+        "id": "30",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "262",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.20301967356494732,
+          "prevalence_prediction": 0.5619998211158616
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3873633,
+            23.6910429
+          ]
+        }
+      },
+      {
+        "id": "31",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "305",
+          "n_positive": 3,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2409733942496246,
+          "prevalence_prediction": 0.5699030320710586
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3618347,
+            23.6954714
+          ]
+        }
+      },
+      {
+        "id": "32",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "328",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.219942723203585,
+          "prevalence_prediction": 0.5559049200445512
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4457143,
+            23.6954714
+          ]
+        }
+      },
+      {
+        "id": "33",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "333",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2095841636179125,
+          "prevalence_prediction": 0.5712723896883436
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.6954714
+          ]
+        }
+      },
+      {
+        "id": "34",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "348",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2839327633493644,
+          "prevalence_prediction": 0.6133642283713837
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5186531,
+            23.6954714
+          ]
+        }
+      },
+      {
+        "id": "35",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "368",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2234620166236267,
+          "prevalence_prediction": 0.5443786226400695
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4092449,
+            23.6999
+          ]
+        }
+      },
+      {
+        "id": "36",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "369",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2236341773794962,
+          "prevalence_prediction": 0.5430137937980052
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4128918,
+            23.6999
+          ]
+        }
+      },
+      {
+        "id": "37",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "380",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2179149156196319,
+          "prevalence_prediction": 0.55535916766796
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4530082,
+            23.6999
+          ]
+        }
+      },
+      {
+        "id": "38",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "382",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.21290413838600786,
+          "prevalence_prediction": 0.5625208318326513
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.460302,
+            23.6999
+          ]
+        }
+      },
+      {
+        "id": "39",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "389",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.23303141604331673,
+          "prevalence_prediction": 0.5907106194785576
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4858306,
+            23.6999
+          ]
+        }
+      },
+      {
+        "id": "40",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "392",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2412296283332538,
+          "prevalence_prediction": 0.6008213076166657
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4967714,
+            23.6999
+          ]
+        }
+      },
+      {
+        "id": "41",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "414",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.19397389435186457,
+          "prevalence_prediction": 0.5505484087382563
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3946571,
+            23.7043286
+          ]
+        }
+      },
+      {
+        "id": "42",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "436",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.21815745850547957,
+          "prevalence_prediction": 0.5740087914452582
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4748898,
+            23.7043286
+          ]
+        }
+      },
+      {
+        "id": "43",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "441",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2282806696722502,
+          "prevalence_prediction": 0.5940743741928123
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4931245,
+            23.7043286
+          ]
+        }
+      },
+      {
+        "id": "44",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "443",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.23671127911891815,
+          "prevalence_prediction": 0.6000618097644512
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5004184,
+            23.7043286
+          ]
+        }
+      },
+      {
+        "id": "45",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "457",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2185087495780328,
+          "prevalence_prediction": 0.5747547736892441
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3691286,
+            23.7087571
+          ]
+        }
+      },
+      {
+        "id": "46",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "458",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.21147619364536102,
+          "prevalence_prediction": 0.5715684064013201
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3727755,
+            23.7087571
+          ]
+        }
+      },
+      {
+        "id": "47",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "487",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2154353337301011,
+          "prevalence_prediction": 0.5726804749808146
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4785367,
+            23.7087571
+          ]
+        }
+      },
+      {
+        "id": "48",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "502",
+          "n_positive": 3,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.25497360709151073,
+          "prevalence_prediction": 0.5912289116328374
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3508939,
+            23.7131857
+          ]
+        }
+      },
+      {
+        "id": "49",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "534",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.21200452360631528,
+          "prevalence_prediction": 0.5525531527539114
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4675959,
+            23.7131857
+          ]
+        }
+      },
+      {
+        "id": "50",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "545",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.25467351190666293,
+          "prevalence_prediction": 0.5908816594866356
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5077122,
+            23.7131857
+          ]
+        }
+      },
+      {
+        "id": "51",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "556",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.21393340787520404,
+          "prevalence_prediction": 0.5863904383391376
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3654816,
+            23.7176143
+          ]
+        }
+      },
+      {
+        "id": "52",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "558",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.20064676542568066,
+          "prevalence_prediction": 0.5782273644469336
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3727755,
+            23.7176143
+          ]
+        }
+      },
+      {
+        "id": "53",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "561",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.1873973117761643,
+          "prevalence_prediction": 0.5640450785497325
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3837163,
+            23.7176143
+          ]
+        }
+      },
+      {
+        "id": "54",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "615",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.16631013245443188,
+          "prevalence_prediction": 0.5449752518413228
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3983041,
+            23.7220429
+          ]
+        }
+      },
+      {
+        "id": "55",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "617",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.17852701486030015,
+          "prevalence_prediction": 0.5353859308575191
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.405598,
+            23.7220429
+          ]
+        }
+      },
+      {
+        "id": "56",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "621",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.20466374141638422,
+          "prevalence_prediction": 0.5213587759379988
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4201857,
+            23.7220429
+          ]
+        }
+      },
+      {
+        "id": "57",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "642",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.24324793657609012,
+          "prevalence_prediction": 0.5658880234445576
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4967714,
+            23.7220429
+          ]
+        }
+      },
+      {
+        "id": "58",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "686",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.19444210408302737,
+          "prevalence_prediction": 0.5371336075771606
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4748898,
+            23.7264714
+          ]
+        }
+      },
+      {
+        "id": "59",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "687",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.1994177094338081,
+          "prevalence_prediction": 0.5406541308163693
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4785367,
+            23.7264714
+          ]
+        }
+      },
+      {
+        "id": "60",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "697",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.29860641990013487,
+          "prevalence_prediction": 0.5579533908592545
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5150061,
+            23.7264714
+          ]
+        }
+      },
+      {
+        "id": "61",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "700",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.26996224598294094,
+          "prevalence_prediction": 0.6225781192398255
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3436,
+            23.7309
+          ]
+        }
+      },
+      {
+        "id": "62",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "712",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.17005465504586137,
+          "prevalence_prediction": 0.5660240042847394
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3873633,
+            23.7309
+          ]
+        }
+      },
+      {
+        "id": "63",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "717",
+          "n_positive": 0,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.17166190520304053,
+          "prevalence_prediction": 0.5359508664206468
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.405598,
+            23.7309
+          ]
+        }
+      },
+      {
+        "id": "64",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "731",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.18760754293531007,
+          "prevalence_prediction": 0.5142496273616766
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4566551,
+            23.7309
+          ]
+        }
+      },
+      {
+        "id": "65",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "741",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.23334458710458766,
+          "prevalence_prediction": 0.5412458234437568
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4931245,
+            23.7309
+          ]
+        }
+      },
+      {
+        "id": "66",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "753",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.24396811525667106,
+          "prevalence_prediction": 0.6200740486858788
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3545408,
+            23.7353286
+          ]
+        }
+      },
+      {
+        "id": "67",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "757",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.21233579987598405,
+          "prevalence_prediction": 0.6005879563332215
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3691286,
+            23.7353286
+          ]
+        }
+      },
+      {
+        "id": "68",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "775",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.18315998692280083,
+          "prevalence_prediction": 0.50691307940352
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4347735,
+            23.7353286
+          ]
+        }
+      },
+      {
+        "id": "69",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "834",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.17796289698140805,
+          "prevalence_prediction": 0.5065525576512826
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4675959,
+            23.7397571
+          ]
+        }
+      },
+      {
+        "id": "70",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "873",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.17929936543092223,
+          "prevalence_prediction": 0.509301809639883
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4274796,
+            23.7441857
+          ]
+        }
+      },
+      {
+        "id": "71",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "880",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.17439666936076065,
+          "prevalence_prediction": 0.4970387131982788
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4530082,
+            23.7441857
+          ]
+        }
+      },
+      {
+        "id": "72",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "897",
+          "n_positive": 3,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.29464177349508974,
+          "prevalence_prediction": 0.49849833211213235
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5150061,
+            23.7441857
+          ]
+        }
+      },
+      {
+        "id": "73",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "899",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.3267539260751011,
+          "prevalence_prediction": 0.4931009668080759
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5223,
+            23.7441857
+          ]
+        }
+      },
+      {
+        "id": "74",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "902",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.25493865686395223,
+          "prevalence_prediction": 0.6390990837315321
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3508939,
+            23.7486143
+          ]
+        }
+      },
+      {
+        "id": "75",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "935",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.17818680022744943,
+          "prevalence_prediction": 0.4924632755524969
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4712429,
+            23.7486143
+          ]
+        }
+      },
+      {
+        "id": "76",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "936",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.17503823837993437,
+          "prevalence_prediction": 0.49281035264311407
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4748898,
+            23.7486143
+          ]
+        }
+      },
+      {
+        "id": "77",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "942",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2280684474642405,
+          "prevalence_prediction": 0.4924755378895263
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4967714,
+            23.7486143
+          ]
+        }
+      },
+      {
+        "id": "78",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "980",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.170495129556327,
+          "prevalence_prediction": 0.48937646449637257
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4530082,
+            23.7530429
+          ]
+        }
+      },
+      {
+        "id": "79",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "984",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.16718441543118967,
+          "prevalence_prediction": 0.48575741188429594
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4675959,
+            23.7530429
+          ]
+        }
+      },
+      {
+        "id": "80",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "986",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.16785683266069323,
+          "prevalence_prediction": 0.4849057233762043
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4748898,
+            23.7530429
+          ]
+        }
+      },
+      {
+        "id": "81",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "989",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.18837471854470367,
+          "prevalence_prediction": 0.4834866048143312
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4858306,
+            23.7530429
+          ]
+        }
+      },
+      {
+        "id": "82",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1000",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.26652657256969103,
+          "prevalence_prediction": 0.6537834800788097
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3436,
+            23.7574714
+          ]
+        }
+      },
+      {
+        "id": "83",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1035",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.1579577255025481,
+          "prevalence_prediction": 0.4788052094623795
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4712429,
+            23.7574714
+          ]
+        }
+      },
+      {
+        "id": "84",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1047",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.29925997193417986,
+          "prevalence_prediction": 0.4557614224566484
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5150061,
+            23.7574714
+          ]
+        }
+      },
+      {
+        "id": "85",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1055",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.23838018510143633,
+          "prevalence_prediction": 0.6308787385711089
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3618347,
+            23.7619
+          ]
+        }
+      },
+      {
+        "id": "86",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1080",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.16185298457319208,
+          "prevalence_prediction": 0.4841696955013581
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4530082,
+            23.7619
+          ]
+        }
+      },
+      {
+        "id": "87",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1111",
+          "n_positive": 3,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.20141852810448369,
+          "prevalence_prediction": 0.5923977429037117
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3837163,
+            23.7663286
+          ]
+        }
+      },
+      {
+        "id": "88",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1123",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.17869127680192348,
+          "prevalence_prediction": 0.5128130607990575
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4274796,
+            23.7663286
+          ]
+        }
+      },
+      {
+        "id": "89",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1128",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.17551939254773002,
+          "prevalence_prediction": 0.48974647780381386
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4457143,
+            23.7663286
+          ]
+        }
+      },
+      {
+        "id": "90",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1140",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2023000901589414,
+          "prevalence_prediction": 0.4555504227395566
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4894776,
+            23.7663286
+          ]
+        }
+      },
+      {
+        "id": "91",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1183",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.17172618881892843,
+          "prevalence_prediction": 0.4708667162598034
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.7707571
+          ]
+        }
+      },
+      {
+        "id": "92",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1187",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.1989303200119042,
+          "prevalence_prediction": 0.4580861085889122
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4785367,
+            23.7707571
+          ]
+        }
+      },
+      {
+        "id": "93",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1209",
+          "n_positive": 3,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2101299395114951,
+          "prevalence_prediction": 0.6055158922969369
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3764224,
+            23.7751857
+          ]
+        }
+      },
+      {
+        "id": "94",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1213",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.18947639475315697,
+          "prevalence_prediction": 0.5797659718466915
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3910102,
+            23.7751857
+          ]
+        }
+      },
+      {
+        "id": "95",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1233",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.17406057954365162,
+          "prevalence_prediction": 0.4691081624098405
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.7751857
+          ]
+        }
+      },
+      {
+        "id": "96",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1244",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2614197267210366,
+          "prevalence_prediction": 0.4279446879173177
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5040653,
+            23.7751857
+          ]
+        }
+      },
+      {
+        "id": "97",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1277",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.18194346563865993,
+          "prevalence_prediction": 0.49684809885376324
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4420673,
+            23.7796143
+          ]
+        }
+      },
+      {
+        "id": "98",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1291",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.21831531129589243,
+          "prevalence_prediction": 0.4348841301340242
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4931245,
+            23.7796143
+          ]
+        }
+      },
+      {
+        "id": "99",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1304",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2474942339309847,
+          "prevalence_prediction": 0.6271471410759792
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3581878,
+            23.7840429
+          ]
+        }
+      },
+      {
+        "id": "100",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1310",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2090046983305519,
+          "prevalence_prediction": 0.5960530367223977
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3800694,
+            23.7840429
+          ]
+        }
+      },
+      {
+        "id": "101",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1337",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.1907201657935247,
+          "prevalence_prediction": 0.44963800969154866
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4785367,
+            23.7840429
+          ]
+        }
+      },
+      {
+        "id": "102",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1354",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2480975888237757,
+          "prevalence_prediction": 0.6218009463408283
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3581878,
+            23.7884714
+          ]
+        }
+      },
+      {
+        "id": "103",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1364",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.18856654256211786,
+          "prevalence_prediction": 0.5725501308213113
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3946571,
+            23.7884714
+          ]
+        }
+      },
+      {
+        "id": "104",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1377",
+          "n_positive": 3,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.178954738218926,
+          "prevalence_prediction": 0.5012166200890397
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4420673,
+            23.7884714
+          ]
+        }
+      },
+      {
+        "id": "105",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1383",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.16668671113641115,
+          "prevalence_prediction": 0.46933800454107194
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.7884714
+          ]
+        }
+      },
+      {
+        "id": "106",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1398",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.29237389589408785,
+          "prevalence_prediction": 0.40015742825880557
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5186531,
+            23.7884714
+          ]
+        }
+      },
+      {
+        "id": "107",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1407",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2231807753606161,
+          "prevalence_prediction": 0.6027727117331101
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3691286,
+            23.7929
+          ]
+        }
+      },
+      {
+        "id": "108",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1422",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.18360091285225721,
+          "prevalence_prediction": 0.5309542143065582
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4238327,
+            23.7929
+          ]
+        }
+      },
+      {
+        "id": "109",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1456",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.23299277856895362,
+          "prevalence_prediction": 0.6003486121242193
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3654816,
+            23.7973286
+          ]
+        }
+      },
+      {
+        "id": "110",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1461",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.18964403951414577,
+          "prevalence_prediction": 0.5814153788825646
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3837163,
+            23.7973286
+          ]
+        }
+      },
+      {
+        "id": "111",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1471",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.18730180015395193,
+          "prevalence_prediction": 0.5379481080727169
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4201857,
+            23.7973286
+          ]
+        }
+      },
+      {
+        "id": "112",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1476",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.18097542216561785,
+          "prevalence_prediction": 0.5124093045037363
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4384204,
+            23.7973286
+          ]
+        }
+      },
+      {
+        "id": "113",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1491",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.21736402702531432,
+          "prevalence_prediction": 0.4322641885441287
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4931245,
+            23.7973286
+          ]
+        }
+      },
+      {
+        "id": "114",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1500",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2709390214734636,
+          "prevalence_prediction": 0.6118268624839385
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3436,
+            23.8017571
+          ]
+        }
+      },
+      {
+        "id": "115",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1544",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.24754605678491798,
+          "prevalence_prediction": 0.4223182136452585
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5040653,
+            23.8017571
+          ]
+        }
+      },
+      {
+        "id": "116",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1549",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.299223580163576,
+          "prevalence_prediction": 0.40399978064363473
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5223,
+            23.8017571
+          ]
+        }
+      },
+      {
+        "id": "117",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1559",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.19217435186868947,
+          "prevalence_prediction": 0.5767988504002051
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3764224,
+            23.8061857
+          ]
+        }
+      },
+      {
+        "id": "118",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1566",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.17195019922599614,
+          "prevalence_prediction": 0.55805131218073
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.401951,
+            23.8061857
+          ]
+        }
+      },
+      {
+        "id": "119",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1579",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.17824336746148328,
+          "prevalence_prediction": 0.5036028666186152
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4493612,
+            23.8061857
+          ]
+        }
+      },
+      {
+        "id": "120",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1581",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.17213158351742125,
+          "prevalence_prediction": 0.492881939351935
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4566551,
+            23.8061857
+          ]
+        }
+      },
+      {
+        "id": "121",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1589",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.20804254432700003,
+          "prevalence_prediction": 0.44996672536804755
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4858306,
+            23.8061857
+          ]
+        }
+      },
+      {
+        "id": "122",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1602",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.24711099075868592,
+          "prevalence_prediction": 0.5829478560610726
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3508939,
+            23.8106143
+          ]
+        }
+      },
+      {
+        "id": "123",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1621",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.17623196263640267,
+          "prevalence_prediction": 0.5417929621135942
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4201857,
+            23.8106143
+          ]
+        }
+      },
+      {
+        "id": "124",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1626",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.17125505763520538,
+          "prevalence_prediction": 0.522123574044968
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4384204,
+            23.8106143
+          ]
+        }
+      },
+      {
+        "id": "125",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1637",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.19008371613576275,
+          "prevalence_prediction": 0.46584781015897686
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4785367,
+            23.8106143
+          ]
+        }
+      },
+      {
+        "id": "126",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1650",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.25181518258451696,
+          "prevalence_prediction": 0.5738856870326755
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3436,
+            23.8150429
+          ]
+        }
+      },
+      {
+        "id": "127",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1659",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.19172956092106203,
+          "prevalence_prediction": 0.5616959208320825
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3764224,
+            23.8150429
+          ]
+        }
+      },
+      {
+        "id": "128",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1680",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.1673565011206421,
+          "prevalence_prediction": 0.5075337389837888
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4530082,
+            23.8150429
+          ]
+        }
+      },
+      {
+        "id": "129",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1720",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.16999913621098728,
+          "prevalence_prediction": 0.54486064630397
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4165388,
+            23.8194714
+          ]
+        }
+      },
+      {
+        "id": "130",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1723",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.17217016450348327,
+          "prevalence_prediction": 0.5380393911893185
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4274796,
+            23.8194714
+          ]
+        }
+      },
+      {
+        "id": "131",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1727",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.17144929050183783,
+          "prevalence_prediction": 0.5249451509600707
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4420673,
+            23.8194714
+          ]
+        }
+      },
+      {
+        "id": "132",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1745",
+          "n_positive": 0,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.27197333363068793,
+          "prevalence_prediction": 0.45104620167300896
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5077122,
+            23.8194714
+          ]
+        }
+      },
+      {
+        "id": "133",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1750",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.26030123232592134,
+          "prevalence_prediction": 0.5442147048384888
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3436,
+            23.8239
+          ]
+        }
+      },
+      {
+        "id": "134",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1753",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.23583575318011885,
+          "prevalence_prediction": 0.5429445507452327
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3545408,
+            23.8239
+          ]
+        }
+      },
+      {
+        "id": "135",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1768",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.17201146743415097,
+          "prevalence_prediction": 0.5459556503816374
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4092449,
+            23.8239
+          ]
+        }
+      },
+      {
+        "id": "136",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1772",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.16531856992754212,
+          "prevalence_prediction": 0.5412571063104837
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4238327,
+            23.8239
+          ]
+        }
+      },
+      {
+        "id": "137",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1781",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.17471437329541412,
+          "prevalence_prediction": 0.5137060116076214
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4566551,
+            23.8239
+          ]
+        }
+      },
+      {
+        "id": "138",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1808",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.19363892397443,
+          "prevalence_prediction": 0.534020552370847
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3727755,
+            23.8283286
+          ]
+        }
+      },
+      {
+        "id": "139",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1821",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.16416719876636177,
+          "prevalence_prediction": 0.5424853617874884
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4201857,
+            23.8283286
+          ]
+        }
+      },
+      {
+        "id": "140",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1833",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.17137625529603595,
+          "prevalence_prediction": 0.5122234957121847
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.8283286
+          ]
+        }
+      },
+      {
+        "id": "141",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1839",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.20912209138711946,
+          "prevalence_prediction": 0.49063212158463093
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4858306,
+            23.8283286
+          ]
+        }
+      },
+      {
+        "id": "142",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1842",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2550710254778639,
+          "prevalence_prediction": 0.48220637735801275
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4967714,
+            23.8283286
+          ]
+        }
+      },
+      {
+        "id": "143",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1889",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.21447777787897304,
+          "prevalence_prediction": 0.5014857670836205
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4858306,
+            23.8327571
+          ]
+        }
+      },
+      {
+        "id": "144",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1890",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2269624465506931,
+          "prevalence_prediction": 0.4990315580077115
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4894776,
+            23.8327571
+          ]
+        }
+      },
+      {
+        "id": "145",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1899",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.3244503453077825,
+          "prevalence_prediction": 0.4910110742267255
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5223,
+            23.8327571
+          ]
+        }
+      },
+      {
+        "id": "146",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1929",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.18207902206681464,
+          "prevalence_prediction": 0.5350512298384722
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4493612,
+            23.8371857
+          ]
+        }
+      },
+      {
+        "id": "147",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1933",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.17616481357920666,
+          "prevalence_prediction": 0.5264850981568427
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.8371857
+          ]
+        }
+      },
+      {
+        "id": "148",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1954",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.2361348121944174,
+          "prevalence_prediction": 0.49108052325475066
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3581878,
+            23.8416143
+          ]
+        }
+      },
+      {
+        "id": "149",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1962",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.16420670939954446,
+          "prevalence_prediction": 0.5167061112270518
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3873633,
+            23.8416143
+          ]
+        }
+      },
+      {
+        "id": "150",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1968",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.16882534109335223,
+          "prevalence_prediction": 0.5335290287395411
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4092449,
+            23.8416143
+          ]
+        }
+      },
+      {
+        "id": "151",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1970",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.1679260854175723,
+          "prevalence_prediction": 0.537294181284496
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4165388,
+            23.8416143
+          ]
+        }
+      },
+      {
+        "id": "152",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "1993",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.275560960787398,
+          "prevalence_prediction": 0.5226064552672524
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5004184,
+            23.8416143
+          ]
+        }
+      },
+      {
+        "id": "153",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2010",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.18571471581750287,
+          "prevalence_prediction": 0.5012404232450642
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3800694,
+            23.8460429
+          ]
+        }
+      },
+      {
+        "id": "154",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2016",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.16816005085669755,
+          "prevalence_prediction": 0.523376742857592
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.401951,
+            23.8460429
+          ]
+        }
+      },
+      {
+        "id": "155",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2042",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.26646819971570057,
+          "prevalence_prediction": 0.5373472324771985
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4967714,
+            23.8460429
+          ]
+        }
+      },
+      {
+        "id": "156",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2052",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2625802697712436,
+          "prevalence_prediction": 0.45864966330878953
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3508939,
+            23.8504714
+          ]
+        }
+      },
+      {
+        "id": "157",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2065",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.16608777228094251,
+          "prevalence_prediction": 0.5139111866835647
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3983041,
+            23.8504714
+          ]
+        }
+      },
+      {
+        "id": "158",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2075",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.19815637671087116,
+          "prevalence_prediction": 0.5420317158805642
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4347735,
+            23.8504714
+          ]
+        }
+      },
+      {
+        "id": "159",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2081",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.18703192983839678,
+          "prevalence_prediction": 0.5469999127104013
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4566551,
+            23.8504714
+          ]
+        }
+      },
+      {
+        "id": "160",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2109",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.207392088448126,
+          "prevalence_prediction": 0.4791877850357734
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3764224,
+            23.8549
+          ]
+        }
+      },
+      {
+        "id": "161",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2119",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.18641153836993662,
+          "prevalence_prediction": 0.5239050604159586
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4128918,
+            23.8549
+          ]
+        }
+      },
+      {
+        "id": "162",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2121",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.19934032906313143,
+          "prevalence_prediction": 0.530752166047109
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4201857,
+            23.8549
+          ]
+        }
+      },
+      {
+        "id": "163",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2143",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2735209145194007,
+          "prevalence_prediction": 0.56968350894158
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5004184,
+            23.8549
+          ]
+        }
+      },
+      {
+        "id": "164",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2157",
+          "n_positive": 0,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.22706428783140215,
+          "prevalence_prediction": 0.46015755796129454
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3691286,
+            23.8593286
+          ]
+        }
+      },
+      {
+        "id": "165",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2162",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.17823467128132925,
+          "prevalence_prediction": 0.4863275263585364
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3873633,
+            23.8593286
+          ]
+        }
+      },
+      {
+        "id": "166",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2168",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.19065301513765226,
+          "prevalence_prediction": 0.5149793249863474
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4092449,
+            23.8593286
+          ]
+        }
+      },
+      {
+        "id": "167",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2177",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.19635367024130834,
+          "prevalence_prediction": 0.5461188984562186
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4420673,
+            23.8593286
+          ]
+        }
+      },
+      {
+        "id": "168",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2185",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.20069115359957013,
+          "prevalence_prediction": 0.5642642108225949
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4712429,
+            23.8593286
+          ]
+        }
+      },
+      {
+        "id": "169",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2187",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.20856530561308845,
+          "prevalence_prediction": 0.568742285528511
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4785367,
+            23.8593286
+          ]
+        }
+      },
+      {
+        "id": "170",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2198",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.33795288153437464,
+          "prevalence_prediction": 0.6049836214550548
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5186531,
+            23.8593286
+          ]
+        }
+      },
+      {
+        "id": "171",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2201",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2851922929557335,
+          "prevalence_prediction": 0.4182479723318818
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3472469,
+            23.8637571
+          ]
+        }
+      },
+      {
+        "id": "172",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2210",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.20633762755330826,
+          "prevalence_prediction": 0.46821499911372483
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3800694,
+            23.8637571
+          ]
+        }
+      },
+      {
+        "id": "173",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2213",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.178720989870354,
+          "prevalence_prediction": 0.48442583780504456
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3910102,
+            23.8637571
+          ]
+        }
+      },
+      {
+        "id": "174",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2230",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.19158892740697686,
+          "prevalence_prediction": 0.5560006757447126
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4530082,
+            23.8637571
+          ]
+        }
+      },
+      {
+        "id": "175",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2262",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.19212609018784255,
+          "prevalence_prediction": 0.472122955988454
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3873633,
+            23.8681857
+          ]
+        }
+      },
+      {
+        "id": "176",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2279",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.19443261125415473,
+          "prevalence_prediction": 0.5537033393277063
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4493612,
+            23.8681857
+          ]
+        }
+      },
+      {
+        "id": "177",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2291",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.25857791124377627,
+          "prevalence_prediction": 0.6064781327972166
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4931245,
+            23.8681857
+          ]
+        }
+      },
+      {
+        "id": "178",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2305",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.26315574486672577,
+          "prevalence_prediction": 0.4245262880094122
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3618347,
+            23.8726143
+          ]
+        }
+      },
+      {
+        "id": "179",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2311",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.20927252236361976,
+          "prevalence_prediction": 0.4598604235035542
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3837163,
+            23.8726143
+          ]
+        }
+      },
+      {
+        "id": "180",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2326",
+          "n_positive": 1,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.20836448743000868,
+          "prevalence_prediction": 0.5385657800792888
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4384204,
+            23.8726143
+          ]
+        }
+      },
+      {
+        "id": "181",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2333",
+          "n_positive": 0,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.20972124906721756,
+          "prevalence_prediction": 0.5750021086075641
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.463949,
+            23.8726143
+          ]
+        }
+      },
+      {
+        "id": "182",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2343",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.27918048968581977,
+          "prevalence_prediction": 0.6312230059525837
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5004184,
+            23.8726143
+          ]
+        }
+      },
+      {
+        "id": "183",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2347",
+          "n_positive": 4,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.3144513497754675,
+          "prevalence_prediction": 0.6551065795235478
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5150061,
+            23.8726143
+          ]
+        }
+      },
+      {
+        "id": "184",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2367",
+          "n_positive": 2,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.2069594384363787,
+          "prevalence_prediction": 0.48596660039707906
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.405598,
+            23.8770429
+          ]
+        }
+      },
+      {
+        "id": "185",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2406",
+          "n_positive": 1,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.27327079203294136,
+          "prevalence_prediction": 0.4189968929218824
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3654816,
+            23.8814714
+          ]
+        }
+      },
+      {
+        "id": "186",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2409",
+          "n_positive": 1,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.25208381181063827,
+          "prevalence_prediction": 0.436760160601767
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3764224,
+            23.8814714
+          ]
+        }
+      },
+      {
+        "id": "187",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2414",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2253006277673874,
+          "prevalence_prediction": 0.46367723204339917
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3946571,
+            23.8814714
+          ]
+        }
+      },
+      {
+        "id": "188",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2422",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.23081372584915938,
+          "prevalence_prediction": 0.5069937647855945
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4238327,
+            23.8814714
+          ]
+        }
+      },
+      {
+        "id": "189",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2436",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.2514544614198746,
+          "prevalence_prediction": 0.6051361924793327
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4748898,
+            23.8814714
+          ]
+        }
+      },
+      {
+        "id": "190",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2449",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.347311772384782,
+          "prevalence_prediction": 0.7017865435598535
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5223,
+            23.8814714
+          ]
+        }
+      },
+      {
+        "id": "191",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2451",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.3743579660043317,
+          "prevalence_prediction": 0.38012274441400573
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3472469,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "192",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2454",
+          "n_positive": 2,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.32735289188336875,
+          "prevalence_prediction": 0.40173497006982656
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3581878,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "193",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2455",
+          "n_positive": 1,
+          "n_trials": 4,
+          "prevalence_bci_width": 0.3101282979032671,
+          "prevalence_prediction": 0.40832494931857233
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3618347,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "194",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2464",
+          "n_positive": 0,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.24306209191290384,
+          "prevalence_prediction": 0.45753161519022784
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3946571,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "195",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2465",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.23208573297699736,
+          "prevalence_prediction": 0.46249298050884996
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.3983041,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "196",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2466",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.23958176146075294,
+          "prevalence_prediction": 0.4674990516581823
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.401951,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "197",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2474",
+          "n_positive": 2,
+          "n_trials": 2,
+          "prevalence_bci_width": 0.25505075848698044,
+          "prevalence_prediction": 0.5133959333109491
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4311265,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "198",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2489",
+          "n_positive": 0,
+          "n_trials": 1,
+          "prevalence_bci_width": 0.2932110577291191,
+          "prevalence_prediction": 0.6380271632632337
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.4858306,
+            23.8859
+          ]
+        }
+      },
+      {
+        "id": "199",
+        "type": "Feature",
+        "properties": {
+          "exceedance_probability": null,
+          "exceedance_uncertainty": null,
+          "id": "2493",
+          "n_positive": 3,
+          "n_trials": 3,
+          "prevalence_bci_width": 0.32232664360163193,
+          "prevalence_prediction": 0.6722718535501374
+        },
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            90.5004184,
+            23.8859
+          ]
+        }
+      }
+    ]
+  }
+}

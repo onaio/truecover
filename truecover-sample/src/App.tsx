@@ -270,6 +270,9 @@ function App() {
         >
           ← Back to Home
         </button>
+        <div style={{ marginBottom: '10px' }}>
+          <span style={{ fontSize: '24px', fontWeight: 'bold' }}>TrueCover</span>
+        </div>
         <h1>Adaptive Sampling</h1>
         <p>Upload a GeoJSON or CSV file to perform adaptive sampling</p>
       </header>
@@ -698,6 +701,9 @@ function App() {
           >
             ← Back to Home
           </button>
+          <div style={{ marginBottom: '10px' }}>
+            <span style={{ fontSize: '24px', fontWeight: 'bold' }}>TrueCover</span>
+          </div>
           <h1>Coverage Prediction</h1>
           <p>Upload sample frame and survey data to predict coverage patterns</p>
         </header>

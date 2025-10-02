@@ -28,9 +28,16 @@ function(params) {
   point_data = st_read(as.json(params[['point_data']]), quiet=T)
   params[['point_data']] = point_data
 
-  # Check 
+  # Check
   uncertainty_fieldname = params[['uncertainty_fieldname']]
-  rows_we_can_sample = sum(!is.na(as.data.frame(point_data)[, uncertainty_fieldname]))
+
+  # Check if uncertainty field exists in the data
+  point_data_df = as.data.frame(point_data)
+  if (!(uncertainty_fieldname %in% names(point_data_df))) {
+    stop(paste0('Uncertainty field "', uncertainty_fieldname, '" not found in data. Available fields: ', paste(names(point_data_df), collapse=', ')))
+  }
+
+  rows_we_can_sample = sum(!is.na(point_data_df[, uncertainty_fieldname]))
   if (params[['batch_size']] > rows_we_can_sample) {
     stop('Batch size is larger than the number of points for which uncertainty is available (not NA)')
   }
