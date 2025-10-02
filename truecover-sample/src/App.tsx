@@ -398,8 +398,6 @@ function App() {
     };
 
     try {
-      console.log('Sending request to /api/prediction...');
-      console.log('Request payload:', JSON.stringify(request, null, 2).substring(0, 500));
       const response = await axios.post('/api/prediction', request, {
         headers: {
           'Content-Type': 'application/json',
@@ -408,43 +406,27 @@ function App() {
         responseType: 'json'
       });
 
-      console.log('Raw response:', response);
-      console.log('Response data type:', typeof response.data);
-
-      // Just display whatever we got back
       let resultData = response.data;
 
       // If it's a string, try to parse it
       if (typeof resultData === 'string') {
-        console.log('Response is a string, length:', resultData.length);
-        console.log('First 500 chars:', resultData.substring(0, 500));
-
         // Try to clean up the string - remove any non-JSON content
         let jsonStr = resultData.trim();
 
         // Find the actual JSON content (starts with { or [)
         const jsonStart = jsonStr.search(/[{\[]/);
         if (jsonStart > 0) {
-          console.log('Found non-JSON prefix, removing first', jsonStart, 'chars');
-          console.log('Prefix content:', jsonStr.substring(0, jsonStart));
           jsonStr = jsonStr.substring(jsonStart);
         }
 
         // Try to find where the JSON ends and remove any trailing content (like Python warnings)
-        // We'll try to parse, and if it fails due to trailing content, we'll try to fix it
-        let lastValidJson = jsonStr;
         try {
           resultData = JSON.parse(jsonStr);
-          console.log('Successfully parsed JSON');
         } catch (parseErr: any) {
-          console.error('Failed to parse JSON:', parseErr);
-          console.error('Error position:', parseErr.message);
-
           // Check if there's content after valid JSON
           const match = parseErr.message.match(/position (\d+)/);
           if (match) {
             const errorPos = parseInt(match[1]);
-            console.error('Content around error:', jsonStr.substring(Math.max(0, errorPos - 100), errorPos + 100));
 
             // Try to extract just the JSON part by finding the last valid closing brace/bracket
             // Look backwards from the error position to find a complete JSON object
@@ -454,8 +436,7 @@ function App() {
                 const candidate = jsonStr.substring(0, i + 1);
                 try {
                   resultData = JSON.parse(candidate);
-                  console.log('Successfully parsed JSON after trimming trailing content at position', i + 1);
-                  console.log('Removed trailing content:', jsonStr.substring(i + 1, Math.min(jsonStr.length, i + 200)));
+                  // Successfully cleaned trailing non-JSON content from response
                   break;
                 } catch {
                   // Keep trying
@@ -465,11 +446,11 @@ function App() {
 
             // If we still don't have valid JSON, show the error
             if (typeof resultData === 'string') {
-              setPredictionError('Response is a string but not valid JSON. Error: ' + parseErr.message + '\n\nFirst 500 chars: ' + jsonStr.substring(0, 500));
+              setPredictionError('Response is a string but not valid JSON. Error: ' + parseErr.message);
               return;
             }
           } else {
-            setPredictionError('Response is a string but not valid JSON. Error: ' + parseErr.message + '\n\nFirst 500 chars: ' + jsonStr.substring(0, 500));
+            setPredictionError('Response is a string but not valid JSON. Error: ' + parseErr.message);
             return;
           }
         }
@@ -477,7 +458,6 @@ function App() {
 
       // Extract result from function_status wrapper if present
       if (resultData && typeof resultData === 'object' && 'function_status' in resultData) {
-        console.log('Found function_status wrapper:', resultData.function_status);
         if (resultData.function_status === 'success' && 'result' in resultData) {
           resultData = resultData.result;
         } else if (resultData.function_status === 'error') {
@@ -486,8 +466,6 @@ function App() {
         }
       }
 
-      console.log('Final result:', resultData);
-      console.log('Has features?', resultData?.features?.length);
       setPredictionResult(resultData);
     } catch (err: any) {
       console.error('Error generating prediction:', err);
@@ -664,6 +642,7 @@ function App() {
                 </button>
               </div>
 
+              {/* Raw Response section - disabled for now but kept for debugging
               <div style={{
                 marginTop: '20px',
                 padding: '15px',
@@ -684,6 +663,7 @@ function App() {
                   {JSON.stringify(predictionResult, null, 2)}
                 </pre>
               </div>
+              */}
 
               <ResultsTable resultText={JSON.stringify(predictionResult, null, 2)} />
             </div>

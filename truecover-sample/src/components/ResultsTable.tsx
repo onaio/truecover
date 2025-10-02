@@ -7,10 +7,8 @@ interface ResultsTableProps {
 const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
   const parseResults = () => {
     try {
-      console.log('Parsing resultText:', resultText);
       const data = JSON.parse(resultText);
-      console.log('Parsed data:', data);
-      
+
       // Try different paths to find features
       let features = [];
       if (data.features) {
@@ -20,12 +18,10 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
       } else if (Array.isArray(data)) {
         features = data;
       }
-      
-      console.log('Found features:', features);
+
       return features;
     } catch (e) {
-      console.error('Error parsing JSON:', e);
-      console.error('Raw text:', resultText);
+      console.error('Error parsing results:', e);
       return [];
     }
   };
