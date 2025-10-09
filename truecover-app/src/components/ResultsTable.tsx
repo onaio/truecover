@@ -57,7 +57,12 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
   const propertyKeys = new Set<string>();
   features.forEach((feature: any) => {
     if (feature.properties) {
-      Object.keys(feature.properties).forEach(key => propertyKeys.add(key));
+      Object.keys(feature.properties).forEach(key => {
+        // Hide bbox column
+        if (key !== 'bbox') {
+          propertyKeys.add(key);
+        }
+      });
     }
   });
 
@@ -137,7 +142,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
 
             return (
               <tr key={index} style={rowStyle}>
-                <td style={cellStyle}>{index + 1}</td>
+                <td style={{...cellStyle, fontFamily: 'monospace', fontSize: '11px'}}>{feature.id || index + 1}</td>
                 <td style={cellStyle}>{coordString}</td>
                 {headers.map(header => {
                   // Calculate prevalence for rows with survey data

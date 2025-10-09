@@ -1,5 +1,5 @@
 {
-  "name": "truecover-sample",
+  "name": "truecover-app",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -28,9 +28,9 @@
     "dev": "react-scripts start",
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "docker:build": "docker build -t truecover-ui:latest .",
-    "docker:run": "docker run -d --name truecover-ui -p 3030:80 --add-host=host.docker.internal:host-gateway truecover-ui:latest",
-    "docker:stop": "docker stop truecover-ui && docker rm truecover-ui",
+    "docker:build": "docker build -t truecover-app:latest .",
+    "docker:run": "docker run -d --name truecover-app -p 3030:80 --add-host=host.docker.internal:host-gateway truecover-app:latest",
+    "docker:stop": "docker stop truecover-app && docker rm truecover-app",
     "docker:deploy": "npm run docker:build && npm run docker:stop; npm run docker:run",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

@@ -10,7 +10,7 @@ TrueCover consists of:
   - `fn-covariate-extractor` - Extracts environmental covariates from global datasets  
   - `fn-adaptive-sampling` - Recommends optimal survey locations
 - **2 Web Interfaces**
-  - `truecover-sample` - Modern React app (simplified interface)
+  - `truecover-app` - Modern React app (simplified interface)
   - `truecover_ui_v1.53.0` - Original Vue.js interface
 
 ## Quick Start
@@ -41,7 +41,7 @@ The functions will be available at:
 #### Option A: TrueCover Sample App (Recommended - Simpler, Modern React)
 
 ```bash
-cd truecover-sample
+cd truecover-app
 npm install
 
 # Start the proxy server (required for API communication)
@@ -173,7 +173,7 @@ truecover/
 ├── fn-prevalence-predictor-1.3.0/   # Python GAM predictor function
 ├── fn-covariate-extractor-0.2.5/    # R covariate extraction function
 ├── fn-adaptive-sampling-0.3.1/      # R adaptive sampling function
-├── truecover-sample/                 # Modern React interface
+├── truecover-app/                   # Modern React interface
 ├── truecover_ui_v1.53.0/           # Original Vue.js interface
 └── truecover.md                     # Detailed technical documentation
 ```
@@ -194,7 +194,7 @@ truecover/
 
 ### TrueCover Sample App network errors
 1. Ensure the proxy server is running: `ps aux | grep proxy-server`
-2. If not, start it: `cd truecover-sample && node proxy-server.js`
+2. If not, start it: `cd truecover-app && node proxy-server.js`
 3. Check proxy server logs for errors
 4. Verify Docker functions are running on ports 8081-8083
 
