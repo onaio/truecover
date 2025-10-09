@@ -8,6 +8,16 @@ import geopandas as gp
 import requests
 import disarm_gears
 
+# Monkey-patch disarm_gears to fix rpy2 3.4.5 compatibility
+from rpy2.robjects import pandas2ri
+def pdframe2rdframe_fixed(data):
+    '''Fix for rpy2 3.4.5 - use pandas2ri.py2rpy instead of pandas2ri.DataFrame'''
+    assert isinstance(data, pd.DataFrame)
+    return pandas2ri.py2rpy(data)
+
+# Replace the broken function
+disarm_gears.r_plugins.r_methods.pdframe2rdframe = pdframe2rdframe_fixed
+
 
 def run_function(params: dict):
     #
@@ -33,8 +43,12 @@ def run_function(params: dict):
     # TODO: Fix this hack, use GeoPandas DataFrame throughout (except for pandas2ri.DataFrame)
     input_data = pd.DataFrame(gdf)
     input_data = input_data.drop('geometry', axis = 1)
-    input_data['lat'] = gdf.geometry.y
-    input_data['lng'] = gdf.geometry.x
+
+    # Handle both Point and Polygon geometries
+    # For polygons, use centroid; for points, use the point itself
+    centroids = gdf.geometry.centroid
+    input_data['lat'] = centroids.y
+    input_data['lng'] = centroids.x
 
 
     #
@@ -46,7 +60,7 @@ def run_function(params: dict):
     #input_data.dropna(axis=0, subset=['lng', 'lat']) # TODO: this does nothing: should be catching return
 
     # Find covariates
-    if layer_names is not None:
+    if layer_names is not None and len(layer_names) > 0:
         # Call fn-covariate-extractor
         open_faas_link = 'http://faas.srv.disarm.io/function/fn-covariate-extractor'
         just_id_and_geom = gdf.filter(['geometry', id_column_name])

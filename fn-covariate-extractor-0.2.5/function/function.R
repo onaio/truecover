@@ -1,5 +1,4 @@
 library(raster)
-library(rworldmap)
 library(RANN)
 library(sf)
 library(downloader)
@@ -165,7 +164,7 @@ function(params) {
   if (substr(params$points, 1, 4) == "http") {
     points = st_read(params$points, quiet = T)
   } else {
-    points = st_read(rjson::toJSON(params$points), quiet = T)
+    points = st_read(jsonlite::toJSON(params$points, auto_unbox = TRUE), quiet = T)
   }
   layer_names = tolower(params$layer_names)
   country = as.character(coords2country(st_coordinates(points))[1])
@@ -179,5 +178,5 @@ function(params) {
   for (layer_name in layer_names) {
     points = handle_layer(points, layer_name, country, ref_raster)
   }
-  return(geojson_list(points))
+  return(jsonlite::toJSON(st_drop_geometry(points), auto_unbox = TRUE))
 }

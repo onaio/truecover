@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # TrueCover Web UI
+  truecover-ui:
+    build:
+      context: .
+      args:
+        - REACT_APP_MAPBOX_TOKEN=${REACT_APP_MAPBOX_TOKEN}
+    ports:
+      - "3030:80"
+    depends_on:
+      - adaptive-sampling
+      - prevalence-predictor
+      - covariate-extractor
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - truecover-network
+
+  # Adaptive Sampling Service (already running, just reference)
+  adaptive-sampling:
+    image: disarm/fn-adaptive-sampling:0.3.1
+    ports:
+      - "8083:8080"
+    networks:
+      - truecover-network
+
+  # Prevalence Predictor Service
+  prevalence-predictor:
+    image: disarm/fn-prevalence-predictor:1.3.0
+    ports:
+      - "8084:8080"
+    environment:
+      - exec_timeout=910
+    networks:
+      - truecover-network
+
+  # Covariate Extractor Service
+  covariate-extractor:
+    image: disarm/fn-covariate-extractor:0.2.5
+    ports:
+      - "8082:8080"
+    networks:
+      - truecover-network
+
+networks:
+  truecover-network:
+    driver: bridge

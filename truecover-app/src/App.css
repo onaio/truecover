@@ -1,0 +1,26 @@
+/* App.css - Now using tactical-ui styling */
+
+/* Mapbox GL styles */
+.mapboxgl-popup-content {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  background-color: #0a0a0a;
+  color: #e5e5e5;
+  border: 1px solid #444444;
+}
+
+.mapboxgl-ctrl-group {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.mapboxgl-popup {
+  max-width: 300px;
+}
+
+.mapboxgl-popup-close-button {
+  color: #e5e5e5;
+}
+
+.mapboxgl-popup-close-button:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}

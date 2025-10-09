@@ -1,5 +1,5 @@
 provider:
-  name: faas
+  name: openfaas
   gateway: https://faas.srv.disarm.io
 functions:
   fn-adaptive-sampling:
@@ -13,5 +13,4 @@ functions:
       combine_output: false
       # write_debug: true
     labels:
-      com.openfaas.scale.zero: true
       com.openfaas.scale.zero: true

@@ -1,5 +1,3 @@
-library(geojsonlint)
-
 function(params) {
 
   ref_params <- c(
