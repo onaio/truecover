@@ -45,7 +45,7 @@ const getCentroid = (geometry: any): [number, number] => {
 const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
-  const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
+  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
   // Calculate bounds from all features - BEFORE the early return
   const bounds = useMemo(() => {
@@ -127,7 +127,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono font-bold text-tactical-accent-red uppercase">Error:</span>
           <span className="text-xs font-mono text-tactical-accent-red">
-            Mapbox token not found. Please create a .env file with REACT_APP_MAPBOX_TOKEN
+            Mapbox token not found. Please create a .env file with VITE_MAPBOX_TOKEN
           </span>
         </div>
       </div>

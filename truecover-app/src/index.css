@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import tactical-ui styles */
-@import './tactical-ui/styles/tactical.css';
-
 body {
   margin: 0;
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New',
