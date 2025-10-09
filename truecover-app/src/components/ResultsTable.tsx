@@ -31,23 +31,13 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
   if (features.length === 0) {
     return (
       <div>
-        <p style={{ color: 'red', marginBottom: '10px' }}>
+        <p className="text-tactical-accent-red font-mono text-xs mb-3">
           No features found in response. Showing raw JSON:
         </p>
         <textarea
           value={resultText}
           readOnly
-          style={{
-            width: '100%',
-            height: '350px',
-            padding: '10px',
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-            resize: 'vertical'
-          }}
+          className="w-full h-[350px] p-3 font-mono text-xs bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-secondary focus:outline-none focus:border-tactical-accent-red resize-y tactical-scrollbar"
         />
       </div>
     );
@@ -100,24 +90,14 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
   });
 
   return (
-    <div style={{ width: '100%', height: '400px', overflow: 'auto' }}>
-      <table style={{ 
-        width: '100%', 
-        borderCollapse: 'collapse',
-        fontFamily: 'monospace',
-        fontSize: '12px'
-      }}>
+    <div className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
+      <table className="tactical-table">
         <thead>
-          <tr style={{ 
-            backgroundColor: '#f8f9fa',
-            position: 'sticky',
-            top: 0,
-            zIndex: 10
-          }}>
-            <th style={headerStyle}>ID</th>
-            <th style={headerStyle}>Coordinates</th>
+          <tr className="sticky top-0 z-10">
+            <th className="bg-tactical-bg-secondary">ID</th>
+            <th className="bg-tactical-bg-secondary">Coordinates</th>
             {headers.map(header => (
-              <th key={header} style={headerStyle}>
+              <th key={header} className="bg-tactical-bg-secondary">
                 {header}
               </th>
             ))}
@@ -125,25 +105,22 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
         </thead>
         <tbody>
           {features.map((feature: any, index: number) => {
-            const isSelected = feature.properties?.adaptively_selected === 1 || 
+            const isSelected = feature.properties?.adaptively_selected === 1 ||
                              feature.properties?.adaptively_selected === true;
-            
-            const rowStyle: React.CSSProperties = {
-              backgroundColor: isSelected ? '#cfe2ff' : (index % 2 === 0 ? 'white' : '#f8f9fa'),
-              color: isSelected ? '#0a58ca' : 'inherit',
-              fontWeight: isSelected ? 'bold' : 'normal',
-              borderLeft: isSelected ? '4px solid #0d6efd' : 'none'
-            };
+
+            const rowClasses = isSelected
+              ? 'bg-yellow-900 bg-opacity-30 border-l-4 border-l-yellow-500 font-bold'
+              : '';
 
             const coords = feature.geometry?.coordinates || [];
-            const coordString = coords.length >= 2 
+            const coordString = coords.length >= 2
               ? `[${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`
               : 'N/A';
 
             return (
-              <tr key={index} style={rowStyle}>
-                <td style={{...cellStyle, fontFamily: 'monospace', fontSize: '11px'}}>{feature.id || index + 1}</td>
-                <td style={cellStyle}>{coordString}</td>
+              <tr key={index} className={rowClasses}>
+                <td>{feature.id || index + 1}</td>
+                <td>{coordString}</td>
                 {headers.map(header => {
                   // Calculate prevalence for rows with survey data
                   if (header === 'prevalence') {
@@ -153,24 +130,16 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
                         nPositive !== undefined && nPositive !== null) {
                       const prevalence = Number(nPositive) / Number(nTrials);
                       return (
-                        <td key={header} style={cellStyle}>
+                        <td key={header}>
                           {prevalence.toFixed(2)}
                         </td>
                       );
                     }
-                    return <td key={header} style={cellStyle}></td>;
+                    return <td key={header}></td>;
                   }
 
                   return (
-                    <td key={header} style={{
-                      ...cellStyle,
-                      backgroundColor: isSelected && header === 'adaptively_selected'
-                        ? '#0d6efd'
-                        : undefined,
-                      color: isSelected && header === 'adaptively_selected'
-                        ? 'white'
-                        : undefined
-                    }}>
+                    <td key={header}>
                       {feature.properties?.[header] !== undefined && feature.properties?.[header] !== null
                         ? (typeof feature.properties[header] === 'number'
                             ? (header === 'id' || header === 'n_trials' || header === 'n_positive'
@@ -188,21 +157,6 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
       </table>
     </div>
   );
-};
-
-const headerStyle: React.CSSProperties = {
-  padding: '8px',
-  textAlign: 'left',
-  borderBottom: '2px solid #dee2e6',
-  backgroundColor: '#f8f9fa',
-  fontWeight: 'bold',
-  whiteSpace: 'nowrap'
-};
-
-const cellStyle: React.CSSProperties = {
-  padding: '6px 8px',
-  borderBottom: '1px solid #dee2e6',
-  whiteSpace: 'nowrap'
 };
 
 export default ResultsTable;

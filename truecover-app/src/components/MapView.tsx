@@ -44,7 +44,7 @@ const getCentroid = (geometry: any): [number, number] => {
 
 const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
-  const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/light-v11');
+  const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
 
   // Calculate bounds from all features - BEFORE the early return
@@ -123,30 +123,26 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
   // Early return AFTER all hooks
   if (!mapboxToken) {
     return (
-      <div style={{
-        padding: '20px',
-        backgroundColor: '#f8d7da',
-        border: '1px solid #f5c6cb',
-        borderRadius: '4px',
-        color: '#721c24',
-        marginBottom: '20px'
-      }}>
-        <strong>Error:</strong> Mapbox token not found. Please create a .env file with REACT_APP_MAPBOX_TOKEN
+      <div className="p-4 mb-5 border border-tactical-accent-red bg-tactical-bg-secondary">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-bold text-tactical-accent-red uppercase">Error:</span>
+          <span className="text-xs font-mono text-tactical-accent-red">
+            Mapbox token not found. Please create a .env file with REACT_APP_MAPBOX_TOKEN
+          </span>
+        </div>
       </div>
     );
   }
 
   if (!data || !data.features) {
     return (
-      <div style={{
-        padding: '20px',
-        backgroundColor: '#f8d7da',
-        border: '1px solid #f5c6cb',
-        borderRadius: '4px',
-        color: '#721c24',
-        marginBottom: '20px'
-      }}>
-        <strong>Error:</strong> No data provided to MapView component
+      <div className="p-4 mb-5 border border-tactical-accent-red bg-tactical-bg-secondary">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-bold text-tactical-accent-red uppercase">Error:</span>
+          <span className="text-xs font-mono text-tactical-accent-red">
+            No data provided to MapView component
+          </span>
+        </div>
       </div>
     );
   }
@@ -377,16 +373,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
   };
 
   return (
-    <div style={{ marginBottom: '20px' }}>
-      <h3>Map Visualization</h3>
-      <div style={{
-        height: '500px',
-        width: '100%',
-        border: '1px solid #dee2e6',
-        borderRadius: '8px',
-        overflow: 'hidden',
-        position: 'relative'
-      }}>
+    <div className="mb-6">
+      <h3 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+        Map Visualization
+      </h3>
+      <div className="relative h-[500px] w-full border border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
         <Map
           mapboxAccessToken={mapboxToken}
           initialViewState={{
@@ -459,97 +450,62 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
         </Map>
 
         {/* Map Style Selector */}
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          backgroundColor: 'white',
-          padding: '8px',
-          borderRadius: '4px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-          fontSize: '12px',
-          zIndex: 1
-        }}>
-          <div style={{ marginBottom: '5px', fontWeight: 'bold', fontSize: '11px' }}>Map Style</div>
+        <div className="absolute top-3 right-3 bg-tactical-bg-tertiary border border-tactical-border-medium p-2 z-10">
+          <div className="mb-1 font-mono font-bold text-xs text-tactical-text-muted uppercase tracking-wider">
+            Map Style
+          </div>
           <select
             value={mapStyle}
             onChange={(e) => setMapStyle(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '4px',
-              fontSize: '11px',
-              border: '1px solid #ccc',
-              borderRadius: '3px',
-              cursor: 'pointer'
-            }}
+            className="w-full px-2 py-1 font-mono text-xs bg-tactical-bg-primary border border-tactical-border-medium text-tactical-text-primary cursor-pointer focus:outline-none focus:border-tactical-accent-red"
           >
-            <option value="mapbox://styles/mapbox/light-v11">Light</option>
             <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
-            <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite Streets</option>
+            <option value="mapbox://styles/mapbox/light-v11">Light</option>
+            <option value="mapbox://styles/mapbox/satellite-streets-v12">Satellite</option>
             <option value="mapbox://styles/mapbox/streets-v12">Streets</option>
           </select>
         </div>
 
         {/* Legend */}
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '20px',
-          backgroundColor: 'white',
-          padding: '10px',
-          borderRadius: '4px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-          fontSize: '12px',
-          zIndex: 1
-        }}>
-          <div style={{ marginBottom: '5px', fontWeight: 'bold' }}>Legend</div>
+        <div className="absolute bottom-5 left-5 bg-tactical-bg-tertiary border border-tactical-border-medium p-3 z-10">
+          <div className="mb-2 font-mono font-bold text-xs text-tactical-text-primary uppercase tracking-wider">
+            Legend
+          </div>
 
           {isPredictionData ? (
             /* Prediction legend */
             <div>
-              <div style={{ marginBottom: '5px', fontSize: '11px', color: '#666' }}>
+              <div className="mb-2 font-mono text-xs text-tactical-text-muted">
                 Predicted Prevalence
               </div>
-              <div style={{
-                height: '100px',
-                width: '20px',
-                background: 'linear-gradient(to top, #2166ac, #4393c3, #92c5de, #fddbc7, #f4a582, #d6604d, #b2182b)',
-                border: '1px solid #ccc',
-                marginBottom: '5px'
-              }}></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+              <div className="h-24 w-5 mb-2 border border-tactical-border-dark"
+                style={{
+                  background: 'linear-gradient(to top, #2166ac, #4393c3, #92c5de, #fddbc7, #f4a582, #d6604d, #b2182b)'
+                }}
+              ></div>
+              <div className="flex justify-between font-mono text-xs text-tactical-text-dim">
                 <span>Low</span>
                 <span>High</span>
               </div>
-              <div style={{ marginTop: '5px', fontSize: '11px' }}>
+              <div className="mt-2 font-mono text-xs text-tactical-text-muted">
                 {displayData.features.length} prediction points
               </div>
             </div>
           ) : (
             /* Sampling legend */
             <>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                <div style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  backgroundColor: '#999',
-                  border: '1px solid #666',
-                  marginRight: '8px'
-                }}></div>
-                <span>All Points ({data.features.length})</span>
+              <div className="flex items-center mb-2">
+                <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                <span className="font-mono text-xs text-tactical-text-muted">
+                  All Points ({data.features.length})
+                </span>
               </div>
               {selectedFeatures.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    backgroundColor: '#28a745',
-                    border: '2px solid #1e7e34',
-                    marginRight: '8px'
-                  }}></div>
-                  <span>Adaptively Selected ({selectedFeatures.length})</span>
+                <div className="flex items-center">
+                  <div className="w-4 h-4 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
+                  <span className="font-mono text-xs text-tactical-text-muted">
+                    Adaptively Selected ({selectedFeatures.length})
+                  </span>
                 </div>
               )}
             </>

@@ -7,6 +7,12 @@ import ResultsTable from './components/ResultsTable';
 import MapView from './components/MapView';
 import { FileData, SamplingRequest } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
+import {
+  TacticalCard,
+  TacticalButton,
+  TacticalHeader,
+  TacticalBadge,
+} from './tactical-ui';
 
 type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction';
 
@@ -138,150 +144,70 @@ function App() {
   };
 
   const renderHomePage = () => (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#f5f5f5',
-      padding: '20px'
-    }}>
-      <h1 style={{
-        fontSize: '48px',
-        marginBottom: '20px',
-        color: '#282c34'
-      }}>
-        TrueCover
-      </h1>
-      <p style={{
-        fontSize: '18px',
-        color: '#666',
-        marginBottom: '50px'
-      }}>
-        Select a tool to get started
-      </p>
+    <div className="min-h-screen bg-tactical-bg-primary flex flex-col items-center justify-center p-6">
+      <div className="text-center mb-12">
+        <h1 className="font-mono text-6xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
+          TrueCover
+        </h1>
+        <p className="font-mono text-sm text-tactical-text-muted uppercase tracking-wide">
+          Select a tool to get started
+        </p>
+      </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '30px',
-        maxWidth: '800px',
-        width: '100%'
-      }}>
-        <div
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
+        <TacticalCard
+          hoverable
           onClick={() => setCurrentView('adaptive-sampling')}
-          style={{
-            backgroundColor: 'white',
-            padding: '40px',
-            borderRadius: '12px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            cursor: 'pointer',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            textAlign: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-5px)';
-            e.currentTarget.style.boxShadow = '0 8px 12px rgba(0, 0, 0, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-          }}
+          padding="xl"
+          className="text-center"
         >
-          <h2 style={{
-            fontSize: '24px',
-            marginBottom: '15px',
-            color: '#282c34'
-          }}>
+          <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
             Adaptive Sampling
           </h2>
-          <p style={{
-            color: '#666',
-            lineHeight: '1.6'
-          }}>
+          <p className="text-sm text-tactical-text-muted leading-relaxed">
             Optimize your survey sampling with intelligent adaptive algorithms
           </p>
-        </div>
+        </TacticalCard>
 
-        <div
+        <TacticalCard
+          hoverable
           onClick={() => setCurrentView('coverage-prediction')}
-          style={{
-            backgroundColor: 'white',
-            padding: '40px',
-            borderRadius: '12px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            cursor: 'pointer',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            textAlign: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-5px)';
-            e.currentTarget.style.boxShadow = '0 8px 12px rgba(0, 0, 0, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-          }}
+          padding="xl"
+          className="text-center"
         >
-          <h2 style={{
-            fontSize: '24px',
-            marginBottom: '15px',
-            color: '#282c34'
-          }}>
+          <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
             Coverage Prediction
           </h2>
-          <p style={{
-            color: '#666',
-            lineHeight: '1.6'
-          }}>
+          <p className="text-sm text-tactical-text-muted leading-relaxed">
             Predict and analyze coverage patterns for your survey data
           </p>
-        </div>
+        </TacticalCard>
       </div>
     </div>
   );
 
   const renderAdaptiveSampling = () => (
-    <div className="App">
-      <header style={{
-        backgroundColor: '#282c34',
-        padding: '20px',
-        color: 'white',
-        marginBottom: '30px'
-      }}>
-        <button
-          onClick={() => {
-            setCurrentView('home');
-            setFileData(null);
-            setResult(null);
-            setError(null);
-          }}
-          style={{
-            backgroundColor: 'transparent',
-            color: 'white',
-            border: '1px solid white',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            marginBottom: '15px',
-            fontSize: '14px'
-          }}
-        >
-          ← Back to Home
-        </button>
-        <div style={{ marginBottom: '10px' }}>
-          <span style={{ fontSize: '24px', fontWeight: 'bold' }}>TrueCover</span>
-        </div>
-        <h1>Adaptive Sampling</h1>
-        <p>Upload a GeoJSON or CSV file to perform adaptive sampling</p>
-      </header>
+    <div className="min-h-screen bg-tactical-bg-primary">
+      <TacticalHeader
+        title="TrueCover / Adaptive Sampling"
+        subtitle="Upload a GeoJSON or CSV file to perform adaptive sampling"
+        actions={
+          <TacticalButton
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setCurrentView('home');
+              setFileData(null);
+              setResult(null);
+              setError(null);
+            }}
+          >
+            ← Back to Home
+          </TacticalButton>
+        }
+      />
 
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '20px'
-      }}>
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
         <FileUpload onFileLoaded={handleFileLoaded} />
 
         {fileData && (
@@ -308,28 +234,16 @@ function App() {
         )}
 
         {error && (
-          <div style={{
-            padding: '15px',
-            backgroundColor: '#f8d7da',
-            border: '1px solid #f5c6cb',
-            borderRadius: '4px',
-            color: '#721c24',
-            marginTop: '20px'
-          }}>
-            <strong>Error:</strong> {error}
-          </div>
+          <TacticalCard borderStyle="medium" variant="secondary" padding="md">
+            <div className="flex items-start gap-3">
+              <TacticalBadge variant="danger">ERROR</TacticalBadge>
+              <span className="text-sm text-tactical-accent-red">{error}</span>
+            </div>
+          </TacticalCard>
         )}
 
         {result && (
-          <div style={{
-            marginTop: '20px',
-            padding: '20px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            border: '1px solid #dee2e6'
-          }}>
-            <h3>Sampling Results</h3>
-
+          <TacticalCard title="Sampling Results" padding="lg">
             {/* Show summary of selected points */}
             {(() => {
               try {
@@ -342,21 +256,21 @@ function App() {
                 const totalCount = features.length;
 
                 return (
-                  <div style={{
-                    marginBottom: '15px',
-                    padding: '10px',
-                    backgroundColor: selectedCount > 0 ? '#d4edda' : '#f8d7da',
-                    border: `1px solid ${selectedCount > 0 ? '#c3e6cb' : '#f5c6cb'}`,
-                    borderRadius: '4px',
-                    color: selectedCount > 0 ? '#155724' : '#721c24'
-                  }}>
-                    <strong>Summary:</strong> {selectedCount} out of {totalCount} points selected for sampling
+                  <div className="mb-4 p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+                    <div className="flex items-center gap-3 mb-2">
+                      <TacticalBadge variant={selectedCount > 0 ? 'success' : 'danger'}>
+                        SUMMARY
+                      </TacticalBadge>
+                      <span className="text-sm">
+                        {selectedCount} out of {totalCount} points selected for sampling
+                      </span>
+                    </div>
                     {selectedCount > 0 && (
-                      <div style={{ marginTop: '5px', fontSize: '12px' }}>
-                        Look for <code style={{ backgroundColor: '#fff', padding: '2px 4px' }}>
+                      <p className="text-xs text-tactical-text-dim mt-2">
+                        Look for <code className="bg-tactical-bg-tertiary px-1 py-0.5 border border-tactical-border-dark">
                           "adaptively_selected": 1
                         </code> in the results below
-                      </div>
+                      </p>
                     )}
                   </div>
                 );
@@ -365,36 +279,24 @@ function App() {
               }
             })()}
 
-            <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-              <button
+            <div className="flex gap-2 mb-4">
+              <TacticalButton
+                variant="secondary"
+                size="sm"
                 onClick={handleCopy}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
               >
                 Copy to Clipboard
-              </button>
-              <button
+              </TacticalButton>
+              <TacticalButton
+                variant="success"
+                size="sm"
                 onClick={handleDownload}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
               >
                 Download Results
-              </button>
+              </TacticalButton>
             </div>
             <ResultsTable resultText={result} />
-          </div>
+          </TacticalCard>
         )}
       </div>
     </div>
@@ -539,12 +441,6 @@ function App() {
       layer_names: []
     };
 
-    // Find a feature with survey data for logging
-    const featureWithSurveyData = mergeResult.mergedData.features.find(f => {
-      const props = f.properties || {};
-      return typeof props.n_trials === 'number' && typeof props.n_positive === 'number';
-    });
-
     console.log('Sending prediction request:');
     console.log('- Total points:', cleanedData.features.length);
     console.log('- Points with survey data (for training):', pointsWithSurveyData);
@@ -566,7 +462,7 @@ function App() {
         let jsonStr = resultData.trim();
 
         // Find the actual JSON content (starts with { or [)
-        const jsonStart = jsonStr.search(/[{\[]/);
+        const jsonStart = jsonStr.search(/[{[]/);
         if (jsonStart > 0) {
           jsonStr = jsonStr.substring(jsonStart);
         }
@@ -688,53 +584,30 @@ function App() {
 
   const renderCoveragePrediction = () => {
     return (
-      <div className="App">
-        <header style={{
-          backgroundColor: '#282c34',
-          padding: '20px',
-          color: 'white',
-          marginBottom: '30px'
-        }}>
-          <button
-            onClick={() => {
-              setCurrentView('home');
-              setSampleFrameFile(null);
-              setSurveyDataFile(null);
-              setPredictionResult(null);
-              setPredictionError(null);
-              setMergeStats(null);
-            }}
-            style={{
-              backgroundColor: 'transparent',
-              color: 'white',
-              border: '1px solid white',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              marginBottom: '15px',
-              fontSize: '14px'
-            }}
-          >
-            ← Back to Home
-          </button>
-          <div style={{ marginBottom: '10px' }}>
-            <span style={{ fontSize: '24px', fontWeight: 'bold' }}>TrueCover</span>
-          </div>
-          <h1>Coverage Prediction</h1>
-          <p>Upload sample frame and survey data to predict coverage patterns</p>
-        </header>
+      <div className="min-h-screen bg-tactical-bg-primary">
+        <TacticalHeader
+          title="TrueCover / Coverage Prediction"
+          subtitle="Upload sample frame and survey data to predict coverage patterns"
+          actions={
+            <TacticalButton
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setCurrentView('home');
+                setSampleFrameFile(null);
+                setSurveyDataFile(null);
+                setPredictionResult(null);
+                setPredictionError(null);
+                setMergeStats(null);
+              }}
+            >
+              ← Back to Home
+            </TacticalButton>
+          }
+        />
 
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          padding: '20px'
-        }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '20px',
-            marginBottom: '20px'
-          }}>
+        <div className="max-w-7xl mx-auto p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FileUpload
               onFileLoaded={handleSampleFrameLoaded}
               label="Upload Sample Frame"
@@ -746,59 +619,50 @@ function App() {
           </div>
 
           {(sampleFrameFile || surveyDataFile) && (
-            <div style={{
-              marginTop: '20px',
-              padding: '20px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              border: '1px solid #dee2e6'
-            }}>
-              <h3>Files Loaded</h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <TacticalCard title="Files Loaded" padding="lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                 <div>
-                  <h4 style={{ marginTop: 0 }}>Sample Frame</h4>
+                  <h4 className="text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+                    Sample Frame
+                  </h4>
                   {sampleFrameFile ? (
-                    <p>
-                      <strong>Features:</strong> {sampleFrameFile.data.features.length}<br />
-                      <strong>Fields:</strong> {sampleFrameFile.fields.join(', ')}
-                    </p>
+                    <div className="text-xs space-y-1">
+                      <div><span className="text-tactical-text-muted">Features:</span> <span className="text-tactical-text-secondary">{sampleFrameFile.data.features.length}</span></div>
+                      <div><span className="text-tactical-text-muted">Fields:</span> <span className="text-tactical-text-secondary">{sampleFrameFile.fields.join(', ')}</span></div>
+                    </div>
                   ) : (
-                    <p style={{ color: '#999' }}>Not loaded</p>
+                    <p className="text-xs text-tactical-text-dim">Not loaded</p>
                   )}
                 </div>
 
                 <div>
-                  <h4 style={{ marginTop: 0 }}>Survey Data</h4>
+                  <h4 className="text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+                    Survey Data
+                  </h4>
                   {surveyDataFile ? (
-                    <p>
-                      <strong>Features:</strong> {surveyDataFile.data.features.length}<br />
-                      <strong>Fields:</strong> {surveyDataFile.fields.join(', ')}
-                    </p>
+                    <div className="text-xs space-y-1">
+                      <div><span className="text-tactical-text-muted">Features:</span> <span className="text-tactical-text-secondary">{surveyDataFile.data.features.length}</span></div>
+                      <div><span className="text-tactical-text-muted">Fields:</span> <span className="text-tactical-text-secondary">{surveyDataFile.fields.join(', ')}</span></div>
+                    </div>
                   ) : (
-                    <p style={{ color: '#999' }}>Not loaded</p>
+                    <p className="text-xs text-tactical-text-dim">Not loaded</p>
                   )}
                 </div>
               </div>
 
               {mergeStats && (
-                <div style={{
-                  marginTop: '15px',
-                  padding: '15px',
-                  backgroundColor: '#d4edda',
-                  border: '1px solid #c3e6cb',
-                  borderRadius: '4px',
-                  color: '#155724'
-                }}>
-                  <strong>Merge Summary:</strong>
-                  <ul style={{ marginBottom: 0, marginTop: '5px' }}>
+                <div className="p-3 border border-tactical-accent-green-dim bg-tactical-bg-secondary mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TacticalBadge variant="success">MERGE SUMMARY</TacticalBadge>
+                  </div>
+                  <ul className="text-xs space-y-1 list-disc list-inside text-tactical-text-secondary">
                     <li>Sample frame points: {mergeStats.sampleFrameCount}</li>
                     <li>Survey data points: {mergeStats.surveyDataCount}</li>
                     <li>Matched points (survey overrode sample frame): {mergeStats.matchedCount}</li>
                     <li>Added from survey: {mergeStats.addedFromSurvey}</li>
-                    <li><strong>Total in merged dataset: {mergeStats.totalInMerged}</strong></li>
+                    <li className="font-bold">Total in merged dataset: {mergeStats.totalInMerged}</li>
                     {mergeStats.pointsWithSurveyData !== undefined && (
-                      <li style={{ color: '#0c5460', fontWeight: 'bold' }}>
+                      <li className="text-tactical-accent-blue font-bold">
                         Points with survey data (for model training): {mergeStats.pointsWithSurveyData}
                       </li>
                     )}
@@ -806,23 +670,16 @@ function App() {
                 </div>
               )}
 
-              <button
+              <TacticalButton
+                variant="primary"
+                size="lg"
+                fullWidth
                 onClick={handleGeneratePrediction}
                 disabled={isProcessing || !sampleFrameFile || !surveyDataFile}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: (isProcessing || !sampleFrameFile || !surveyDataFile) ? '#6c757d' : '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: (isProcessing || !sampleFrameFile || !surveyDataFile) ? 'not-allowed' : 'pointer',
-                  fontSize: '16px',
-                  marginTop: '15px'
-                }}
               >
                 {isProcessing ? 'Generating Prediction...' : 'Generate Coverage Prediction'}
-              </button>
-            </div>
+              </TacticalButton>
+            </TacticalCard>
           )}
 
           {sampleFrameFile && surveyDataFile && predictionResult && (
@@ -834,69 +691,43 @@ function App() {
           )}
 
           {predictionError && (
-            <div style={{
-              padding: '15px',
-              backgroundColor: '#f8d7da',
-              border: '1px solid #f5c6cb',
-              borderRadius: '4px',
-              color: '#721c24',
-              marginTop: '20px'
-            }}>
-              <strong>Error:</strong> {predictionError}
-            </div>
+            <TacticalCard borderStyle="medium" variant="secondary" padding="md">
+              <div className="flex items-start gap-3">
+                <TacticalBadge variant="danger">ERROR</TacticalBadge>
+                <span className="text-sm text-tactical-accent-red">{predictionError}</span>
+              </div>
+            </TacticalCard>
           )}
 
           {predictionResult && (
-            <div style={{
-              marginTop: '20px',
-              padding: '20px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              border: '1px solid #dee2e6'
-            }}>
-              <h3>Prediction Results</h3>
-
-              <div style={{
-                marginBottom: '15px',
-                padding: '10px',
-                backgroundColor: '#d4edda',
-                border: '1px solid #c3e6cb',
-                borderRadius: '4px',
-                color: '#155724'
-              }}>
-                <strong>Summary:</strong> Generated predictions for {predictionResult.features?.length || 0} points
-                <div style={{ marginTop: '5px', fontSize: '12px' }}>
-                  Type: {predictionResult.type || 'N/A'}
+            <TacticalCard title="Prediction Results" padding="lg">
+              <div className="mb-4 p-3 border border-tactical-accent-green-dim bg-tactical-bg-secondary">
+                <div className="flex items-center gap-3 mb-2">
+                  <TacticalBadge variant="success">SUMMARY</TacticalBadge>
+                  <span className="text-sm">
+                    Generated predictions for {predictionResult.features?.length || 0} points
+                  </span>
                 </div>
+                <p className="text-xs text-tactical-text-dim">
+                  Type: {predictionResult.type || 'N/A'}
+                </p>
               </div>
 
-              <div style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-                <button
+              <div className="flex gap-2 mb-4">
+                <TacticalButton
+                  variant="secondary"
+                  size="sm"
                   onClick={handleCopyPrediction}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
                 >
                   Copy to Clipboard
-                </button>
-                <button
+                </TacticalButton>
+                <TacticalButton
+                  variant="success"
+                  size="sm"
                   onClick={handleDownloadPrediction}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
                 >
                   Download as GeoJSON
-                </button>
+                </TacticalButton>
               </div>
 
               {/* Raw Response section - disabled for now but kept for debugging
@@ -923,7 +754,7 @@ function App() {
               */}
 
               <ResultsTable resultText={JSON.stringify(predictionResult, null, 2)} />
-            </div>
+            </TacticalCard>
           )}
         </div>
       </div>

@@ -133,23 +133,26 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, label = 'Upload F
   };
 
   return (
-    <div style={{ marginBottom: '20px' }}>
-      <h3>{label}</h3>
-      <input
-        type="file"
-        accept=".geojson,.json,.csv"
-        onChange={handleFileUpload}
-        style={{ 
-          padding: '10px',
-          border: '2px dashed #ccc',
-          borderRadius: '4px',
-          width: '100%',
-          cursor: 'pointer'
-        }}
-      />
-      <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-        Supported formats: GeoJSON (.geojson, .json) or CSV with latitude/longitude columns
-      </p>
+    <div className="mb-6">
+      <h3 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+        {label}
+      </h3>
+      <div className="relative border-2 border-dashed border-tactical-border-medium bg-tactical-bg-secondary p-6 hover:border-tactical-border-light hover:bg-tactical-bg-tertiary transition-colors">
+        <input
+          type="file"
+          accept=".geojson,.json,.csv"
+          onChange={handleFileUpload}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+        />
+        <div className="text-center pointer-events-none">
+          <div className="mb-2 font-mono text-tactical-text-muted text-sm uppercase tracking-wider">
+            Click or drag file to upload
+          </div>
+          <p className="font-mono text-xs text-tactical-text-dim">
+            Supported formats: GeoJSON (.geojson, .json) or CSV with latitude/longitude columns
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
