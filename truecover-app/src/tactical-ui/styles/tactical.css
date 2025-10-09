@@ -124,12 +124,13 @@
   border: 1px solid #333333;
   padding: 8px 12px;
   background-color: #000000;
-  color: #e5e5e5;
+  /* color removed to allow row-level styling */
 }
 
 .tactical-table tbody tr:hover td {
   background-color: #111111;
   border-color: #444444;
+  /* no color override on hover to preserve row styling */
 }
 
 /* Progress Bar */

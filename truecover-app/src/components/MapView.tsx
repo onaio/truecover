@@ -391,7 +391,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
             : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
           onClick={handleMapClick}
         >
-          <NavigationControl position="top-right" />
+          <NavigationControl position="bottom-right" />
 
           {isPredictionData ? (
             /* Prediction visualization with heatmap interpolation */
@@ -457,7 +457,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
           <select
             value={mapStyle}
             onChange={(e) => setMapStyle(e.target.value)}
-            className="w-full px-2 py-1 font-mono text-xs bg-tactical-bg-primary border border-tactical-border-medium text-tactical-text-primary cursor-pointer focus:outline-none focus:border-tactical-accent-red"
+            className="w-full px-2 py-1 font-mono text-xs bg-tactical-bg-primary border border-tactical-border-medium text-tactical-text-primary cursor-pointer focus:outline-none focus:border-orange-500"
           >
             <option value="mapbox://styles/mapbox/dark-v11">Dark</option>
             <option value="mapbox://styles/mapbox/light-v11">Light</option>

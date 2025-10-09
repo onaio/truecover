@@ -202,7 +202,7 @@ function App() {
               setError(null);
             }}
           >
-            ← Back to Home
+            Back to Home
           </TacticalButton>
         }
       />
@@ -601,7 +601,7 @@ function App() {
                 setMergeStats(null);
               }}
             >
-              ← Back to Home
+              Back to Home
             </TacticalButton>
           }
         />

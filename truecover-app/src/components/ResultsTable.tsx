@@ -48,8 +48,8 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
   features.forEach((feature: any) => {
     if (feature.properties) {
       Object.keys(feature.properties).forEach(key => {
-        // Hide bbox column
-        if (key !== 'bbox') {
+        // Hide bbox and sources columns
+        if (key !== 'bbox' && key !== 'sources') {
           propertyKeys.add(key);
         }
       });
@@ -91,7 +91,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
 
   return (
     <div className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
-      <table className="tactical-table">
+      <table className="tactical-table text-tactical-text-secondary">
         <thead>
           <tr className="sticky top-0 z-10">
             <th className="bg-tactical-bg-secondary">ID</th>
@@ -105,11 +105,18 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
         </thead>
         <tbody>
           {features.map((feature: any, index: number) => {
-            const isSelected = feature.properties?.adaptively_selected === 1 ||
-                             feature.properties?.adaptively_selected === true;
+            const selectedValue = feature.properties?.adaptively_selected;
+
+            // Check if selected (handle both number and string values)
+            // Convert to number and check if >= 0.5 (to catch 1.0, 1.000000, etc)
+            let isSelected = false;
+            if (selectedValue !== undefined && selectedValue !== null) {
+              const numValue = typeof selectedValue === 'string' ? parseFloat(selectedValue) : Number(selectedValue);
+              isSelected = !isNaN(numValue) && numValue >= 0.5;
+            }
 
             const rowClasses = isSelected
-              ? 'bg-yellow-900 bg-opacity-30 border-l-4 border-l-yellow-500 font-bold'
+              ? '!text-tactical-accent-green border-l-4 border-l-tactical-accent-green !font-bold'
               : '';
 
             const coords = feature.geometry?.coordinates || [];
@@ -142,9 +149,9 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
                     <td key={header}>
                       {feature.properties?.[header] !== undefined && feature.properties?.[header] !== null
                         ? (typeof feature.properties[header] === 'number'
-                            ? (header === 'id' || header === 'n_trials' || header === 'n_positive'
+                            ? (header === 'id' || header === 'n_trials' || header === 'n_positive' || header === 'adaptively_selected'
                                 ? Math.round(feature.properties[header])
-                                : feature.properties[header].toFixed(6))
+                                : feature.properties[header].toFixed(2))
                             : String(feature.properties[header]))
                       : ''}
                     </td>

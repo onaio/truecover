@@ -81,8 +81,8 @@ export const TacticalSelect: React.FC<TacticalSelectProps> = ({
           text-tactical-text-primary
           font-mono text-sm
           focus:outline-none
-          focus:border-tactical-accent-red
-          focus:ring-1 focus:ring-tactical-accent-red
+          focus:border-orange-500
+          focus:ring-1 focus:ring-orange-500
           disabled:opacity-50
           disabled:cursor-not-allowed
           cursor-pointer
