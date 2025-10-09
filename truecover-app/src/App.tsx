@@ -13,6 +13,7 @@ import {
   TacticalHeader,
   TacticalBadge,
 } from './tactical-ui';
+import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 
 type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction';
 
@@ -767,12 +768,32 @@ function App() {
     );
   };
 
+  const { isSignedIn } = useAuth();
+
   return (
-    <>
+    <div style={{ position: 'relative' }}>
+      {/* Clerk Auth Button - Top Right */}
+      <div style={{
+        position: 'fixed',
+        top: '1rem',
+        right: '1rem',
+        zIndex: 9999
+      }}>
+        {isSignedIn ? (
+          <UserButton afterSignOutUrl="/" />
+        ) : (
+          <SignInButton mode="modal">
+            <TacticalButton variant="secondary" size="sm">
+              Sign In
+            </TacticalButton>
+          </SignInButton>
+        )}
+      </div>
+
       {currentView === 'home' && renderHomePage()}
       {currentView === 'adaptive-sampling' && renderAdaptiveSampling()}
       {currentView === 'coverage-prediction' && renderCoveragePrediction()}
-    </>
+    </div>
   );
 }
 
