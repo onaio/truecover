@@ -297,7 +297,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
       'fill-color': '#999',
-      'fill-opacity': 0.2
+      'fill-opacity': 0
     }
   };
 
@@ -306,9 +306,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     type: 'line',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'line-color': '#666',
+      'line-color': '#cccccc',
       'line-width': 1,
-      'line-opacity': 0.4
+      'line-opacity': 0.8
     }
   };
 
@@ -318,7 +318,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
       'fill-color': '#28a745',
-      'fill-opacity': 0.6
+      'fill-opacity': 0.95
     }
   };
 
@@ -327,7 +327,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     type: 'line',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'line-color': '#1e7e34',
+      'line-color': '#28a745',
       'line-width': 2,
       'line-opacity': 1
     }
@@ -356,7 +356,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
       'circle-color': '#28a745',
       'circle-opacity': 1,
       'circle-stroke-width': 2,
-      'circle-stroke-color': '#1e7e34'
+      'circle-stroke-color': '#28a745'
     }
   };
 
