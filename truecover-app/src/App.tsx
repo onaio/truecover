@@ -520,6 +520,16 @@ function App() {
       features: cleanedFeatures
     };
 
+    // Store original geometries to restore after prediction
+    // The prediction API may return centroids for polygons, but we want to preserve the original shapes
+    const originalGeometries = new Map<number | string, any>();
+    cleanedData.features.forEach(feature => {
+      const id = feature.properties.id;
+      if (id !== undefined && id !== null) {
+        originalGeometries.set(id, feature.geometry);
+      }
+    });
+
     // Send cleaned data - the algorithm will:
     // 1. Train on points WITH n_trials/n_positive
     // 2. Predict for ALL points (including those without survey data)
@@ -609,6 +619,7 @@ function App() {
       }
 
       // Clean up the result - remove old/stale fields from prior predictions
+      // AND restore original geometries (polygons) if they were converted to points
       if (resultData && resultData.features) {
         resultData.features = resultData.features.map((feature: any) => {
           const props = { ...feature.properties };
@@ -618,8 +629,13 @@ function App() {
           delete props.prediction_uncertainty;
           delete props.adaptively_selected;
 
+          // Restore original geometry if available (preserve polygons instead of centroids)
+          const id = props.id;
+          const originalGeometry = originalGeometries.get(id);
+
           return {
             ...feature,
+            geometry: originalGeometry || feature.geometry, // Use original geometry if available
             properties: props
           };
         });

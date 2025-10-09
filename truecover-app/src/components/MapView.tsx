@@ -228,7 +228,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
         prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.8, '#d6604d',
         prevalenceRange.max, '#b2182b'
       ],
-      'fill-opacity': 0.6
+      'fill-opacity': 0.9
     }
   };
 
@@ -238,9 +238,20 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     type: 'line',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'line-color': '#ffffff',
+      'line-color': [
+        'interpolate',
+        ['linear'],
+        ['number', ['coalesce', ['get', 'prevalence_prediction'], (prevalenceRange.min + prevalenceRange.max) / 2]],
+        prevalenceRange.min, '#2166ac',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.2, '#4393c3',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.35, '#92c5de',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.5, '#fddbc7',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.65, '#f4a582',
+        prevalenceRange.min + (prevalenceRange.max - prevalenceRange.min) * 0.8, '#d6604d',
+        prevalenceRange.max, '#b2182b'
+      ],
       'line-width': 1,
-      'line-opacity': 0.8
+      'line-opacity': 0.9
     }
   };
 
