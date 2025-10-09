@@ -67,7 +67,7 @@ export const TacticalHeader: React.FC<TacticalHeaderProps> = ({
         </div>
 
         {actions && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-16">
             {actions}
           </div>
         )}

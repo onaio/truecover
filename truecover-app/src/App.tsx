@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 import FileUpload from './components/FileUpload';
@@ -17,7 +17,10 @@ import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 
 type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+
 function App() {
+  const { getToken, isSignedIn } = useAuth();
   const [currentView, setCurrentView] = useState<AppView>('home');
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,6 +34,31 @@ function App() {
   const [predictionResult, setPredictionResult] = useState<any>(null);
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [mergeStats, setMergeStats] = useState<any>(null);
+
+  // Auto-sync user to database on sign-in
+  useEffect(() => {
+    const syncUser = async () => {
+      if (isSignedIn) {
+        try {
+          const token = await getToken();
+          console.log('Got Clerk token:', token ? 'Token received' : 'No token');
+
+          // Call /api/user/me to trigger user sync in backend
+          const response = await axios.get(`${API_URL}/api/user/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          console.log('User synced to database:', response.data);
+        } catch (error: any) {
+          console.error('Failed to sync user:', error);
+          console.error('Error details:', error.response?.data);
+        }
+      }
+    };
+
+    syncUser();
+  }, [isSignedIn, getToken]);
 
   const handleFileLoaded = (data: FileData) => {
     // Reset adaptively_selected to 0 for all features
@@ -67,9 +95,13 @@ function App() {
     };
 
     try {
-      const response = await axios.post('/api', request, {
+      // Get Clerk auth token
+      const token = await getToken();
+
+      const response = await axios.post(`${API_URL}/api/sampling`, request, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -156,33 +188,67 @@ function App() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-        <TacticalCard
-          hoverable
-          onClick={() => setCurrentView('adaptive-sampling')}
-          padding="xl"
-          className="text-center"
-        >
-          <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-            Adaptive Sampling
-          </h2>
-          <p className="text-sm text-tactical-text-muted leading-relaxed">
-            Optimize your survey sampling with intelligent adaptive algorithms
-          </p>
-        </TacticalCard>
+        {isSignedIn ? (
+          <TacticalCard
+            hoverable
+            onClick={() => setCurrentView('adaptive-sampling')}
+            padding="xl"
+            className="text-center"
+          >
+            <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+              Adaptive Sampling
+            </h2>
+            <p className="text-sm text-tactical-text-muted leading-relaxed">
+              Optimize your survey sampling with intelligent adaptive algorithms
+            </p>
+          </TacticalCard>
+        ) : (
+          <SignInButton mode="modal">
+            <TacticalCard
+              hoverable
+              padding="xl"
+              className="text-center cursor-pointer"
+            >
+              <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                Adaptive Sampling
+              </h2>
+              <p className="text-sm text-tactical-text-muted leading-relaxed">
+                Optimize your survey sampling with intelligent adaptive algorithms
+              </p>
+            </TacticalCard>
+          </SignInButton>
+        )}
 
-        <TacticalCard
-          hoverable
-          onClick={() => setCurrentView('coverage-prediction')}
-          padding="xl"
-          className="text-center"
-        >
-          <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-            Coverage Prediction
-          </h2>
-          <p className="text-sm text-tactical-text-muted leading-relaxed">
-            Predict and analyze coverage patterns for your survey data
-          </p>
-        </TacticalCard>
+        {isSignedIn ? (
+          <TacticalCard
+            hoverable
+            onClick={() => setCurrentView('coverage-prediction')}
+            padding="xl"
+            className="text-center"
+          >
+            <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+              Coverage Prediction
+            </h2>
+            <p className="text-sm text-tactical-text-muted leading-relaxed">
+              Predict and analyze coverage patterns for your survey data
+            </p>
+          </TacticalCard>
+        ) : (
+          <SignInButton mode="modal">
+            <TacticalCard
+              hoverable
+              padding="xl"
+              className="text-center cursor-pointer"
+            >
+              <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                Coverage Prediction
+              </h2>
+              <p className="text-sm text-tactical-text-muted leading-relaxed">
+                Predict and analyze coverage patterns for your survey data
+              </p>
+            </TacticalCard>
+          </SignInButton>
+        )}
       </div>
     </div>
   );
@@ -447,9 +513,13 @@ function App() {
     console.log('- Points with survey data (for training):', pointsWithSurveyData);
 
     try {
-      const response = await axios.post('/api/prediction', request, {
+      // Get Clerk auth token
+      const token = await getToken();
+
+      const response = await axios.post(`${API_URL}/api/prediction`, request, {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         },
         responseType: 'json'
@@ -767,8 +837,6 @@ function App() {
       </div>
     );
   };
-
-  const { isSignedIn } = useAuth();
 
   return (
     <div style={{ position: 'relative' }}>
