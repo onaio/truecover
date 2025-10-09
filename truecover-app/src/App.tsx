@@ -677,7 +677,13 @@ function App() {
                 onClick={handleGeneratePrediction}
                 disabled={isProcessing || !sampleFrameFile || !surveyDataFile}
               >
-                {isProcessing ? 'Generating Prediction...' : 'Generate Coverage Prediction'}
+                {isProcessing ? (
+                  <span className="tactical-loading-dots">
+                    GENERATING PREDICTION<span>.</span><span>.</span><span>.</span>
+                  </span>
+                ) : (
+                  'Generate Coverage Prediction'
+                )}
               </TacticalButton>
             </TacticalCard>
           )}

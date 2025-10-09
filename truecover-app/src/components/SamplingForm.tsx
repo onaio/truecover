@@ -74,7 +74,13 @@ const SamplingForm: React.FC<SamplingFormProps> = ({ fileData, onSubmit, isLoadi
           fullWidth
           disabled={isLoading}
         >
-          {isLoading ? 'Processing...' : 'Submit to Adaptive Sampling Service'}
+          {isLoading ? (
+            <span className="tactical-loading-dots">
+              PROCESSING<span>.</span><span>.</span><span>.</span>
+            </span>
+          ) : (
+            'Submit to Adaptive Sampling Service'
+          )}
         </TacticalButton>
       </form>
     </TacticalCard>

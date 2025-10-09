@@ -124,9 +124,16 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
               ? `[${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`
               : 'N/A';
 
+            // Truncate ID if it's a string and longer than 8 characters
+            const displayId = feature.id
+              ? (typeof feature.id === 'string' && feature.id.length > 8
+                  ? `${feature.id.substring(0, 8)}...`
+                  : feature.id)
+              : index + 1;
+
             return (
               <tr key={index} className={rowClasses}>
-                <td>{feature.id || index + 1}</td>
+                <td>{displayId}</td>
                 <td>{coordString}</td>
                 {headers.map(header => {
                   // Calculate prevalence for rows with survey data
@@ -152,7 +159,9 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ resultText }) => {
                             ? (header === 'id' || header === 'n_trials' || header === 'n_positive' || header === 'adaptively_selected'
                                 ? Math.round(feature.properties[header])
                                 : feature.properties[header].toFixed(2))
-                            : String(feature.properties[header]))
+                            : (header === 'id' && typeof feature.properties[header] === 'string' && feature.properties[header].length > 8
+                                ? `${feature.properties[header].substring(0, 8)}...`
+                                : String(feature.properties[header])))
                       : ''}
                     </td>
                   );
