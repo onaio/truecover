@@ -7,15 +7,17 @@ import { TacticalSelect, TacticalButton, TacticalCard } from '../tactical-ui';
 interface OrganizationSelectorProps {
   selectedOrganization: Organization | null;
   onOrganizationChange: (org: Organization | null) => void;
-  onCreateClick: () => void;
+  onCreateClick?: () => void;
   onRefresh?: (refreshFn: () => Promise<void>) => void;
+  showCreateButton?: boolean;
 }
 
 const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
   selectedOrganization,
   onOrganizationChange,
   onCreateClick,
-  onRefresh
+  onRefresh,
+  showCreateButton = true
 }) => {
   const { getToken } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -93,13 +95,15 @@ const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
           disabled={isLoading}
         />
       </div>
-      <TacticalButton
-        variant="primary"
-        size="sm"
-        onClick={onCreateClick}
-      >
-        + New Org
-      </TacticalButton>
+      {showCreateButton && onCreateClick && (
+        <TacticalButton
+          variant="primary"
+          size="sm"
+          onClick={onCreateClick}
+        >
+          + New Org
+        </TacticalButton>
+      )}
     </div>
   );
 };

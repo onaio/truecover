@@ -7,9 +7,11 @@ import ResultsTable from './components/ResultsTable';
 import MapView from './components/MapView';
 import OrganizationSelector from './components/OrganizationSelector';
 import CreateOrganizationModal from './components/CreateOrganizationModal';
+import ProjectSelector from './components/ProjectSelector';
+import CreateProjectModal from './components/CreateProjectModal';
 import ProjectsList from './components/ProjectsList';
 import OrganizationSettings from './components/OrganizationSettings';
-import { FileData, SamplingRequest, Organization } from './types';
+import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 import {
   TacticalCard,
@@ -43,6 +45,11 @@ function App() {
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [refreshOrganizations, setRefreshOrganizations] = useState<(() => Promise<void>) | null>(null);
+
+  // Project state
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [refreshProjects, setRefreshProjects] = useState<(() => Promise<void>) | null>(null);
 
   // Auto-sync user to database on sign-in
   useEffect(() => {
@@ -186,15 +193,41 @@ function App() {
   };
 
   const renderHomePage = () => (
-    <div className="min-h-screen bg-tactical-bg-primary flex flex-col items-center justify-center p-6">
-      <div className="text-center mb-12">
-        <h1 className="font-mono text-6xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
-          TrueCover
-        </h1>
-        <p className="font-mono text-sm text-tactical-text-muted uppercase tracking-wide">
-          Select a tool to get started
-        </p>
-      </div>
+    <div className="min-h-screen bg-tactical-bg-primary flex flex-col p-6">
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="text-center mb-12">
+          <h1 className="font-mono text-6xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
+            TrueCover
+          </h1>
+          <p className="font-mono text-sm text-tactical-text-muted uppercase tracking-wide">
+            Select a tool to get started
+          </p>
+        </div>
+
+        {/* Organization and Project Selectors */}
+        {isSignedIn && (
+          <div className="w-full max-w-4xl mx-auto mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <TacticalCard padding="md">
+                <OrganizationSelector
+                  selectedOrganization={selectedOrganization}
+                  onOrganizationChange={setSelectedOrganization}
+                  onRefresh={(refreshFn) => setRefreshOrganizations(() => refreshFn)}
+                  showCreateButton={false}
+                />
+              </TacticalCard>
+              <TacticalCard padding="md">
+                <ProjectSelector
+                  selectedOrganization={selectedOrganization}
+                  selectedProject={selectedProject}
+                  onProjectChange={setSelectedProject}
+                  onCreateClick={() => setIsCreateProjectModalOpen(true)}
+                  onRefresh={(refreshFn) => setRefreshProjects(() => refreshFn)}
+                />
+              </TacticalCard>
+            </div>
+          </div>
+        )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
         {isSignedIn ? (
@@ -317,7 +350,7 @@ function App() {
             </div>
             <div className="p-6 text-center">
               <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-                Organization Management
+                Admin
               </h2>
               <p className="text-sm text-tactical-text-muted leading-relaxed">
                 Manage your organizations, projects, and team members
@@ -325,6 +358,7 @@ function App() {
             </div>
           </TacticalCard>
         )}
+      </div>
       </div>
     </div>
   );
@@ -997,6 +1031,33 @@ function App() {
       {currentView === 'adaptive-sampling' && renderAdaptiveSampling()}
       {currentView === 'coverage-prediction' && renderCoveragePrediction()}
       {currentView === 'organization-management' && renderOrganizationManagement()}
+
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        isOpen={isCreateProjectModalOpen}
+        onClose={() => setIsCreateProjectModalOpen(false)}
+        organization={selectedOrganization}
+        onProjectCreated={(project) => {
+          setSelectedProject(project);
+          setIsCreateProjectModalOpen(false);
+          if (refreshProjects) {
+            refreshProjects();
+          }
+        }}
+      />
+
+      {/* Create Organization Modal - Global */}
+      <CreateOrganizationModal
+        isOpen={isCreateOrgModalOpen}
+        onClose={() => setIsCreateOrgModalOpen(false)}
+        onOrganizationCreated={async (org) => {
+          setSelectedOrganization(org);
+          setIsCreateOrgModalOpen(false);
+          if (refreshOrganizations) {
+            await refreshOrganizations();
+          }
+        }}
+      />
     </div>
   );
 }
