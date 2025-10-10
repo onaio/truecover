@@ -10,6 +10,7 @@ import CreateOrganizationModal from './components/CreateOrganizationModal';
 import ProjectSelector from './components/ProjectSelector';
 import CreateProjectModal from './components/CreateProjectModal';
 import ProjectsList from './components/ProjectsList';
+import AreasList from './components/AreasList';
 import OrganizationSettings from './components/OrganizationSettings';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
@@ -21,7 +22,7 @@ import {
 } from './tactical-ui';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 
-type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction' | 'organization-management';
+type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction' | 'organization-management' | 'area-detail';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -50,6 +51,9 @@ function App() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [refreshProjects, setRefreshProjects] = useState<(() => Promise<void>) | null>(null);
+
+  // Area state
+  const [selectedArea, setSelectedArea] = useState<any | null>(null);
 
   // Auto-sync user to database on sign-in
   useEffect(() => {
@@ -194,19 +198,19 @@ function App() {
 
   const renderHomePage = () => (
     <div className="min-h-screen bg-tactical-bg-primary flex flex-col p-6">
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="text-center mb-12">
+      <div className="flex-1 flex flex-col items-center">
+        <div className="text-center mb-12 mt-12">
           <h1 className="font-mono text-6xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
             TrueCover
           </h1>
           <p className="font-mono text-sm text-tactical-text-muted uppercase tracking-wide">
-            Select a tool to get started
+            Estimating true coverage
           </p>
         </div>
 
         {/* Organization and Project Selectors */}
         {isSignedIn && (
-          <div className="w-full max-w-4xl mx-auto mb-8">
+          <div className="w-full max-w-4xl mx-auto mb-8 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <TacticalCard padding="md">
                 <OrganizationSelector
@@ -226,139 +230,17 @@ function App() {
                 />
               </TacticalCard>
             </div>
+
+            {/* Locations List */}
+            <AreasList
+              project={selectedProject}
+              onAreaSelect={(area) => {
+                setSelectedArea(area);
+                setCurrentView('area-detail');
+              }}
+            />
           </div>
         )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
-        {isSignedIn ? (
-          <TacticalCard
-            hoverable
-            onClick={() => setCurrentView('adaptive-sampling')}
-            padding="none"
-            className="overflow-hidden"
-          >
-            <div className="relative group">
-              <img
-                src="/assets/adaptive-sampling-demo.png"
-                alt="Adaptive Sampling Demo"
-                className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
-            </div>
-            <div className="p-6 text-center">
-              <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-                Adaptive Sampling
-              </h2>
-              <p className="text-sm text-tactical-text-muted leading-relaxed">
-                Optimize your survey sampling with intelligent adaptive algorithms
-              </p>
-            </div>
-          </TacticalCard>
-        ) : (
-          <SignInButton mode="modal">
-            <TacticalCard
-              hoverable
-              padding="none"
-              className="overflow-hidden cursor-pointer"
-            >
-              <div className="relative group">
-                <img
-                  src="/assets/adaptive-sampling-demo.png"
-                  alt="Adaptive Sampling Demo"
-                  className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
-              </div>
-              <div className="p-6 text-center">
-                <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-                  Adaptive Sampling
-                </h2>
-                <p className="text-sm text-tactical-text-muted leading-relaxed">
-                  Optimize your survey sampling with intelligent adaptive algorithms
-                </p>
-              </div>
-            </TacticalCard>
-          </SignInButton>
-        )}
-
-        {isSignedIn ? (
-          <TacticalCard
-            hoverable
-            onClick={() => setCurrentView('coverage-prediction')}
-            padding="none"
-            className="overflow-hidden"
-          >
-            <div className="relative group">
-              <img
-                src="/assets/coverage-prediction-demo.png"
-                alt="Coverage Prediction Demo"
-                className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
-            </div>
-            <div className="p-6 text-center">
-              <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-                Coverage Prediction
-              </h2>
-              <p className="text-sm text-tactical-text-muted leading-relaxed">
-                Predict and analyze coverage patterns for your survey data
-              </p>
-            </div>
-          </TacticalCard>
-        ) : (
-          <SignInButton mode="modal">
-            <TacticalCard
-              hoverable
-              padding="none"
-              className="overflow-hidden cursor-pointer"
-            >
-              <div className="relative group">
-                <img
-                  src="/assets/coverage-prediction-demo.png"
-                  alt="Coverage Prediction Demo"
-                  className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
-              </div>
-              <div className="p-6 text-center">
-                <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-                  Coverage Prediction
-                </h2>
-                <p className="text-sm text-tactical-text-muted leading-relaxed">
-                  Predict and analyze coverage patterns for your survey data
-                </p>
-              </div>
-            </TacticalCard>
-          </SignInButton>
-        )}
-
-        {/* Organization Management - Always visible when signed in */}
-        {isSignedIn && (
-          <TacticalCard
-            hoverable
-            onClick={() => setCurrentView('organization-management')}
-            padding="none"
-            className="overflow-hidden"
-          >
-            <div className="h-64 bg-gradient-to-br from-tactical-bg-secondary to-tactical-bg-tertiary flex items-center justify-center border-b border-tactical-border-medium">
-              <div className="text-center">
-                <div className="text-6xl mb-4">⚙️</div>
-                <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
-                  Organizations
-                </h2>
-              </div>
-            </div>
-            <div className="p-6 text-center">
-              <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-                Admin
-              </h2>
-              <p className="text-sm text-tactical-text-muted leading-relaxed">
-                Manage your organizations, projects, and team members
-              </p>
-            </div>
-          </TacticalCard>
-        )}
-      </div>
       </div>
     </div>
   );
@@ -832,7 +714,7 @@ function App() {
               </div>
 
               {mergeStats && (
-                <div className="p-3 border border-tactical-accent-green-dim bg-tactical-bg-secondary mb-4">
+                <div className="p-3 border border-tactical-accent-orange-dim bg-tactical-bg-secondary mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <TacticalBadge variant="success">MERGE SUMMARY</TacticalBadge>
                   </div>
@@ -888,7 +770,7 @@ function App() {
 
           {predictionResult && (
             <TacticalCard title="Prediction Results" padding="lg">
-              <div className="mb-4 p-3 border border-tactical-accent-green-dim bg-tactical-bg-secondary">
+              <div className="mb-4 p-3 border border-tactical-accent-orange-dim bg-tactical-bg-secondary">
                 <div className="flex items-center gap-3 mb-2">
                   <TacticalBadge variant="success">SUMMARY</TacticalBadge>
                   <span className="text-sm">
@@ -953,15 +835,6 @@ function App() {
       <TacticalHeader
         title="TrueCover / Organization Management"
         subtitle="Manage your organizations, projects, and team members"
-        actions={
-          <TacticalButton
-            variant="secondary"
-            size="sm"
-            onClick={() => setCurrentView('home')}
-          >
-            Back to Home
-          </TacticalButton>
-        }
       />
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -1007,6 +880,123 @@ function App() {
     </div>
   );
 
+  const renderAreaDetail = () => {
+    if (!selectedArea) return null;
+
+    return (
+      <div className="min-h-screen bg-tactical-bg-primary">
+        <TacticalHeader
+          title=""
+          subtitle=""
+          actions={
+            <TacticalButton
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setCurrentView('home');
+                setSelectedArea(null);
+              }}
+            >
+              Back
+            </TacticalButton>
+          }
+        />
+
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="w-9/12 mx-auto">
+            {/* Breadcrumbs */}
+            <div className="mb-4">
+              <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
+                <span
+                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                  onClick={() => {
+                    setCurrentView('home');
+                    setSelectedArea(null);
+                  }}
+                >
+                  {selectedOrganization?.name || 'Organization'}
+                </span>
+                {' / '}
+                <span
+                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                  onClick={() => {
+                    setCurrentView('home');
+                    setSelectedArea(null);
+                  }}
+                >
+                  {selectedProject?.title || 'Project'}
+                </span>
+              </p>
+            </div>
+
+            {/* Area Name */}
+            <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-8">
+              {selectedArea.name}
+            </h1>
+
+            {/* Area Description */}
+            {selectedArea.description && (
+              <TacticalCard padding="lg" className="mb-6">
+                <p className="text-sm text-tactical-text-muted">{selectedArea.description}</p>
+              </TacticalCard>
+            )}
+
+            {/* Tools Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <TacticalCard
+                hoverable
+                onClick={() => setCurrentView('adaptive-sampling')}
+                padding="none"
+                className="overflow-hidden"
+              >
+                <div className="relative group">
+                  <img
+                    src="/assets/adaptive-sampling-demo.png"
+                    alt="Adaptive Sampling Demo"
+                    className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
+                </div>
+                <div className="p-6 text-center">
+                  <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                    Adaptive Sampling
+                  </h2>
+                  <p className="text-sm text-tactical-text-muted leading-relaxed">
+                    Optimize your survey sampling with intelligent adaptive algorithms
+                  </p>
+                </div>
+              </TacticalCard>
+
+              <TacticalCard
+                hoverable
+                onClick={() => setCurrentView('coverage-prediction')}
+                padding="none"
+                className="overflow-hidden"
+              >
+                <div className="relative group">
+                  <img
+                    src="/assets/coverage-prediction-demo.png"
+                    alt="Coverage Prediction Demo"
+                    className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
+                </div>
+                <div className="p-6 text-center">
+                  <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                    Coverage Prediction
+                  </h2>
+                  <p className="text-sm text-tactical-text-muted leading-relaxed">
+                    Predict and analyze coverage patterns for your survey data
+                  </p>
+                </div>
+              </TacticalCard>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ position: 'relative' }}>
       {/* Clerk Auth Button - Top Right */}
@@ -1014,8 +1004,20 @@ function App() {
         position: 'fixed',
         top: '1rem',
         right: '1rem',
-        zIndex: 9999
+        zIndex: 9999,
+        display: 'flex',
+        gap: '0.75rem',
+        alignItems: 'center'
       }}>
+        {isSignedIn && currentView === 'home' && (
+          <TacticalButton
+            variant="secondary"
+            size="sm"
+            onClick={() => setCurrentView('organization-management')}
+          >
+            Admin
+          </TacticalButton>
+        )}
         {isSignedIn ? (
           <UserButton afterSignOutUrl="/" />
         ) : (
@@ -1031,6 +1033,7 @@ function App() {
       {currentView === 'adaptive-sampling' && renderAdaptiveSampling()}
       {currentView === 'coverage-prediction' && renderCoveragePrediction()}
       {currentView === 'organization-management' && renderOrganizationManagement()}
+      {currentView === 'area-detail' && renderAreaDetail()}
 
       {/* Create Project Modal */}
       <CreateProjectModal

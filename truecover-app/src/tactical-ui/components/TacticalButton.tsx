@@ -110,9 +110,11 @@ export const TacticalButton: React.FC<TacticalButtonProps> = ({
       border-tactical-accent-green
       border-2
       text-tactical-accent-green
-      hover:bg-tactical-accent-green
+      hover:bg-tactical-accent-orange
       hover:text-tactical-text-primary
+      hover:border-tactical-accent-orange
       active:bg-tactical-accent-green-dim
+      active:border-tactical-accent-green
     `,
   };
 

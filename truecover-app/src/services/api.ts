@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Organization, OrganizationMember, Project } from '../types';
+import { Organization, OrganizationMember, Project, Area } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -163,6 +163,72 @@ export const projectsApi = {
   async delete(projectId: string, token: string): Promise<void> {
     await axios.delete(
       `${API_URL}/api/projects/${projectId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+  }
+};
+
+// Areas API calls
+export const areasApi = {
+  async create(projectId: string, name: string, description: string, token: string): Promise<Area> {
+    const response = await axios.post(
+      `${API_URL}/api/projects/${projectId}/areas`,
+      { name, description },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async list(projectId: string, token: string): Promise<Area[]> {
+    const response = await axios.get(
+      `${API_URL}/api/projects/${projectId}/areas`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data.areas;
+  },
+
+  async get(areaId: string, token: string): Promise<Area> {
+    const response = await axios.get(
+      `${API_URL}/api/areas/${areaId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async update(areaId: string, name: string, description: string, token: string): Promise<Area> {
+    const response = await axios.put(
+      `${API_URL}/api/areas/${areaId}`,
+      { name, description },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async delete(areaId: string, token: string): Promise<void> {
+    await axios.delete(
+      `${API_URL}/api/areas/${areaId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`

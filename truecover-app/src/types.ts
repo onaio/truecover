@@ -64,3 +64,12 @@ export interface Project {
   created_at: string;
   updated_at: string;
 }
+
+export interface Area {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}

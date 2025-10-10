@@ -1,38 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { Project, Organization } from '../types';
-import { projectsApi } from '../services/api';
+import { Project, Area } from '../types';
+import { areasApi } from '../services/api';
 import { TacticalModal, TacticalInput, TacticalButton, TacticalBadge } from '../tactical-ui';
 
-interface CreateProjectModalProps {
+interface CreateAreaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  organization: Organization | null;
-  onProjectCreated: (project: Project) => void;
+  project: Project | null;
+  onAreaCreated: (area: Area) => void;
+  editArea?: Area | null;
+  onAreaUpdated?: (area: Area) => void;
 }
 
-const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
+const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
   isOpen,
   onClose,
-  organization,
-  onProjectCreated
+  project,
+  onAreaCreated,
+  editArea = null,
+  onAreaUpdated
 }) => {
   const { getToken } = useAuth();
-  const [title, setTitle] = useState('');
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Populate form when editing
+  useEffect(() => {
+    if (editArea) {
+      setName(editArea.name);
+      setDescription(editArea.description || '');
+    } else {
+      setName('');
+      setDescription('');
+    }
+  }, [editArea, isOpen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) {
-      setError('Project title is required');
+    if (!name.trim()) {
+      setError('Area name is required');
       return;
     }
 
-    if (!organization) {
-      setError('Please select an organization first');
+    if (!project) {
+      setError('Please select a project first');
       return;
     }
 
@@ -46,26 +61,40 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         return;
       }
 
-      const newProject = await projectsApi.create(
-        organization.id,
-        title.trim(),
-        description.trim(),
-        token
-      );
-      onProjectCreated(newProject);
-      setTitle('');
+      if (editArea) {
+        // Update existing area
+        const updatedArea = await areasApi.update(
+          editArea.id,
+          name.trim(),
+          description.trim(),
+          token
+        );
+        if (onAreaUpdated) {
+          onAreaUpdated(updatedArea);
+        }
+      } else {
+        // Create new area
+        const newArea = await areasApi.create(
+          project.id,
+          name.trim(),
+          description.trim(),
+          token
+        );
+        onAreaCreated(newArea);
+      }
+      setName('');
       setDescription('');
       onClose();
     } catch (err: any) {
-      console.error('Failed to create project:', err);
-      setError(err.response?.data?.error || 'Failed to create project');
+      console.error(`Failed to ${editArea ? 'update' : 'create'} area:`, err);
+      setError(err.response?.data?.error || `Failed to ${editArea ? 'update' : 'create'} area`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleClose = () => {
-    setTitle('');
+    setName('');
     setDescription('');
     setError(null);
     onClose();
@@ -73,7 +102,7 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
   return (
     <TacticalModal
-      title="Create Project"
+      title={editArea ? "Edit Area" : "Create Area"}
       isOpen={isOpen}
       onClose={handleClose}
       size="md"
@@ -86,46 +115,46 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           </div>
         )}
 
-        {organization && (
+        {project && (
           <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
             <span className="text-xs text-tactical-text-dim uppercase tracking-wider">
-              Organization
+              Project
             </span>
             <p className="text-sm text-tactical-text-primary font-bold mt-1">
-              {organization.name}
+              {project.title}
             </p>
           </div>
         )}
 
         <div>
           <label
-            htmlFor="projectTitle"
+            htmlFor="areaName"
             className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
           >
-            Project Title
+            Area Name
           </label>
           <TacticalInput
-            id="projectTitle"
+            id="areaName"
             type="text"
-            value={title}
-            onChange={setTitle}
-            placeholder="Enter project title"
+            value={name}
+            onChange={setName}
+            placeholder="Enter area name"
             disabled={isLoading}
           />
         </div>
 
         <div>
           <label
-            htmlFor="projectDescription"
+            htmlFor="areaDescription"
             className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
           >
             Description (Optional)
           </label>
           <textarea
-            id="projectDescription"
+            id="areaDescription"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter project description"
+            placeholder="Enter area description"
             disabled={isLoading}
             rows={3}
             className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
@@ -144,14 +173,14 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           <TacticalButton
             type="submit"
             variant="primary"
-            disabled={isLoading || !title.trim() || !organization}
+            disabled={isLoading || !name.trim() || (!project && !editArea)}
           >
             {isLoading ? (
               <span className="tactical-loading-dots">
-                CREATING<span>.</span><span>.</span><span>.</span>
+                {editArea ? 'UPDATING' : 'CREATING'}<span>.</span><span>.</span><span>.</span>
               </span>
             ) : (
-              'Create Project'
+              editArea ? 'Update Area' : 'Create Area'
             )}
           </TacticalButton>
         </div>
@@ -160,4 +189,4 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   );
 };
 
-export default CreateProjectModal;
+export default CreateAreaModal;

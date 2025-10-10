@@ -30,6 +30,8 @@ module.exports = {
             'green-dim': '#064e3b',
             blue: '#3b82f6',
             'blue-dim': '#1e3a8a',
+            orange: '#f97316',
+            'orange-dim': '#7c2d12',
           },
         },
       },
