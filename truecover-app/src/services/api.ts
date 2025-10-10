@@ -237,3 +237,58 @@ export const areasApi = {
     );
   }
 };
+
+// Locations API calls
+export const locationsApi = {
+  async upload(
+    areaId: string,
+    file: File,
+    config: {
+      latColumn?: string;
+      lngColumn?: string;
+      externalIdColumn?: string;
+    },
+    token: string
+  ): Promise<{ inserted: number; updated: number; errors: string[] }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (config.latColumn) formData.append('latColumn', config.latColumn);
+    if (config.lngColumn) formData.append('lngColumn', config.lngColumn);
+    if (config.externalIdColumn) formData.append('externalIdColumn', config.externalIdColumn);
+
+    const response = await axios.post(
+      `${API_URL}/api/areas/${areaId}/locations/upload`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async list(areaId: string, token: string): Promise<any> {
+    const response = await axios.get(
+      `${API_URL}/api/areas/${areaId}/locations`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async delete(areaId: string, locationId: string, token: string): Promise<void> {
+    await axios.delete(
+      `${API_URL}/api/areas/${areaId}/locations/${locationId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+  }
+};

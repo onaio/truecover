@@ -7,7 +7,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 interface MapViewProps {
   data: GeoJSONFeatureCollection;
   selectedData?: GeoJSONFeatureCollection | null;
-  mode?: 'sampling' | 'prediction';
+  locations?: any | null;
+  mode?: 'sampling' | 'prediction' | 'locations';
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -42,21 +43,24 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling' }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
+  // Use locations data if in locations mode, otherwise use regular data
+  const primaryData = mode === 'locations' && locations ? locations : data;
+
   // Calculate bounds from all features - BEFORE the early return
   const bounds = useMemo(() => {
-    if (!data || !data.features || !data.features.length) return undefined;
+    if (!primaryData || !primaryData.features || !primaryData.features.length) return undefined;
 
     let minLng = Infinity;
     let minLat = Infinity;
     let maxLng = -Infinity;
     let maxLat = -Infinity;
 
-    data.features.forEach(feature => {
+    primaryData.features.forEach(feature => {
       const coords = extractCoordinates(feature.geometry);
       coords.forEach(([lng, lat]) => {
         minLng = Math.min(minLng, lng);
@@ -74,7 +78,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
       [minLng - lngPadding, minLat - latPadding],
       [maxLng + lngPadding, maxLat + latPadding]
     ] as [[number, number], [number, number]];
-  }, [data]);
+  }, [primaryData]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {

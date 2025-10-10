@@ -12,8 +12,11 @@ import CreateProjectModal from './components/CreateProjectModal';
 import ProjectsList from './components/ProjectsList';
 import AreasList from './components/AreasList';
 import OrganizationSettings from './components/OrganizationSettings';
+import LocationUploadModal from './components/LocationUploadModal';
+import LocationsTable from './components/LocationsTable';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
+import { locationsApi } from './services/api';
 import {
   TacticalCard,
   TacticalButton,
@@ -22,7 +25,7 @@ import {
 } from './tactical-ui';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 
-type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction' | 'organization-management' | 'area-detail';
+type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction' | 'organization-management' | 'area-detail' | 'locations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -54,6 +57,11 @@ function App() {
 
   // Area state
   const [selectedArea, setSelectedArea] = useState<any | null>(null);
+
+  // Locations state
+  const [locations, setLocations] = useState<any | null>(null);
+  const [isLocationUploadModalOpen, setIsLocationUploadModalOpen] = useState(false);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   // Auto-sync user to database on sign-in
   useEffect(() => {
@@ -880,6 +888,186 @@ function App() {
     </div>
   );
 
+  // useEffect to load locations when entering locations view
+  useEffect(() => {
+    const loadLocations = async () => {
+      if (currentView === 'locations' && selectedArea && isSignedIn) {
+        setIsLoadingLocations(true);
+        try {
+          const token = await getToken();
+          if (token) {
+            const locationsData = await locationsApi.list(selectedArea.id, token);
+            setLocations(locationsData);
+          }
+        } catch (error) {
+          console.error('Failed to load locations:', error);
+          setLocations(null);
+        } finally {
+          setIsLoadingLocations(false);
+        }
+      }
+    };
+
+    loadLocations();
+  }, [currentView, selectedArea, isSignedIn]);
+
+  const handleLocationsUploaded = async () => {
+    if (!selectedArea || !isSignedIn) return;
+
+    try {
+      const token = await getToken();
+      if (token) {
+        const locationsData = await locationsApi.list(selectedArea.id, token);
+        setLocations(locationsData);
+      }
+    } catch (error) {
+      console.error('Failed to refresh locations:', error);
+    }
+  };
+
+  const handleDeleteLocation = async (locationId: string) => {
+    if (!selectedArea || !isSignedIn) return;
+
+    if (!confirm('Are you sure you want to delete this location?')) return;
+
+    try {
+      const token = await getToken();
+      if (token) {
+        await locationsApi.delete(selectedArea.id, locationId, token);
+        await handleLocationsUploaded();
+      }
+    } catch (error) {
+      console.error('Failed to delete location:', error);
+      alert('Failed to delete location');
+    }
+  };
+
+  const renderLocations = () => {
+    if (!selectedArea) return null;
+
+    return (
+      <div className="min-h-screen bg-tactical-bg-primary">
+        <TacticalHeader
+          title=""
+          subtitle=""
+          actions={
+            <div className="flex gap-3">
+              <TacticalButton
+                variant="primary"
+                size="sm"
+                onClick={() => setIsLocationUploadModalOpen(true)}
+              >
+                + Add Locations
+              </TacticalButton>
+              <TacticalButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setCurrentView('area-detail');
+                  setLocations(null);
+                }}
+              >
+                Back
+              </TacticalButton>
+            </div>
+          }
+        />
+
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="w-9/12 mx-auto">
+            {/* Breadcrumbs */}
+            <div className="mb-4">
+              <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
+                <span
+                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                  onClick={() => {
+                    setCurrentView('home');
+                    setSelectedArea(null);
+                    setLocations(null);
+                  }}
+                >
+                  {selectedOrganization?.name || 'Organization'}
+                </span>
+                {' / '}
+                <span
+                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                  onClick={() => {
+                    setCurrentView('home');
+                    setSelectedArea(null);
+                    setLocations(null);
+                  }}
+                >
+                  {selectedProject?.title || 'Project'}
+                </span>
+                {' / '}
+                <span
+                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                  onClick={() => {
+                    setCurrentView('area-detail');
+                    setLocations(null);
+                  }}
+                >
+                  {selectedArea.name}
+                </span>
+              </p>
+            </div>
+
+            {/* Page Title */}
+            <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-8">
+              Locations
+            </h1>
+
+            {isLoadingLocations ? (
+              <TacticalCard padding="lg" className="text-center">
+                <p className="text-tactical-text-secondary">Loading locations...</p>
+              </TacticalCard>
+            ) : (
+              <>
+                {/* Map View */}
+                <TacticalCard padding="none" className="mb-6">
+                  <div className="h-[400px]">
+                    {locations && locations.features && locations.features.length > 0 ? (
+                      <MapView
+                        data={{ type: 'FeatureCollection', features: [] }}
+                        locations={locations}
+                        mode="locations"
+                      />
+                    ) : (
+                      <div className="h-full flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
+                        <p className="text-tactical-text-dim">No locations to display</p>
+                      </div>
+                    )}
+                  </div>
+                </TacticalCard>
+
+                {/* Locations Table */}
+                <TacticalCard padding="none">
+                  <div className="p-4 border-b border-tactical-border-medium">
+                    <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
+                      Location Data
+                    </h2>
+                  </div>
+                  <LocationsTable
+                    locations={locations}
+                    onDeleteLocation={handleDeleteLocation}
+                  />
+                </TacticalCard>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Location Upload Modal */}
+        <LocationUploadModal
+          isOpen={isLocationUploadModalOpen}
+          onClose={() => setIsLocationUploadModalOpen(false)}
+          area={selectedArea}
+          onLocationsUploaded={handleLocationsUploaded}
+        />
+      </div>
+    );
+  };
+
   const renderAreaDetail = () => {
     if (!selectedArea) return null;
 
@@ -942,7 +1130,29 @@ function App() {
             )}
 
             {/* Tools Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <TacticalCard
+                hoverable
+                onClick={() => setCurrentView('locations')}
+                padding="none"
+                className="overflow-hidden"
+              >
+                <div className="relative group">
+                  <div className="w-full h-64 bg-gradient-to-br from-tactical-accent-green/20 to-tactical-bg-secondary flex items-center justify-center">
+                    <div className="text-tactical-accent-green text-6xl">📍</div>
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
+                </div>
+                <div className="p-6 text-center">
+                  <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                    Locations
+                  </h2>
+                  <p className="text-sm text-tactical-text-muted leading-relaxed">
+                    Manage and visualize location data for your survey area
+                  </p>
+                </div>
+              </TacticalCard>
+
               <TacticalCard
                 hoverable
                 onClick={() => setCurrentView('adaptive-sampling')}
@@ -1034,6 +1244,7 @@ function App() {
       {currentView === 'coverage-prediction' && renderCoveragePrediction()}
       {currentView === 'organization-management' && renderOrganizationManagement()}
       {currentView === 'area-detail' && renderAreaDetail()}
+      {currentView === 'locations' && renderLocations()}
 
       {/* Create Project Modal */}
       <CreateProjectModal
