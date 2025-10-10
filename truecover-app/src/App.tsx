@@ -5,7 +5,11 @@ import FileUpload from './components/FileUpload';
 import SamplingForm from './components/SamplingForm';
 import ResultsTable from './components/ResultsTable';
 import MapView from './components/MapView';
-import { FileData, SamplingRequest } from './types';
+import OrganizationSelector from './components/OrganizationSelector';
+import CreateOrganizationModal from './components/CreateOrganizationModal';
+import ProjectsList from './components/ProjectsList';
+import OrganizationSettings from './components/OrganizationSettings';
+import { FileData, SamplingRequest, Organization } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 import {
   TacticalCard,
@@ -15,7 +19,7 @@ import {
 } from './tactical-ui';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 
-type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction';
+type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction' | 'organization-management';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -34,6 +38,11 @@ function App() {
   const [predictionResult, setPredictionResult] = useState<any>(null);
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [mergeStats, setMergeStats] = useState<any>(null);
+
+  // Organization state
+  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+  const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
+  const [refreshOrganizations, setRefreshOrganizations] = useState<(() => Promise<void>) | null>(null);
 
   // Auto-sync user to database on sign-in
   useEffect(() => {
@@ -187,34 +196,54 @@ function App() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
         {isSignedIn ? (
           <TacticalCard
             hoverable
             onClick={() => setCurrentView('adaptive-sampling')}
-            padding="xl"
-            className="text-center"
+            padding="none"
+            className="overflow-hidden"
           >
-            <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-              Adaptive Sampling
-            </h2>
-            <p className="text-sm text-tactical-text-muted leading-relaxed">
-              Optimize your survey sampling with intelligent adaptive algorithms
-            </p>
-          </TacticalCard>
-        ) : (
-          <SignInButton mode="modal">
-            <TacticalCard
-              hoverable
-              padding="xl"
-              className="text-center cursor-pointer"
-            >
+            <div className="relative group">
+              <img
+                src="/assets/adaptive-sampling-demo.png"
+                alt="Adaptive Sampling Demo"
+                className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
+            </div>
+            <div className="p-6 text-center">
               <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
                 Adaptive Sampling
               </h2>
               <p className="text-sm text-tactical-text-muted leading-relaxed">
                 Optimize your survey sampling with intelligent adaptive algorithms
               </p>
+            </div>
+          </TacticalCard>
+        ) : (
+          <SignInButton mode="modal">
+            <TacticalCard
+              hoverable
+              padding="none"
+              className="overflow-hidden cursor-pointer"
+            >
+              <div className="relative group">
+                <img
+                  src="/assets/adaptive-sampling-demo.png"
+                  alt="Adaptive Sampling Demo"
+                  className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
+              </div>
+              <div className="p-6 text-center">
+                <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                  Adaptive Sampling
+                </h2>
+                <p className="text-sm text-tactical-text-muted leading-relaxed">
+                  Optimize your survey sampling with intelligent adaptive algorithms
+                </p>
+              </div>
             </TacticalCard>
           </SignInButton>
         )}
@@ -223,31 +252,78 @@ function App() {
           <TacticalCard
             hoverable
             onClick={() => setCurrentView('coverage-prediction')}
-            padding="xl"
-            className="text-center"
+            padding="none"
+            className="overflow-hidden"
           >
-            <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-              Coverage Prediction
-            </h2>
-            <p className="text-sm text-tactical-text-muted leading-relaxed">
-              Predict and analyze coverage patterns for your survey data
-            </p>
-          </TacticalCard>
-        ) : (
-          <SignInButton mode="modal">
-            <TacticalCard
-              hoverable
-              padding="xl"
-              className="text-center cursor-pointer"
-            >
+            <div className="relative group">
+              <img
+                src="/assets/coverage-prediction-demo.png"
+                alt="Coverage Prediction Demo"
+                className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
+            </div>
+            <div className="p-6 text-center">
               <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
                 Coverage Prediction
               </h2>
               <p className="text-sm text-tactical-text-muted leading-relaxed">
                 Predict and analyze coverage patterns for your survey data
               </p>
+            </div>
+          </TacticalCard>
+        ) : (
+          <SignInButton mode="modal">
+            <TacticalCard
+              hoverable
+              padding="none"
+              className="overflow-hidden cursor-pointer"
+            >
+              <div className="relative group">
+                <img
+                  src="/assets/coverage-prediction-demo.png"
+                  alt="Coverage Prediction Demo"
+                  className="w-full h-64 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-tactical-bg-primary via-tactical-bg-primary/50 to-transparent" />
+              </div>
+              <div className="p-6 text-center">
+                <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                  Coverage Prediction
+                </h2>
+                <p className="text-sm text-tactical-text-muted leading-relaxed">
+                  Predict and analyze coverage patterns for your survey data
+                </p>
+              </div>
             </TacticalCard>
           </SignInButton>
+        )}
+
+        {/* Organization Management - Always visible when signed in */}
+        {isSignedIn && (
+          <TacticalCard
+            hoverable
+            onClick={() => setCurrentView('organization-management')}
+            padding="none"
+            className="overflow-hidden"
+          >
+            <div className="h-64 bg-gradient-to-br from-tactical-bg-secondary to-tactical-bg-tertiary flex items-center justify-center border-b border-tactical-border-medium">
+              <div className="text-center">
+                <div className="text-6xl mb-4">⚙️</div>
+                <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
+                  Organizations
+                </h2>
+              </div>
+            </div>
+            <div className="p-6 text-center">
+              <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                Organization Management
+              </h2>
+              <p className="text-sm text-tactical-text-muted leading-relaxed">
+                Manage your organizations, projects, and team members
+              </p>
+            </div>
+          </TacticalCard>
         )}
       </div>
     </div>
@@ -838,6 +914,65 @@ function App() {
     );
   };
 
+  const renderOrganizationManagement = () => (
+    <div className="min-h-screen bg-tactical-bg-primary">
+      <TacticalHeader
+        title="TrueCover / Organization Management"
+        subtitle="Manage your organizations, projects, and team members"
+        actions={
+          <TacticalButton
+            variant="secondary"
+            size="sm"
+            onClick={() => setCurrentView('home')}
+          >
+            Back to Home
+          </TacticalButton>
+        }
+      />
+
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Organization Selector */}
+        <TacticalCard padding="md">
+          <OrganizationSelector
+            selectedOrganization={selectedOrganization}
+            onOrganizationChange={setSelectedOrganization}
+            onCreateClick={() => setIsCreateOrgModalOpen(true)}
+            onRefresh={(refreshFn) => setRefreshOrganizations(() => refreshFn)}
+          />
+        </TacticalCard>
+
+        {/* Projects and Settings Grid */}
+        {selectedOrganization && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ProjectsList organization={selectedOrganization} />
+            <OrganizationSettings
+              organization={selectedOrganization}
+              onOrganizationUpdated={(updatedOrg) => {
+                setSelectedOrganization(updatedOrg);
+              }}
+              onOrganizationDeleted={async () => {
+                setSelectedOrganization(null);
+                if (refreshOrganizations) {
+                  await refreshOrganizations();
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Create Organization Modal */}
+      <CreateOrganizationModal
+        isOpen={isCreateOrgModalOpen}
+        onClose={() => setIsCreateOrgModalOpen(false)}
+        onOrganizationCreated={(org) => {
+          setSelectedOrganization(org);
+          setIsCreateOrgModalOpen(false);
+        }}
+      />
+    </div>
+  );
+
   return (
     <div style={{ position: 'relative' }}>
       {/* Clerk Auth Button - Top Right */}
@@ -861,6 +996,7 @@ function App() {
       {currentView === 'home' && renderHomePage()}
       {currentView === 'adaptive-sampling' && renderAdaptiveSampling()}
       {currentView === 'coverage-prediction' && renderCoveragePrediction()}
+      {currentView === 'organization-management' && renderOrganizationManagement()}
     </div>
   );
 }

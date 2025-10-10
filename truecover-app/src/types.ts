@@ -37,3 +37,30 @@ export interface MergeStats {
   addedFromSurvey: number;
   totalInMerged: number;
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  role?: string;
+  joined_at?: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  clerk_id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  joined_at: string;
+}
+
+export interface Project {
+  id: string;
+  organization_id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}

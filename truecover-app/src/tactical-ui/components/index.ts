@@ -27,3 +27,6 @@ export type { TacticalTableProps, TacticalTableColumn } from './TacticalTable';
 
 export { TacticalHeader } from './TacticalHeader';
 export type { TacticalHeaderProps } from './TacticalHeader';
+
+export { TacticalModal } from './TacticalModal';
+export type { TacticalModalProps } from './TacticalModal';
