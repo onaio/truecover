@@ -1,0 +1,264 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
+import { locationsApi } from '../services/api';
+import { TacticalModal, TacticalButton, TacticalBadge } from '../tactical-ui';
+
+interface Location {
+  id: string;
+  properties: {
+    external_id?: string;
+    latitude?: number;
+    longitude?: number;
+    exceedance_probability?: number;
+    exceedance_uncertainty?: number;
+    prevalence_bci_width?: number;
+    prevalence_prediction?: number;
+    adaptively_selected?: number;
+  };
+}
+
+interface LocationEditModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  location: Location | null;
+  areaId: string;
+  onLocationUpdated: () => void;
+}
+
+const LocationEditModal: React.FC<LocationEditModalProps> = ({
+  isOpen,
+  onClose,
+  location,
+  areaId,
+  onLocationUpdated
+}) => {
+  const { getToken } = useAuth();
+  const [externalId, setExternalId] = useState('');
+  const [exceedanceProbability, setExceedanceProbability] = useState('');
+  const [exceedanceUncertainty, setExceedanceUncertainty] = useState('');
+  const [prevalenceBciWidth, setPrevalenceBciWidth] = useState('');
+  const [prevalencePrediction, setPrevalencePrediction] = useState('');
+  const [adaptivelySelected, setAdaptivelySelected] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (location) {
+      setExternalId(location.properties.external_id || '');
+      setExceedanceProbability(location.properties.exceedance_probability?.toString() || '');
+      setExceedanceUncertainty(location.properties.exceedance_uncertainty?.toString() || '');
+      setPrevalenceBciWidth(location.properties.prevalence_bci_width?.toString() || '');
+      setPrevalencePrediction(location.properties.prevalence_prediction?.toString() || '');
+      setAdaptivelySelected(location.properties.adaptively_selected?.toString() || '');
+    }
+  }, [location]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!location) {
+      setError('No location selected');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const data: any = {};
+
+      if (externalId.trim()) data.external_id = externalId.trim();
+      if (exceedanceProbability.trim()) data.exceedance_probability = parseFloat(exceedanceProbability);
+      if (exceedanceUncertainty.trim()) data.exceedance_uncertainty = parseFloat(exceedanceUncertainty);
+      if (prevalenceBciWidth.trim()) data.prevalence_bci_width = parseFloat(prevalenceBciWidth);
+      if (prevalencePrediction.trim()) data.prevalence_prediction = parseFloat(prevalencePrediction);
+      if (adaptivelySelected.trim()) data.adaptively_selected = parseFloat(adaptivelySelected);
+
+      await locationsApi.update(areaId, location.id, data, token);
+      onLocationUpdated();
+      handleClose();
+    } catch (err: any) {
+      console.error('Failed to update location:', err);
+      setError(err.response?.data?.error || 'Failed to update location');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setError(null);
+    onClose();
+  };
+
+  return (
+    <TacticalModal
+      title="Edit Location"
+      isOpen={isOpen}
+      onClose={handleClose}
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="flex items-start gap-3 p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
+            <TacticalBadge variant="danger">ERROR</TacticalBadge>
+            <span className="text-sm text-tactical-accent-red">{error}</span>
+          </div>
+        )}
+
+        {location && (
+          <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+            <span className="text-xs text-tactical-text-dim uppercase tracking-wider">
+              Location Coordinates (Read-Only)
+            </span>
+            <p className="text-sm text-tactical-text-primary font-mono mt-1">
+              Lat: {location.properties.latitude?.toFixed(6)}, Lng: {location.properties.longitude?.toFixed(6)}
+            </p>
+          </div>
+        )}
+
+        <div>
+          <label
+            htmlFor="externalId"
+            className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
+          >
+            External ID
+          </label>
+          <input
+            id="externalId"
+            type="text"
+            value={externalId}
+            onChange={(e) => setExternalId(e.target.value)}
+            disabled={isLoading}
+            className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label
+              htmlFor="exceedanceProbability"
+              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
+            >
+              Exceedance Probability
+            </label>
+            <input
+              id="exceedanceProbability"
+              type="number"
+              step="0.01"
+              value={exceedanceProbability}
+              onChange={(e) => setExceedanceProbability(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="exceedanceUncertainty"
+              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
+            >
+              Exceedance Uncertainty
+            </label>
+            <input
+              id="exceedanceUncertainty"
+              type="number"
+              step="0.01"
+              value={exceedanceUncertainty}
+              onChange={(e) => setExceedanceUncertainty(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label
+              htmlFor="prevalenceBciWidth"
+              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
+            >
+              Prevalence BCI Width
+            </label>
+            <input
+              id="prevalenceBciWidth"
+              type="number"
+              step="0.01"
+              value={prevalenceBciWidth}
+              onChange={(e) => setPrevalenceBciWidth(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="prevalencePrediction"
+              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
+            >
+              Prevalence Prediction
+            </label>
+            <input
+              id="prevalencePrediction"
+              type="number"
+              step="0.01"
+              value={prevalencePrediction}
+              onChange={(e) => setPrevalencePrediction(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="adaptivelySelected"
+            className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
+          >
+            Adaptively Selected (0 or 1)
+          </label>
+          <input
+            id="adaptivelySelected"
+            type="number"
+            step="1"
+            min="0"
+            max="1"
+            value={adaptivelySelected}
+            onChange={(e) => setAdaptivelySelected(e.target.value)}
+            disabled={isLoading}
+            className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
+          />
+        </div>
+
+        <div className="flex gap-3 justify-end pt-2">
+          <TacticalButton
+            type="button"
+            variant="secondary"
+            onClick={handleClose}
+            disabled={isLoading}
+          >
+            Cancel
+          </TacticalButton>
+          <TacticalButton
+            type="submit"
+            variant="primary"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <span className="tactical-loading-dots">
+                SAVING<span>.</span><span>.</span><span>.</span>
+              </span>
+            ) : (
+              'Save Changes'
+            )}
+          </TacticalButton>
+        </div>
+      </form>
+    </TacticalModal>
+  );
+};
+
+export default LocationEditModal;

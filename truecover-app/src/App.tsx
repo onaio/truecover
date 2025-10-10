@@ -13,6 +13,7 @@ import ProjectsList from './components/ProjectsList';
 import AreasList from './components/AreasList';
 import OrganizationSettings from './components/OrganizationSettings';
 import LocationUploadModal from './components/LocationUploadModal';
+import LocationEditModal from './components/LocationEditModal';
 import LocationsTable from './components/LocationsTable';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
@@ -61,6 +62,8 @@ function App() {
   // Locations state
   const [locations, setLocations] = useState<any | null>(null);
   const [isLocationUploadModalOpen, setIsLocationUploadModalOpen] = useState(false);
+  const [isLocationEditModalOpen, setIsLocationEditModalOpen] = useState(false);
+  const [selectedLocationForEdit, setSelectedLocationForEdit] = useState<any | null>(null);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
 
   // Auto-sync user to database on sign-in
@@ -925,6 +928,17 @@ function App() {
     }
   };
 
+  const handleEditLocation = (location: any) => {
+    setSelectedLocationForEdit(location);
+    setIsLocationEditModalOpen(true);
+  };
+
+  const handleLocationUpdated = async () => {
+    setIsLocationEditModalOpen(false);
+    setSelectedLocationForEdit(null);
+    await handleLocationsUploaded();
+  };
+
   const handleDeleteLocation = async (locationId: string) => {
     if (!selectedArea || !isSignedIn) return;
 
@@ -974,48 +988,76 @@ function App() {
         />
 
         <div className="max-w-7xl mx-auto p-6">
-          <div className="w-9/12 mx-auto">
-            {/* Breadcrumbs */}
-            <div className="mb-4">
-              <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
-                <span
-                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                  onClick={() => {
-                    setCurrentView('home');
-                    setSelectedArea(null);
-                    setLocations(null);
-                  }}
-                >
-                  {selectedOrganization?.name || 'Organization'}
-                </span>
-                {' / '}
-                <span
-                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                  onClick={() => {
-                    setCurrentView('home');
-                    setSelectedArea(null);
-                    setLocations(null);
-                  }}
-                >
-                  {selectedProject?.title || 'Project'}
-                </span>
-                {' / '}
-                <span
-                  className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                  onClick={() => {
-                    setCurrentView('area-detail');
-                    setLocations(null);
-                  }}
-                >
-                  {selectedArea.name}
-                </span>
-              </p>
-            </div>
+          {/* Breadcrumbs */}
+          <div className="mb-4">
+            <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
+              <span
+                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                onClick={() => {
+                  setCurrentView('home');
+                  setSelectedArea(null);
+                  setLocations(null);
+                }}
+              >
+                {selectedOrganization?.name || 'Organization'}
+              </span>
+              {' / '}
+              <span
+                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                onClick={() => {
+                  setCurrentView('home');
+                  setSelectedArea(null);
+                  setLocations(null);
+                }}
+              >
+                {selectedProject?.title || 'Project'}
+              </span>
+              {' / '}
+              <span
+                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+                onClick={() => {
+                  setCurrentView('area-detail');
+                  setLocations(null);
+                }}
+              >
+                {selectedArea.name}
+              </span>
+            </p>
+          </div>
 
-            {/* Page Title */}
-            <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-8">
-              Locations
-            </h1>
+          {/* Page Title */}
+          <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
+            Locations
+          </h1>
+
+          {/* Location Summary */}
+          {locations && locations.features && (
+            <div className="mb-8 grid grid-cols-3 gap-4">
+              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
+                <p className="text-3xl font-bold text-tactical-text-primary font-mono">
+                  {locations.features.length}
+                </p>
+              </div>
+              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Adaptively Selected</p>
+                <p className="text-3xl font-bold text-tactical-accent-green font-mono">
+                  {locations.features.filter(f => {
+                    const val = f.properties?.adaptively_selected;
+                    if (val === undefined || val === null) return false;
+                    const numVal = typeof val === 'string' ? parseFloat(val) : Number(val);
+                    return !isNaN(numVal) && numVal >= 0.5;
+                  }).length}
+                </p>
+              </div>
+              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">With External ID</p>
+                <p className="text-3xl font-bold text-tactical-text-primary font-mono">
+                  {locations.features.filter(f => f.properties?.external_id).length}
+                </p>
+              </div>
+            </div>
+          )}
 
             {isLoadingLocations ? (
               <TacticalCard padding="lg" className="text-center">
@@ -1049,12 +1091,12 @@ function App() {
                   </div>
                   <LocationsTable
                     locations={locations}
+                    onEditLocation={handleEditLocation}
                     onDeleteLocation={handleDeleteLocation}
                   />
                 </TacticalCard>
               </>
             )}
-          </div>
         </div>
 
         {/* Location Upload Modal */}
@@ -1063,6 +1105,18 @@ function App() {
           onClose={() => setIsLocationUploadModalOpen(false)}
           area={selectedArea}
           onLocationsUploaded={handleLocationsUploaded}
+        />
+
+        {/* Location Edit Modal */}
+        <LocationEditModal
+          isOpen={isLocationEditModalOpen}
+          onClose={() => {
+            setIsLocationEditModalOpen(false);
+            setSelectedLocationForEdit(null);
+          }}
+          location={selectedLocationForEdit}
+          areaId={selectedArea?.id || ''}
+          onLocationUpdated={handleLocationUpdated}
         />
       </div>
     );

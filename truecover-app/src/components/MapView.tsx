@@ -60,7 +60,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     let maxLng = -Infinity;
     let maxLat = -Infinity;
 
-    primaryData.features.forEach(feature => {
+    primaryData.features.forEach((feature: any) => {
       const coords = extractCoordinates(feature.geometry);
       coords.forEach(([lng, lat]) => {
         minLng = Math.min(minLng, lng);
@@ -408,7 +408,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           ) : (
             <>
               {/* All features layer */}
-              <Source id="all-source" type="geojson" data={data as any}>
+              <Source id="all-source" type="geojson" data={primaryData as any}>
                 <Layer {...allPolygonsFillLayer} />
                 <Layer {...allPolygonsOutlineLayer} />
                 <Layer {...allPointsLayer} />

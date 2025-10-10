@@ -281,6 +281,31 @@ export const locationsApi = {
     return response.data;
   },
 
+  async update(
+    areaId: string,
+    locationId: string,
+    data: {
+      external_id?: string;
+      exceedance_probability?: number;
+      exceedance_uncertainty?: number;
+      prevalence_bci_width?: number;
+      prevalence_prediction?: number;
+      adaptively_selected?: number;
+    },
+    token: string
+  ): Promise<void> {
+    await axios.put(
+      `${API_URL}/api/areas/${areaId}/locations/${locationId}`,
+      data,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  },
+
   async delete(areaId: string, locationId: string, token: string): Promise<void> {
     await axios.delete(
       `${API_URL}/api/areas/${areaId}/locations/${locationId}`,

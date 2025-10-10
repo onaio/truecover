@@ -3,10 +3,11 @@ import { TacticalBadge } from '../tactical-ui';
 
 interface LocationsTableProps {
   locations: any;
+  onEditLocation?: (location: any) => void;
   onDeleteLocation?: (locationId: string) => void;
 }
 
-const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onDeleteLocation }) => {
+const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocation, onDeleteLocation }) => {
   const features = locations?.features || [];
 
   if (features.length === 0) {
@@ -24,69 +25,37 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onDeleteLoca
     );
   }
 
-  // Get all unique property keys for table headers
-  const propertyKeys = new Set<string>();
-  features.forEach((feature: any) => {
-    if (feature.properties) {
-      Object.keys(feature.properties).forEach(key => {
-        // Exclude system properties that shouldn't be in the table
-        if (!['id', 'latitude', 'longitude', 'external_id'].includes(key)) {
-          propertyKeys.add(key);
-        }
-      });
-    }
-  });
-
-  // Define preferred column order
-  const columnOrder = [
-    'n_trials',
-    'n_positive',
-    'prevalence',
-    'prevalence_prediction',
-    'prevalence_bci_width',
-    'exceedance_probability',
-    'exceedance_uncertainty',
-    'adaptively_selected',
+  // Define the columns based on the locations table schema
+  const headers = [
+    { key: 'external_id', label: 'External ID' },
+    { key: 'latitude', label: 'Latitude' },
+    { key: 'longitude', label: 'Longitude' },
+    { key: 'exceedance_probability', label: 'Exceedance Probability' },
+    { key: 'exceedance_uncertainty', label: 'Exceedance Uncertainty' },
+    { key: 'prevalence_bci_width', label: 'Prevalence BCI Width' },
+    { key: 'prevalence_prediction', label: 'Prevalence Prediction' },
+    { key: 'adaptively_selected', label: 'Adaptively Selected' },
   ];
-
-  // Sort headers by preferred order
-  const headers = Array.from(propertyKeys).sort((a, b) => {
-    const aIndex = columnOrder.indexOf(a);
-    const bIndex = columnOrder.indexOf(b);
-
-    // If both are in preferred order, sort by that order
-    if (aIndex !== -1 && bIndex !== -1) {
-      return aIndex - bIndex;
-    }
-
-    // If only one is in preferred order, it comes first
-    if (aIndex !== -1) return -1;
-    if (bIndex !== -1) return 1;
-
-    // Otherwise, alphabetical
-    return a.localeCompare(b);
-  });
 
   return (
     <div className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
       <table className="tactical-table text-tactical-text-secondary">
         <thead>
           <tr className="sticky top-0 z-10">
-            <th className="bg-tactical-bg-secondary">External ID</th>
-            <th className="bg-tactical-bg-secondary">Coordinates</th>
             {headers.map(header => (
-              <th key={header} className="bg-tactical-bg-secondary">
-                {header.replace(/_/g, ' ')}
+              <th key={header.key} className="bg-tactical-bg-secondary">
+                {header.label}
               </th>
             ))}
-            {onDeleteLocation && (
+            {(onEditLocation || onDeleteLocation) && (
               <th className="bg-tactical-bg-secondary">Actions</th>
             )}
           </tr>
         </thead>
         <tbody>
           {features.map((feature: any, index: number) => {
-            const selectedValue = feature.properties?.adaptively_selected;
+            const props = feature.properties || {};
+            const selectedValue = props.adaptively_selected;
 
             // Check if selected (handle both number and string values)
             let isSelected = false;
@@ -99,60 +68,64 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onDeleteLoca
               ? '!text-tactical-accent-green border-l-4 border-l-tactical-accent-green !font-bold'
               : '';
 
-            const coords = feature.geometry?.coordinates || [];
-            const coordString = coords.length >= 2
-              ? `[${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`
-              : 'N/A';
-
-            const externalId = feature.properties?.external_id || '-';
-            const displayExternalId = typeof externalId === 'string' && externalId.length > 12
-              ? `${externalId.substring(0, 12)}...`
-              : externalId;
-
             return (
               <tr key={feature.id || index} className={rowClasses}>
-                <td title={externalId}>{displayExternalId}</td>
-                <td>{coordString}</td>
                 {headers.map(header => {
-                  // Calculate prevalence for rows with survey data
-                  if (header === 'prevalence') {
-                    const nTrials = feature.properties?.n_trials;
-                    const nPositive = feature.properties?.n_positive;
-                    if (nTrials !== undefined && nTrials !== null && nTrials > 0 &&
-                        nPositive !== undefined && nPositive !== null) {
-                      const prevalence = Number(nPositive) / Number(nTrials);
-                      return (
-                        <td key={header}>
-                          {prevalence.toFixed(2)}
-                        </td>
-                      );
+                  const value = props[header.key];
+
+                  // Special formatting for different field types
+                  let displayValue = '';
+                  if (value !== undefined && value !== null) {
+                    if (typeof value === 'number') {
+                      if (header.key === 'adaptively_selected') {
+                        displayValue = Math.round(value).toString();
+                      } else if (header.key === 'latitude' || header.key === 'longitude') {
+                        displayValue = value.toFixed(6);
+                      } else {
+                        displayValue = value.toFixed(2);
+                      }
+                    } else {
+                      displayValue = String(value);
                     }
-                    return <td key={header}></td>;
                   }
 
-                  const value = feature.properties?.[header];
+                  // Truncate external_id if too long
+                  if (header.key === 'external_id' && displayValue.length > 12) {
+                    return (
+                      <td key={header.key} title={displayValue}>
+                        {displayValue.substring(0, 12)}...
+                      </td>
+                    );
+                  }
 
                   return (
-                    <td key={header}>
-                      {value !== undefined && value !== null
-                        ? (typeof value === 'number'
-                            ? (header === 'n_trials' || header === 'n_positive' || header === 'adaptively_selected'
-                                ? Math.round(value)
-                                : value.toFixed(2))
-                            : String(value))
-                      : ''}
+                    <td key={header.key}>
+                      {displayValue}
                     </td>
                   );
                 })}
-                {onDeleteLocation && (
+                {(onEditLocation || onDeleteLocation) && (
                   <td>
-                    <button
-                      onClick={() => onDeleteLocation(feature.id)}
-                      className="text-tactical-accent-red hover:text-tactical-accent-orange text-xs font-mono font-bold uppercase px-2 py-1 border border-tactical-accent-red hover:border-tactical-accent-orange transition-colors"
-                      title="Delete location"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex gap-2">
+                      {onEditLocation && (
+                        <button
+                          onClick={() => onEditLocation(feature)}
+                          className="text-tactical-accent-orange hover:text-tactical-accent-green text-xs font-mono font-bold uppercase px-2 py-1 border border-tactical-accent-orange hover:border-tactical-accent-green transition-colors"
+                          title="Edit location"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {onDeleteLocation && (
+                        <button
+                          onClick={() => onDeleteLocation(feature.id)}
+                          className="text-tactical-accent-red hover:text-tactical-accent-orange text-xs font-mono font-bold uppercase px-2 py-1 border border-tactical-accent-red hover:border-tactical-accent-orange transition-colors"
+                          title="Delete location"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
