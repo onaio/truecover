@@ -30,3 +30,6 @@ export type { TacticalHeaderProps } from './TacticalHeader';
 
 export { TacticalModal } from './TacticalModal';
 export type { TacticalModalProps } from './TacticalModal';
+
+export { TacticalTextarea } from './TacticalTextarea';
+export type { TacticalTextareaProps } from './TacticalTextarea';

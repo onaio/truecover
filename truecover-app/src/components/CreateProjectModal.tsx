@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { Project, Organization } from '../types';
 import { projectsApi } from '../services/api';
-import { TacticalModal, TacticalInput, TacticalButton, TacticalBadge } from '../tactical-ui';
+import { TacticalModal, TacticalInput, TacticalButton, TacticalBadge, TacticalTextarea } from '../tactical-ui';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -114,23 +114,15 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="projectDescription"
-            className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-          >
-            Description (Optional)
-          </label>
-          <textarea
-            id="projectDescription"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter project description"
-            disabled={isLoading}
-            rows={3}
-            className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-          />
-        </div>
+        <TacticalTextarea
+          id="projectDescription"
+          label="Description (Optional)"
+          value={description}
+          onChange={setDescription}
+          placeholder="Enter project description"
+          disabled={isLoading}
+          rows={3}
+        />
 
         <div className="flex gap-3 justify-end pt-2">
           <TacticalButton

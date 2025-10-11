@@ -23,6 +23,7 @@ interface LocationEditModalProps {
   location: Location | null;
   areaId: string;
   onLocationUpdated: () => void;
+  onLocationDeleted?: () => void;
 }
 
 const LocationEditModal: React.FC<LocationEditModalProps> = ({
@@ -30,7 +31,8 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
   onClose,
   location,
   areaId,
-  onLocationUpdated
+  onLocationUpdated,
+  onLocationDeleted
 }) => {
   const { getToken } = useAuth();
   const [externalId, setExternalId] = useState('');
@@ -41,6 +43,7 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
   const [adaptivelySelected, setAdaptivelySelected] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (location) {
@@ -94,6 +97,40 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
   const handleClose = () => {
     setError(null);
     onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!location) {
+      setError('No location selected');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this location? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      await locationsApi.delete(areaId, location.id, token);
+
+      if (onLocationDeleted) {
+        onLocationDeleted();
+      }
+      handleClose();
+    } catch (err: any) {
+      console.error('Failed to delete location:', err);
+      setError(err.response?.data?.error || 'Failed to delete location');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -233,28 +270,48 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
           />
         </div>
 
-        <div className="flex gap-3 justify-end pt-2">
-          <TacticalButton
-            type="button"
-            variant="secondary"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Cancel
-          </TacticalButton>
-          <TacticalButton
-            type="submit"
-            variant="primary"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="tactical-loading-dots">
-                SAVING<span>.</span><span>.</span><span>.</span>
-              </span>
-            ) : (
-              'Save Changes'
+        <div className="flex gap-3 justify-between pt-2">
+          <div>
+            {onLocationDeleted && (
+              <TacticalButton
+                type="button"
+                variant="danger"
+                onClick={handleDelete}
+                disabled={isLoading || isDeleting}
+              >
+                {isDeleting ? (
+                  <span className="tactical-loading-dots">
+                    DELETING<span>.</span><span>.</span><span>.</span>
+                  </span>
+                ) : (
+                  'Delete Location'
+                )}
+              </TacticalButton>
             )}
-          </TacticalButton>
+          </div>
+          <div className="flex gap-3">
+            <TacticalButton
+              type="button"
+              variant="secondary"
+              onClick={handleClose}
+              disabled={isLoading || isDeleting}
+            >
+              Cancel
+            </TacticalButton>
+            <TacticalButton
+              type="submit"
+              variant="primary"
+              disabled={isLoading || isDeleting}
+            >
+              {isLoading ? (
+                <span className="tactical-loading-dots">
+                  SAVING<span>.</span><span>.</span><span>.</span>
+                </span>
+              ) : (
+                'Save Changes'
+              )}
+            </TacticalButton>
+          </div>
         </div>
       </form>
     </TacticalModal>

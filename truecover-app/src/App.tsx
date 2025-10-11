@@ -939,21 +939,8 @@ function App() {
     await handleLocationsUploaded();
   };
 
-  const handleDeleteLocation = async (locationId: string) => {
-    if (!selectedArea || !isSignedIn) return;
-
-    if (!confirm('Are you sure you want to delete this location?')) return;
-
-    try {
-      const token = await getToken();
-      if (token) {
-        await locationsApi.delete(selectedArea.id, locationId, token);
-        await handleLocationsUploaded();
-      }
-    } catch (error) {
-      console.error('Failed to delete location:', error);
-      alert('Failed to delete location');
-    }
+  const handleLocationDeleted = async () => {
+    await handleLocationsUploaded();
   };
 
   const renderLocations = () => {
@@ -965,25 +952,16 @@ function App() {
           title=""
           subtitle=""
           actions={
-            <div className="flex gap-3">
-              <TacticalButton
-                variant="primary"
-                size="sm"
-                onClick={() => setIsLocationUploadModalOpen(true)}
-              >
-                + Add Locations
-              </TacticalButton>
-              <TacticalButton
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setCurrentView('area-detail');
-                  setLocations(null);
-                }}
-              >
-                Back
-              </TacticalButton>
-            </div>
+            <TacticalButton
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setCurrentView('area-detail');
+                setLocations(null);
+              }}
+            >
+              Back
+            </TacticalButton>
           }
         />
 
@@ -1032,31 +1010,44 @@ function App() {
 
           {/* Location Summary */}
           {locations && locations.features && (
-            <div className="mb-8 grid grid-cols-3 gap-4">
-              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
-                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
-                <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {locations.features.length}
-                </p>
+            <>
+              <div className="mb-4 grid grid-cols-3 gap-4">
+                <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                  <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
+                  <p className="text-3xl font-bold text-tactical-text-primary font-mono">
+                    {locations.features.length}
+                  </p>
+                </div>
+                <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                  <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Adaptively Selected</p>
+                  <p className="text-3xl font-bold text-tactical-accent-green font-mono">
+                    {locations.features.filter(f => {
+                      const val = f.properties?.adaptively_selected;
+                      if (val === undefined || val === null) return false;
+                      const numVal = typeof val === 'string' ? parseFloat(val) : Number(val);
+                      return !isNaN(numVal) && numVal >= 0.5;
+                    }).length}
+                  </p>
+                </div>
+                <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                  <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">With External ID</p>
+                  <p className="text-3xl font-bold text-tactical-text-primary font-mono">
+                    {locations.features.filter(f => f.properties?.external_id).length}
+                  </p>
+                </div>
               </div>
-              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
-                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Adaptively Selected</p>
-                <p className="text-3xl font-bold text-tactical-accent-green font-mono">
-                  {locations.features.filter(f => {
-                    const val = f.properties?.adaptively_selected;
-                    if (val === undefined || val === null) return false;
-                    const numVal = typeof val === 'string' ? parseFloat(val) : Number(val);
-                    return !isNaN(numVal) && numVal >= 0.5;
-                  }).length}
-                </p>
+
+              {/* Add Locations Button */}
+              <div className="mb-8 flex justify-end">
+                <TacticalButton
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsLocationUploadModalOpen(true)}
+                >
+                  + Add Locations
+                </TacticalButton>
               </div>
-              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
-                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">With External ID</p>
-                <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {locations.features.filter(f => f.properties?.external_id).length}
-                </p>
-              </div>
-            </div>
+            </>
           )}
 
             {isLoadingLocations ? (
@@ -1090,7 +1081,6 @@ function App() {
                   <LocationsTable
                     locations={locations}
                     onEditLocation={handleEditLocation}
-                    onDeleteLocation={handleDeleteLocation}
                   />
                 </TacticalCard>
               </>
@@ -1115,6 +1105,7 @@ function App() {
           location={selectedLocationForEdit}
           areaId={selectedArea?.id || ''}
           onLocationUpdated={handleLocationUpdated}
+          onLocationDeleted={handleLocationDeleted}
         />
       </div>
     );

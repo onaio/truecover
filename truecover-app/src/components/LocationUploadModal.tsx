@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { Area } from '../types';
 import { locationsApi } from '../services/api';
-import { TacticalModal, TacticalButton, TacticalBadge } from '../tactical-ui';
+import { TacticalModal, TacticalButton, TacticalBadge, TacticalInput, TacticalSelect } from '../tactical-ui';
 
 interface LocationUploadModalProps {
   isOpen: boolean;
@@ -226,69 +226,42 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
         </div>
 
         {file && isCsv && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="latColumn"
-                  className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-                >
-                  Latitude Column *
-                </label>
-                <input
-                  id="latColumn"
-                  type="text"
-                  value={latColumn}
-                  onChange={(e) => setLatColumn(e.target.value)}
-                  placeholder="e.g., latitude, lat, y"
-                  disabled={isLoading}
-                  className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="lngColumn"
-                  className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-                >
-                  Longitude Column *
-                </label>
-                <input
-                  id="lngColumn"
-                  type="text"
-                  value={lngColumn}
-                  onChange={(e) => setLngColumn(e.target.value)}
-                  placeholder="e.g., longitude, lng, x"
-                  disabled={isLoading}
-                  className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-                />
-              </div>
-            </div>
-          </>
+          <div className="grid grid-cols-2 gap-3">
+            <TacticalInput
+              id="latColumn"
+              label="Latitude Column *"
+              type="text"
+              value={latColumn}
+              onChange={setLatColumn}
+              placeholder="e.g., latitude, lat, y"
+              disabled={isLoading}
+            />
+            <TacticalInput
+              id="lngColumn"
+              label="Longitude Column *"
+              type="text"
+              value={lngColumn}
+              onChange={setLngColumn}
+              placeholder="e.g., longitude, lng, x"
+              disabled={isLoading}
+            />
+          </div>
         )}
 
         {file && (
           <div>
-            <label
-              htmlFor="externalIdColumn"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              ID Column (Optional)
-            </label>
-            <select
+            <TacticalSelect
               id="externalIdColumn"
+              label="ID Column (Optional)"
               value={externalIdColumn}
-              onChange={(e) => setExternalIdColumn(e.target.value)}
+              onChange={setExternalIdColumn}
+              options={[
+                { value: '', label: 'Select a field...' },
+                ...availableFields.map(field => ({ value: field, label: field }))
+              ]}
               disabled={isLoading || availableFields.length === 0}
-              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-            >
-              <option value="">Select a field...</option>
-              {availableFields.map(field => (
-                <option key={field} value={field}>
-                  {field}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-tactical-text-dim mt-1">
+            />
+            <p className="text-xs text-tactical-text-dim mt-1 font-mono">
               Used for duplicate detection and updates
             </p>
           </div>

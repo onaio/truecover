@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { Project, Area } from '../types';
 import { areasApi } from '../services/api';
-import { TacticalModal, TacticalInput, TacticalButton, TacticalBadge } from '../tactical-ui';
+import { TacticalModal, TacticalInput, TacticalButton, TacticalBadge, TacticalTextarea } from '../tactical-ui';
 
 interface CreateAreaModalProps {
   isOpen: boolean;
@@ -143,23 +143,15 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="areaDescription"
-            className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-          >
-            Description (Optional)
-          </label>
-          <textarea
-            id="areaDescription"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Enter area description"
-            disabled={isLoading}
-            rows={3}
-            className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-          />
-        </div>
+        <TacticalTextarea
+          id="areaDescription"
+          label="Description (Optional)"
+          value={description}
+          onChange={setDescription}
+          placeholder="Enter area description"
+          disabled={isLoading}
+          rows={3}
+        />
 
         <div className="flex gap-3 justify-end pt-2">
           <TacticalButton

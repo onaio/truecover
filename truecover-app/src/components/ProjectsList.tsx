@@ -7,7 +7,8 @@ import {
   TacticalButton,
   TacticalBadge,
   TacticalModal,
-  TacticalInput
+  TacticalInput,
+  TacticalTextarea
 } from '../tactical-ui';
 
 interface ProjectsListProps {
@@ -332,23 +333,15 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="projectDescription"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              Description (Optional)
-            </label>
-            <textarea
-              id="projectDescription"
-              value={newProjectDescription}
-              onChange={(e) => setNewProjectDescription(e.target.value)}
-              placeholder="Enter project description"
-              disabled={isCreating}
-              rows={3}
-              className="w-full bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm px-3 py-2 focus:outline-none focus:border-tactical-accent-blue disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
+          <TacticalTextarea
+            id="projectDescription"
+            label="Description (Optional)"
+            value={newProjectDescription}
+            onChange={setNewProjectDescription}
+            placeholder="Enter project description"
+            disabled={isCreating}
+            rows={3}
+          />
 
           <div className="flex gap-3 justify-end pt-2">
             <TacticalButton
@@ -408,23 +401,15 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="projectDescriptionEdit"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              Description (Optional)
-            </label>
-            <textarea
-              id="projectDescriptionEdit"
-              value={editedDescription}
-              onChange={(e) => setEditedDescription(e.target.value)}
-              placeholder="Enter project description"
-              disabled={isEditing}
-              rows={3}
-              className="w-full bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm px-3 py-2 focus:outline-none focus:border-tactical-accent-blue disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
+          <TacticalTextarea
+            id="projectDescriptionEdit"
+            label="Description (Optional)"
+            value={editedDescription}
+            onChange={setEditedDescription}
+            placeholder="Enter project description"
+            disabled={isEditing}
+            rows={3}
+          />
 
           <div className="flex gap-3 justify-end pt-2">
             <TacticalButton

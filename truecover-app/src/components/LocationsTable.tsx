@@ -1,13 +1,12 @@
 import React from 'react';
-import { TacticalBadge } from '../tactical-ui';
+import { TacticalBadge, TacticalButton } from '../tactical-ui';
 
 interface LocationsTableProps {
   locations: any;
   onEditLocation?: (location: any) => void;
-  onDeleteLocation?: (locationId: string) => void;
 }
 
-const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocation, onDeleteLocation }) => {
+const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocation }) => {
   const features = locations?.features || [];
 
   if (features.length === 0) {
@@ -47,7 +46,7 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
                 {header.label}
               </th>
             ))}
-            {(onEditLocation || onDeleteLocation) && (
+            {onEditLocation && (
               <th className="bg-tactical-bg-secondary">Actions</th>
             )}
           </tr>
@@ -104,28 +103,15 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
                     </td>
                   );
                 })}
-                {(onEditLocation || onDeleteLocation) && (
+                {onEditLocation && (
                   <td>
-                    <div className="flex gap-2">
-                      {onEditLocation && (
-                        <button
-                          onClick={() => onEditLocation(feature)}
-                          className="text-tactical-accent-orange hover:text-tactical-accent-green text-xs font-mono font-bold uppercase px-2 py-1 border border-tactical-accent-orange hover:border-tactical-accent-green transition-colors"
-                          title="Edit location"
-                        >
-                          Edit
-                        </button>
-                      )}
-                      {onDeleteLocation && (
-                        <button
-                          onClick={() => onDeleteLocation(feature.id)}
-                          className="text-tactical-accent-red hover:text-tactical-accent-orange text-xs font-mono font-bold uppercase px-2 py-1 border border-tactical-accent-red hover:border-tactical-accent-orange transition-colors"
-                          title="Delete location"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
+                    <TacticalButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onEditLocation(feature)}
+                    >
+                      Edit
+                    </TacticalButton>
                   </td>
                 )}
               </tr>
