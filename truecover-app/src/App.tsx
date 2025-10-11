@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
 import FileUpload from './components/FileUpload';
@@ -17,7 +18,7 @@ import LocationEditModal from './components/LocationEditModal';
 import LocationsTable from './components/LocationsTable';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
-import { locationsApi } from './services/api';
+import { locationsApi, organizationsApi, projectsApi, areasApi } from './services/api';
 import {
   TacticalCard,
   TacticalButton,
@@ -25,13 +26,18 @@ import {
   TacticalBadge,
 } from './tactical-ui';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
+import { useLocations } from './hooks/useLocations';
+import { useOrganization } from './hooks/useOrganizations';
+import { useProject } from './hooks/useProjects';
+import { useArea } from './hooks/useAreas';
 
 type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction' | 'organization-management' | 'area-detail' | 'locations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 function App() {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn, isLoaded } = useAuth();
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<AppView>('home');
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -212,7 +218,7 @@ function App() {
       <div className="flex-1 flex flex-col items-center">
         <div className="text-center mb-12 mt-12">
           <h1 className="font-mono text-6xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
-            TrueCover
+            True Cover
           </h1>
           <p className="font-mono text-sm text-tactical-text-muted uppercase tracking-wide">
             Estimating true coverage
@@ -247,7 +253,7 @@ function App() {
               project={selectedProject}
               onAreaSelect={(area) => {
                 setSelectedArea(area);
-                setCurrentView('area-detail');
+                navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${area?.id}`);
               }}
             />
           </div>
@@ -259,14 +265,14 @@ function App() {
   const renderAdaptiveSampling = () => (
     <div className="min-h-screen bg-tactical-bg-primary">
       <TacticalHeader
-        title="TrueCover / Adaptive Sampling"
+        title="True Cover / Adaptive Sampling"
         subtitle="Upload a GeoJSON or CSV file to perform adaptive sampling"
         actions={
           <TacticalButton
             variant="secondary"
             size="sm"
             onClick={() => {
-              setCurrentView('home');
+              navigate('/');
               setFileData(null);
               setResult(null);
               setError(null);
@@ -660,14 +666,14 @@ function App() {
     return (
       <div className="min-h-screen bg-tactical-bg-primary">
         <TacticalHeader
-          title="TrueCover / Coverage Prediction"
+          title="True Cover / Coverage Prediction"
           subtitle="Upload sample frame and survey data to predict coverage patterns"
           actions={
             <TacticalButton
               variant="secondary"
               size="sm"
               onClick={() => {
-                setCurrentView('home');
+                navigate('/');
                 setSampleFrameFile(null);
                 setSurveyDataFile(null);
                 setPredictionResult(null);
@@ -844,7 +850,7 @@ function App() {
   const renderOrganizationManagement = () => (
     <div className="min-h-screen bg-tactical-bg-primary">
       <TacticalHeader
-        title="TrueCover / Organization Management"
+        title="True Cover / Organization Management"
         subtitle="Manage your organizations, projects, and team members"
       />
 
@@ -944,7 +950,16 @@ function App() {
   };
 
   const renderLocations = () => {
-    if (!selectedArea) return null;
+    console.log('renderLocations called', {
+      selectedArea,
+      selectedOrganization,
+      selectedProject,
+      locations
+    });
+    if (!selectedArea) {
+      console.log('No selectedArea, returning null');
+      return null;
+    }
 
     return (
       <div className="min-h-screen bg-tactical-bg-primary">
@@ -956,7 +971,7 @@ function App() {
               variant="secondary"
               size="sm"
               onClick={() => {
-                setCurrentView('area-detail');
+                navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedArea?.id}`);
                 setLocations(null);
               }}
             >
@@ -969,37 +984,26 @@ function App() {
           {/* Breadcrumbs */}
           <div className="mb-4">
             <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
-              <span
+              <Link
+                to="/"
                 className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                onClick={() => {
-                  setCurrentView('home');
-                  setSelectedArea(null);
-                  setLocations(null);
-                }}
               >
                 {selectedOrganization?.name || 'Organization'}
-              </span>
+              </Link>
               {' / '}
-              <span
+              <Link
+                to="/"
                 className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                onClick={() => {
-                  setCurrentView('home');
-                  setSelectedArea(null);
-                  setLocations(null);
-                }}
               >
                 {selectedProject?.title || 'Project'}
-              </span>
+              </Link>
               {' / '}
-              <span
+              <Link
+                to={`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedArea?.id}`}
                 className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                onClick={() => {
-                  setCurrentView('area-detail');
-                  setLocations(null);
-                }}
               >
                 {selectedArea.name}
-              </span>
+              </Link>
             </p>
           </div>
 
@@ -1124,7 +1128,7 @@ function App() {
               variant="secondary"
               size="sm"
               onClick={() => {
-                setCurrentView('home');
+                navigate('/');
                 setSelectedArea(null);
               }}
             >
@@ -1138,25 +1142,19 @@ function App() {
             {/* Breadcrumbs */}
             <div className="mb-4">
               <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
-                <span
+                <Link
+                  to="/"
                   className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                  onClick={() => {
-                    setCurrentView('home');
-                    setSelectedArea(null);
-                  }}
                 >
                   {selectedOrganization?.name || 'Organization'}
-                </span>
+                </Link>
                 {' / '}
-                <span
+                <Link
+                  to="/"
                   className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-                  onClick={() => {
-                    setCurrentView('home');
-                    setSelectedArea(null);
-                  }}
                 >
                   {selectedProject?.title || 'Project'}
-                </span>
+                </Link>
               </p>
             </div>
 
@@ -1176,7 +1174,7 @@ function App() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <TacticalCard
                 hoverable
-                onClick={() => setCurrentView('locations')}
+                onClick={() => navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedArea?.id}/locations`)}
                 padding="none"
                 className="overflow-hidden"
               >
@@ -1198,7 +1196,7 @@ function App() {
 
               <TacticalCard
                 hoverable
-                onClick={() => setCurrentView('adaptive-sampling')}
+                onClick={() => navigate('/tools/adaptive-sampling')}
                 padding="none"
                 className="overflow-hidden"
               >
@@ -1222,7 +1220,7 @@ function App() {
 
               <TacticalCard
                 hoverable
-                onClick={() => setCurrentView('coverage-prediction')}
+                onClick={() => navigate('/tools/coverage-prediction')}
                 padding="none"
                 className="overflow-hidden"
               >
@@ -1250,6 +1248,101 @@ function App() {
     );
   };
 
+  // Wrapper component for Area Detail with deep linking using React Query
+  const AreaDetailWrapper = () => {
+    const { orgId, projectId, areaId } = useParams();
+
+    // Use React Query hooks to fetch data
+    const { data: organization, isLoading: isLoadingOrg } = useOrganization(orgId);
+    const { data: project, isLoading: isLoadingProject } = useProject(projectId);
+    const { data: area, isLoading: isLoadingArea } = useArea(areaId);
+
+    // Update local state when data is loaded
+    useEffect(() => {
+      if (organization && (!selectedOrganization || selectedOrganization.id !== organization.id)) {
+        setSelectedOrganization(organization);
+      }
+    }, [organization]);
+
+    useEffect(() => {
+      if (project && (!selectedProject || selectedProject.id !== project.id)) {
+        setSelectedProject(project);
+      }
+    }, [project]);
+
+    useEffect(() => {
+      if (area && (!selectedArea || selectedArea.id !== area.id)) {
+        setSelectedArea(area);
+      }
+    }, [area]);
+
+    // Show loading state while any data is loading
+    const isLoading = isLoadingOrg || isLoadingProject || isLoadingArea;
+
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-tactical-bg-primary flex items-center justify-center">
+          <TacticalCard padding="lg">
+            <p className="text-tactical-text-secondary">Loading...</p>
+          </TacticalCard>
+        </div>
+      );
+    }
+
+    return renderAreaDetail();
+  };
+
+  // Wrapper component for Locations with deep linking using React Query
+  const LocationsWrapper = () => {
+    const { orgId, projectId, areaId } = useParams();
+
+    // Use React Query hooks to fetch data
+    const { data: organization, isLoading: isLoadingOrg } = useOrganization(orgId);
+    const { data: project, isLoading: isLoadingProject } = useProject(projectId);
+    const { data: area, isLoading: isLoadingArea } = useArea(areaId);
+    const { data: locationsData, isLoading: isLoadingLocations } = useLocations(areaId);
+
+    // Update local state when data is loaded
+    useEffect(() => {
+      if (organization && (!selectedOrganization || selectedOrganization.id !== organization.id)) {
+        setSelectedOrganization(organization);
+      }
+    }, [organization]);
+
+    useEffect(() => {
+      if (project && (!selectedProject || selectedProject.id !== project.id)) {
+        setSelectedProject(project);
+      }
+    }, [project]);
+
+    useEffect(() => {
+      if (area && (!selectedArea || selectedArea.id !== area.id)) {
+        setSelectedArea(area);
+      }
+    }, [area]);
+
+    useEffect(() => {
+      if (locationsData) {
+        setLocations(locationsData);
+      }
+    }, [locationsData]);
+
+    // Show loading state while any data is loading
+    const isLoading = isLoadingOrg || isLoadingProject || isLoadingArea || isLoadingLocations;
+
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-tactical-bg-primary flex items-center justify-center">
+          <TacticalCard padding="lg">
+            <p className="text-tactical-text-secondary">Loading...</p>
+          </TacticalCard>
+        </div>
+      );
+    }
+
+    return renderLocations();
+  };
+
   return (
     <div style={{ position: 'relative' }}>
       {/* Clerk Auth Button - Top Right */}
@@ -1262,11 +1355,11 @@ function App() {
         gap: '0.75rem',
         alignItems: 'center'
       }}>
-        {isSignedIn && currentView === 'home' && (
+        {isSignedIn && window.location.pathname === '/' && (
           <TacticalButton
             variant="secondary"
             size="sm"
-            onClick={() => setCurrentView('organization-management')}
+            onClick={() => navigate('/admin')}
           >
             Admin
           </TacticalButton>
@@ -1282,12 +1375,14 @@ function App() {
         )}
       </div>
 
-      {currentView === 'home' && renderHomePage()}
-      {currentView === 'adaptive-sampling' && renderAdaptiveSampling()}
-      {currentView === 'coverage-prediction' && renderCoveragePrediction()}
-      {currentView === 'organization-management' && renderOrganizationManagement()}
-      {currentView === 'area-detail' && renderAreaDetail()}
-      {currentView === 'locations' && renderLocations()}
+      <Routes>
+        <Route path="/" element={renderHomePage()} />
+        <Route path="/admin" element={renderOrganizationManagement()} />
+        <Route path="/tools/adaptive-sampling" element={renderAdaptiveSampling()} />
+        <Route path="/tools/coverage-prediction" element={renderCoveragePrediction()} />
+        <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId" element={<AreaDetailWrapper />} />
+        <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId/locations" element={<LocationsWrapper />} />
+      </Routes>
 
       {/* Create Project Modal */}
       <CreateProjectModal
