@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TacticalModal, TacticalInput, TacticalButton, TacticalTextarea, TacticalSelect } from '../tactical-ui';
+import { TacticalModal, TacticalInput, TacticalButton, TacticalTextarea, TacticalSelect, TacticalDatePicker } from '../tactical-ui';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -24,7 +24,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [batchSize, setBatchSize] = useState('10');
-  const [uncertaintyField, setUncertaintyField] = useState('exceedance_uncertainty');
+  const [uncertaintyField, setUncertaintyField] = useState('prevalence_bci_width');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +73,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         setStartDate('');
         setEndDate('');
         setBatchSize('10');
-        setUncertaintyField('exceedance_uncertainty');
+        setUncertaintyField('prevalence_bci_width');
 
         onRoundCreated();
         onClose();
@@ -124,17 +124,15 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         />
 
         <div className="grid grid-cols-2 gap-4">
-          <TacticalInput
+          <TacticalDatePicker
             label="Start Date (Optional)"
-            type="date"
             value={startDate}
             onChange={setStartDate}
             disabled={isSubmitting}
           />
 
-          <TacticalInput
+          <TacticalDatePicker
             label="End Date (Optional)"
-            type="date"
             value={endDate}
             onChange={setEndDate}
             disabled={isSubmitting}
@@ -152,7 +150,6 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
               value={uncertaintyField}
               onChange={setUncertaintyField}
               options={[
-                { value: 'exceedance_uncertainty', label: 'Exceedance Uncertainty' },
                 { value: 'prevalence_bci_width', label: 'Prevalence BCI Width' },
               ]}
               disabled={isSubmitting}

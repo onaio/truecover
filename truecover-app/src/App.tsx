@@ -25,6 +25,7 @@ import {
   TacticalButton,
   TacticalHeader,
   TacticalBadge,
+  TacticalLoader,
 } from './tactical-ui';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 import { useLocations } from './hooks/useLocations';
@@ -953,18 +954,6 @@ function App() {
         <TacticalHeader
           title=""
           subtitle=""
-          actions={
-            <TacticalButton
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedArea?.id}`);
-                setLocations(null);
-              }}
-            >
-              Back
-            </TacticalButton>
-          }
         />
 
         <div className="max-w-7xl mx-auto p-6">
@@ -984,19 +973,12 @@ function App() {
               >
                 {selectedProject?.title || 'Project'}
               </Link>
-              {' / '}
-              <Link
-                to={`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedArea?.id}`}
-                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
-              >
-                {selectedArea.name}
-              </Link>
             </p>
           </div>
 
-          {/* Page Title */}
+          {/* Page Title - Show Area Name */}
           <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
-            Locations
+            {selectedArea.name}
           </h1>
 
           {/* Rounds Manager */}
@@ -1008,22 +990,11 @@ function App() {
           {/* Location Summary */}
           {locations && locations.features && (
             <>
-              <div className="mb-4 grid grid-cols-3 gap-4">
+              <div className="mb-4 grid grid-cols-2 gap-4">
                 <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                   <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
                   <p className="text-3xl font-bold text-tactical-text-primary font-mono">
                     {locations.features.length}
-                  </p>
-                </div>
-                <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
-                  <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Adaptively Selected</p>
-                  <p className="text-3xl font-bold text-tactical-accent-green font-mono">
-                    {locations.features.filter(f => {
-                      const val = f.properties?.adaptively_selected;
-                      if (val === undefined || val === null) return false;
-                      const numVal = typeof val === 'string' ? parseFloat(val) : Number(val);
-                      return !isNaN(numVal) && numVal >= 0.5;
-                    }).length}
                   </p>
                 </div>
                 <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
@@ -1057,19 +1028,9 @@ function App() {
                 <TacticalCard padding="none" className="mb-6">
                   {locations && locations.features && locations.features.length > 0 ? (
                     <MapView
-                      key={`map-${selectedArea?.id || 'default'}-${selectedRoundFilter}`}
+                      key={`map-${selectedArea?.id || 'default'}`}
                       data={{ type: 'FeatureCollection', features: [] }}
-                      locations={
-                        selectedRoundFilter !== null
-                          ? {
-                              type: 'FeatureCollection',
-                              features: locations.features.filter((f: any) => {
-                                const rounds = f.properties?.rounds || [];
-                                return rounds.includes(selectedRoundFilter);
-                              }),
-                            }
-                          : locations
-                      }
+                      locations={locations}
                       mode="locations"
                     />
                   ) : (
@@ -1301,9 +1262,7 @@ function App() {
     if (isLoading) {
       return (
         <div className="min-h-screen bg-tactical-bg-primary flex items-center justify-center">
-          <TacticalCard padding="lg">
-            <p className="text-tactical-text-secondary">Loading...</p>
-          </TacticalCard>
+          <TacticalLoader size="lg" />
         </div>
       );
     }
@@ -1352,9 +1311,7 @@ function App() {
     if (isLoading) {
       return (
         <div className="min-h-screen bg-tactical-bg-primary flex items-center justify-center">
-          <TacticalCard padding="lg">
-            <p className="text-tactical-text-secondary">Loading...</p>
-          </TacticalCard>
+          <TacticalLoader size="lg" />
         </div>
       );
     }
@@ -1399,8 +1356,7 @@ function App() {
         <Route path="/admin" element={renderOrganizationManagement()} />
         <Route path="/tools/adaptive-sampling" element={renderAdaptiveSampling()} />
         <Route path="/tools/coverage-prediction" element={renderCoveragePrediction()} />
-        <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId" element={<AreaDetailWrapper />} />
-        <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId/locations" element={<LocationsWrapper />} />
+        <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId" element={<LocationsWrapper />} />
       </Routes>
 
       {/* Create Project Modal */}

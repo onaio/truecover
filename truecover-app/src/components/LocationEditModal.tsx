@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { locationsApi } from '../services/api';
-import { TacticalModal, TacticalButton, TacticalBadge } from '../tactical-ui';
+import { TacticalModal, TacticalButton, TacticalBadge, TacticalMultiSelect } from '../tactical-ui';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 interface Location {
   id: string;
@@ -13,8 +16,14 @@ interface Location {
     exceedance_uncertainty?: number;
     prevalence_bci_width?: number;
     prevalence_prediction?: number;
-    adaptively_selected?: number;
+    rounds?: number[];
   };
+}
+
+interface Round {
+  id: string;
+  round_number: number;
+  name: string;
 }
 
 interface LocationEditModalProps {
@@ -40,7 +49,8 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
   const [exceedanceUncertainty, setExceedanceUncertainty] = useState('');
   const [prevalenceBciWidth, setPrevalenceBciWidth] = useState('');
   const [prevalencePrediction, setPrevalencePrediction] = useState('');
-  const [adaptivelySelected, setAdaptivelySelected] = useState('');
+  const [selectedRounds, setSelectedRounds] = useState<number[]>([]);
+  const [availableRounds, setAvailableRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -52,9 +62,36 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
       setExceedanceUncertainty(location.properties.exceedance_uncertainty?.toString() || '');
       setPrevalenceBciWidth(location.properties.prevalence_bci_width?.toString() || '');
       setPrevalencePrediction(location.properties.prevalence_prediction?.toString() || '');
-      setAdaptivelySelected(location.properties.adaptively_selected?.toString() || '');
+      setSelectedRounds(location.properties.rounds || []);
     }
   }, [location]);
+
+  // Fetch available rounds when modal opens
+  useEffect(() => {
+    const fetchRounds = async () => {
+      if (!isOpen || !areaId) return;
+
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const response = await axios.get(
+          `${API_URL}/api/areas/${areaId}/rounds`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setAvailableRounds(response.data.rounds || []);
+      } catch (err) {
+        console.error('Failed to fetch rounds:', err);
+      }
+    };
+
+    fetchRounds();
+  }, [isOpen, areaId, getToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +118,7 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
       if (exceedanceUncertainty.trim()) data.exceedance_uncertainty = parseFloat(exceedanceUncertainty);
       if (prevalenceBciWidth.trim()) data.prevalence_bci_width = parseFloat(prevalenceBciWidth);
       if (prevalencePrediction.trim()) data.prevalence_prediction = parseFloat(prevalencePrediction);
-      if (adaptivelySelected.trim()) data.adaptively_selected = parseFloat(adaptivelySelected);
+      data.rounds = selectedRounds;
 
       await locationsApi.update(areaId, location.id, data, token);
       onLocationUpdated();
@@ -250,25 +287,17 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
           </div>
         </div>
 
-        <div>
-          <label
-            htmlFor="adaptivelySelected"
-            className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-          >
-            Adaptively Selected (0 or 1)
-          </label>
-          <input
-            id="adaptivelySelected"
-            type="number"
-            step="1"
-            min="0"
-            max="1"
-            value={adaptivelySelected}
-            onChange={(e) => setAdaptivelySelected(e.target.value)}
-            disabled={isLoading}
-            className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-          />
-        </div>
+        <TacticalMultiSelect
+          label="Rounds"
+          options={availableRounds.map(round => ({
+            value: round.round_number,
+            label: `Round ${round.round_number}: ${round.name}`
+          }))}
+          value={selectedRounds}
+          onChange={setSelectedRounds}
+          disabled={isLoading}
+          placeholder="Select rounds..."
+        />
 
         <div className="flex gap-3 justify-between pt-2">
           <div>

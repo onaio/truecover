@@ -33,3 +33,11 @@ export type { TacticalModalProps } from './TacticalModal';
 
 export { TacticalTextarea } from './TacticalTextarea';
 export type { TacticalTextareaProps } from './TacticalTextarea';
+
+export { default as TacticalLoader } from './TacticalLoader';
+
+export { TacticalMultiSelect } from './TacticalMultiSelect';
+export type { TacticalMultiSelectProps, TacticalMultiSelectOption } from './TacticalMultiSelect';
+
+export { TacticalDatePicker } from './TacticalDatePicker';
+export type { TacticalDatePickerProps } from './TacticalDatePicker';

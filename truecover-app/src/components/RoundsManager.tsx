@@ -121,51 +121,62 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rounds.map((round) => (
-              <div
-                key={round.id}
-                onClick={() => handleRoundClick(round.round_number)}
-                className={`
-                  border p-4 cursor-pointer transition-all
-                  ${
-                    selectedRound === round.round_number
-                      ? 'border-tactical-accent-orange bg-tactical-accent-orange/10'
-                      : 'border-tactical-border-medium bg-tactical-bg-secondary hover:border-tactical-accent-orange/50'
-                  }
-                `}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <TacticalBadge variant="success">
-                    Round {round.round_number}
-                  </TacticalBadge>
-                  <span className="text-xs text-tactical-text-dim">
-                    {round.location_count} locations
-                  </span>
-                </div>
-
-                <h3 className="text-sm font-bold text-tactical-text-primary mb-2">
-                  {round.name}
-                </h3>
-
-                {round.description && (
-                  <p className="text-xs text-tactical-text-muted mb-3 line-clamp-2">
-                    {round.description}
-                  </p>
-                )}
-
-                <div className="space-y-1 text-xs text-tactical-text-dim">
-                  <div className="flex justify-between">
-                    <span>Start:</span>
-                    <span>{formatDate(round.start_date)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>End:</span>
-                    <span>{formatDate(round.end_date)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="border border-tactical-border-medium">
+            <table className="w-full">
+              <thead className="bg-tactical-bg-secondary border-b border-tactical-border-medium">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                    Round
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                    Start Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                    End Date
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                    Locations
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rounds.map((round) => (
+                  <tr
+                    key={round.id}
+                    onClick={() => handleRoundClick(round.round_number)}
+                    className={`
+                      cursor-pointer transition-all border-b border-tactical-border-medium
+                      ${
+                        selectedRound === round.round_number
+                          ? 'bg-tactical-accent-orange/10'
+                          : 'hover:bg-tactical-bg-secondary'
+                      }
+                    `}
+                  >
+                    <td className="px-4 py-3">
+                      <TacticalBadge variant="success">
+                        Round {round.round_number}
+                      </TacticalBadge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-tactical-text-primary font-mono">
+                      {round.name}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-tactical-text-dim font-mono">
+                      {formatDate(round.start_date)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-tactical-text-dim font-mono">
+                      {formatDate(round.end_date)}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-tactical-text-primary font-mono">
+                      {round.location_count}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 

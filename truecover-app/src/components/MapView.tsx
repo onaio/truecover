@@ -82,6 +82,12 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
+    if (mode === 'locations' && locations && locations.features) {
+      // In locations mode, show points with rounds as selected (green)
+      return locations.features.filter(
+        f => f.properties?.rounds && Array.isArray(f.properties.rounds) && f.properties.rounds.length > 0
+      );
+    }
     if (selectedData && selectedData.features) {
       return selectedData.features.filter(
         f => f.properties?.adaptively_selected === 1 || f.properties?.adaptively_selected === true
@@ -93,7 +99,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       );
     }
     return [];
-  }, [data, selectedData]);
+  }, [data, selectedData, mode, locations]);
 
   // Use mode prop to determine visualization type
   const isPredictionData = mode === 'prediction';
@@ -503,14 +509,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               <div className="flex items-center mb-2">
                 <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
                 <span className="font-mono text-xs text-tactical-text-muted">
-                  All Points ({data.features.length})
+                  {mode === 'locations' ? 'Locations' : 'All Points'} ({primaryData.features.length})
                 </span>
               </div>
               {selectedFeatures.length > 0 && (
                 <div className="flex items-center">
                   <div className="w-4 h-4 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    Adaptively Selected ({selectedFeatures.length})
+                    {mode === 'locations' ? 'With Rounds' : 'Adaptively Selected'} ({selectedFeatures.length})
                   </span>
                 </div>
               )}
