@@ -78,15 +78,13 @@ function App() {
       if (isSignedIn) {
         try {
           const token = await getToken();
-          console.log('Got Clerk token:', token ? 'Token received' : 'No token');
 
           // Call /api/user/me to trigger user sync in backend
-          const response = await axios.get(`${API_URL}/api/user/me`, {
+          await axios.get(`${API_URL}/api/user/me`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
           });
-          console.log('User synced to database:', response.data);
         } catch (error: any) {
           console.error('Failed to sync user:', error);
           console.error('Error details:', error.response?.data);
@@ -141,8 +139,6 @@ function App() {
           'Authorization': `Bearer ${token}`
         }
       });
-
-      console.log('Response from service:', response.data);
 
       // Extract the actual result from the response
       let resultData = response.data;
@@ -516,10 +512,6 @@ function App() {
       exceedance_threshold: 0.5,
       layer_names: []
     };
-
-    console.log('Sending prediction request:');
-    console.log('- Total points:', cleanedData.features.length);
-    console.log('- Points with survey data (for training):', pointsWithSurveyData);
 
     try {
       // Get Clerk auth token
@@ -950,14 +942,7 @@ function App() {
   };
 
   const renderLocations = () => {
-    console.log('renderLocations called', {
-      selectedArea,
-      selectedOrganization,
-      selectedProject,
-      locations
-    });
     if (!selectedArea) {
-      console.log('No selectedArea, returning null');
       return null;
     }
 
@@ -1064,6 +1049,7 @@ function App() {
                 <TacticalCard padding="none" className="mb-6">
                   {locations && locations.features && locations.features.length > 0 ? (
                     <MapView
+                      key={`map-${selectedArea?.id || 'default'}`}
                       data={{ type: 'FeatureCollection', features: [] }}
                       locations={locations}
                       mode="locations"
