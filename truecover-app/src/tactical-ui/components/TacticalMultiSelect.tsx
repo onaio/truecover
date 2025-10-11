@@ -24,27 +24,28 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingValue, setPendingValue] = useState<(number | string)[]>(value);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Update pending value when value prop changes
   useEffect(() => {
     setPendingValue(value);
   }, [value]);
 
-  // Apply changes and close dropdown when clicking outside
+  // Close dropdown when clicking outside (without applying changes)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         if (isOpen) {
-          onChange(pendingValue);
           setIsOpen(false);
+          // Reset pending value to current value when closing without applying
+          setPendingValue(value);
         }
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, pendingValue, onChange]);
+  }, [isOpen, value]);
 
   const toggleOption = (optionValue: number | string) => {
     // Special handling for "all" option
@@ -84,8 +85,8 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
   };
 
   return (
-    <div className="flex items-start gap-2">
-      <div className="relative flex-1" ref={dropdownRef}>
+    <div className="flex items-start gap-2" ref={containerRef}>
+      <div className="relative flex-1">
         {label && (
           <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
             {label}

@@ -1117,7 +1117,7 @@ function App() {
                               Filtering by Round{mapHighlightRounds.length > 1 || selectedRoundFilter !== null ? 's' : ''}: {
                                 selectedRoundFilter !== null
                                   ? selectedRoundFilter
-                                  : mapHighlightRounds.join(', ')
+                                  : [...mapHighlightRounds].sort((a, b) => a - b).join(', ')
                               }
                             </span>
                             <button
