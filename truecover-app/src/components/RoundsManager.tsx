@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TacticalCard, TacticalButton, TacticalBadge } from '../tactical-ui';
+import { TacticalCard, TacticalButton, TacticalBadge, TacticalCollapsible } from '../tactical-ui';
 import CreateRoundModal from './CreateRoundModal';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
@@ -92,20 +92,25 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }
   return (
     <>
       <TacticalCard padding="lg" className="mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
-            Data Collection Rounds
-          </h2>
-          <TacticalButton
-            variant="primary"
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            + Create New Round
-          </TacticalButton>
-        </div>
-
-        {isLoading ? (
+        <TacticalCollapsible
+          title="Data Collection Rounds"
+          defaultCollapsed={true}
+          collapsedSummary={
+            !isLoading
+              ? `(${rounds.length} ${rounds.length === 1 ? 'Round' : 'Rounds'})`
+              : undefined
+          }
+          actionButton={
+            <TacticalButton
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              + Create New Round
+            </TacticalButton>
+          }
+        >
+          {isLoading ? (
           <div className="text-center py-8">
             <p className="text-tactical-text-dim">Loading rounds...</p>
           </div>
@@ -180,13 +185,14 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }
           </div>
         )}
 
-        {selectedRound !== null && (
-          <div className="mt-4 p-3 border border-tactical-accent-orange bg-tactical-accent-orange/10">
-            <p className="text-sm text-tactical-text-secondary">
-              Filtering locations for Round {selectedRound}. Click the card again to clear filter.
-            </p>
-          </div>
-        )}
+          {selectedRound !== null && (
+            <div className="mt-4 p-3 border border-tactical-accent-orange bg-tactical-accent-orange/10">
+              <p className="text-sm text-tactical-text-secondary">
+                Filtering locations for Round {selectedRound}. Click the card again to clear filter.
+              </p>
+            </div>
+          )}
+        </TacticalCollapsible>
       </TacticalCard>
 
       <CreateRoundModal

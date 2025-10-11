@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox';
 import type { LayerProps } from 'react-map-gl/mapbox';
 import { GeoJSONFeatureCollection } from '../types';
@@ -9,6 +9,7 @@ interface MapViewProps {
   selectedData?: GeoJSONFeatureCollection | null;
   locations?: any | null;
   mode?: 'sampling' | 'prediction' | 'locations';
+  highlightRounds?: number[];
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -43,7 +44,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling' }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [] }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -52,8 +53,16 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const primaryData = mode === 'locations' && locations ? locations : data;
 
   // Calculate bounds from all features - BEFORE the early return
+  // Use ref to store initial bounds so map doesn't recalculate on every render
+  const initialBoundsRef = useRef<[[number, number], [number, number]] | undefined>(undefined);
+
   const bounds = useMemo(() => {
     if (!primaryData || !primaryData.features || !primaryData.features.length) return undefined;
+
+    // If we already have initial bounds, return them (prevents map refresh)
+    if (initialBoundsRef.current) {
+      return initialBoundsRef.current;
+    }
 
     let minLng = Infinity;
     let minLat = Infinity;
@@ -74,16 +83,28 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     const lngPadding = (maxLng - minLng) * 0.1;
     const latPadding = (maxLat - minLat) * 0.1;
 
-    return [
+    const calculatedBounds = [
       [minLng - lngPadding, minLat - latPadding],
       [maxLng + lngPadding, maxLat + latPadding]
     ] as [[number, number], [number, number]];
+
+    // Store the initial bounds
+    initialBoundsRef.current = calculatedBounds;
+
+    return calculatedBounds;
   }, [primaryData]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
     if (mode === 'locations' && locations && locations.features) {
-      // In locations mode, show points with rounds as selected (green)
+      // If highlightRounds is specified and has values, only highlight those rounds
+      if (highlightRounds && highlightRounds.length > 0) {
+        return locations.features.filter(f => {
+          const rounds = f.properties?.rounds || [];
+          return Array.isArray(rounds) && rounds.some((r: number) => highlightRounds.includes(r));
+        });
+      }
+      // Otherwise, show all points with rounds as selected (green)
       return locations.features.filter(
         f => f.properties?.rounds && Array.isArray(f.properties.rounds) && f.properties.rounds.length > 0
       );
@@ -99,7 +120,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       );
     }
     return [];
-  }, [data, selectedData, mode, locations]);
+  }, [data, selectedData, mode, locations, highlightRounds]);
 
   // Use mode prop to determine visualization type
   const isPredictionData = mode === 'prediction';
@@ -384,11 +405,6 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
   return (
     <div>
-      <div className="p-4 border-b border-tactical-border-medium">
-        <h3 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider">
-          Map Visualization
-        </h3>
-      </div>
       <div className="relative h-[500px] w-full border-t-0 border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
         <Map
           mapboxAccessToken={mapboxToken}

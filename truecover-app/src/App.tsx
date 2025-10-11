@@ -26,6 +26,8 @@ import {
   TacticalHeader,
   TacticalBadge,
   TacticalLoader,
+  TacticalCollapsible,
+  TacticalMultiSelect,
 } from './tactical-ui';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 import { useLocations } from './hooks/useLocations';
@@ -74,6 +76,7 @@ function App() {
   const [selectedLocationForEdit, setSelectedLocationForEdit] = useState<any | null>(null);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [selectedRoundFilter, setSelectedRoundFilter] = useState<number | null>(null);
+  const [mapHighlightRounds, setMapHighlightRounds] = useState<number[]>([]);
 
   // Auto-sync user to database on sign-in
   useEffect(() => {
@@ -981,16 +984,10 @@ function App() {
             {selectedArea.name}
           </h1>
 
-          {/* Rounds Manager */}
-          <RoundsManager
-            areaId={selectedArea?.id || ''}
-            onRoundSelected={setSelectedRoundFilter}
-          />
-
           {/* Location Summary */}
           {locations && locations.features && (
             <>
-              <div className="mb-4 grid grid-cols-2 gap-4">
+              <div className="mb-4 grid grid-cols-3 gap-4">
                 <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                   <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
                   <p className="text-3xl font-bold text-tactical-text-primary font-mono">
@@ -998,22 +995,38 @@ function App() {
                   </p>
                 </div>
                 <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
-                  <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">With External ID</p>
+                  <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Rounds</p>
                   <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                    {locations.features.filter(f => f.properties?.external_id).length}
+                    {(() => {
+                      const uniqueRounds = new Set();
+                      locations.features.forEach((f: any) => {
+                        const rounds = f.properties?.rounds || [];
+                        rounds.forEach((r: number) => uniqueRounds.add(r));
+                      });
+                      return uniqueRounds.size;
+                    })()}
                   </p>
                 </div>
-              </div>
-
-              {/* Add Locations Button */}
-              <div className="mb-8 flex justify-end">
-                <TacticalButton
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setIsLocationUploadModalOpen(true)}
-                >
-                  + Add Locations
-                </TacticalButton>
+                <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                  <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Locations to Visit</p>
+                  <p className="text-3xl font-bold text-tactical-text-primary font-mono">
+                    {(() => {
+                      // Filter locations based on mapHighlightRounds
+                      if (mapHighlightRounds.length === 0) {
+                        // Show all locations with any round data
+                        return locations.features.filter((f: any) => {
+                          const rounds = f.properties?.rounds || [];
+                          return Array.isArray(rounds) && rounds.length > 0;
+                        }).length;
+                      }
+                      // Show only locations in selected rounds
+                      return locations.features.filter((f: any) => {
+                        const rounds = f.properties?.rounds || [];
+                        return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
+                      }).length;
+                    })()}
+                  </p>
+                </div>
               </div>
             </>
           )}
@@ -1027,12 +1040,58 @@ function App() {
                 {/* Map View */}
                 <TacticalCard padding="none" className="mb-6">
                   {locations && locations.features && locations.features.length > 0 ? (
-                    <MapView
-                      key={`map-${selectedArea?.id || 'default'}`}
-                      data={{ type: 'FeatureCollection', features: [] }}
-                      locations={locations}
-                      mode="locations"
-                    />
+                    <>
+                      {/* Map Filter */}
+                      <div className="p-4 border-b border-tactical-border-medium bg-tactical-bg-secondary">
+                        <div className="max-w-md">
+                          <TacticalMultiSelect
+                            options={(() => {
+                              const uniqueRounds = new Set<number>();
+                              locations.features.forEach((f: any) => {
+                                const rounds = f.properties?.rounds || [];
+                                rounds.forEach((r: number) => uniqueRounds.add(r));
+                              });
+                              const roundOptions = Array.from(uniqueRounds)
+                                .sort((a, b) => a - b)
+                                .map(r => ({
+                                  value: r.toString(),
+                                  label: `Round ${r}`
+                                }));
+                              return [
+                                { value: 'all', label: 'All Rounds' },
+                                ...roundOptions
+                              ];
+                            })()}
+                            value={mapHighlightRounds.length === 0 ? ['all'] : mapHighlightRounds.map(r => r.toString())}
+                            onChange={(values) => {
+                              const currentValue = mapHighlightRounds.length === 0 ? ['all'] : mapHighlightRounds.map(r => r.toString());
+
+                              // Check if "all" was just selected (wasn't in current but is in new)
+                              const allWasSelected = !currentValue.includes('all') && values.includes('all');
+
+                              // If "all" was just clicked, clear all filters
+                              if (allWasSelected) {
+                                setMapHighlightRounds([]);
+                              }
+                              // If nothing selected, default to all
+                              else if (values.length === 0) {
+                                setMapHighlightRounds([]);
+                              }
+                              // Otherwise, filter out 'all' if present and set specific rounds
+                              else {
+                                setMapHighlightRounds(values.filter(v => v !== 'all').map(v => parseInt(v as string)));
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <MapView
+                        data={{ type: 'FeatureCollection', features: [] }}
+                        locations={locations}
+                        mode="locations"
+                        highlightRounds={mapHighlightRounds}
+                      />
+                    </>
                   ) : (
                     <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
                       <p className="text-tactical-text-dim">No locations to display</p>
@@ -1040,32 +1099,92 @@ function App() {
                   )}
                 </TacticalCard>
 
+                {/* Rounds Manager */}
+                <RoundsManager
+                  areaId={selectedArea?.id || ''}
+                  onRoundSelected={setSelectedRoundFilter}
+                />
+
                 {/* Locations Table */}
-                <TacticalCard padding="none">
-                  <div className="p-4 border-b border-tactical-border-medium">
-                    <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
-                      Location Data
-                      {selectedRoundFilter !== null && (
-                        <span className="ml-2 text-sm text-tactical-accent-orange">
-                          (Filtered by Round {selectedRoundFilter})
-                        </span>
-                      )}
-                    </h2>
-                  </div>
-                  <LocationsTable
-                    locations={
-                      selectedRoundFilter !== null
-                        ? {
-                            type: 'FeatureCollection',
-                            features: locations.features.filter((f: any) => {
-                              const rounds = f.properties?.rounds || [];
-                              return rounds.includes(selectedRoundFilter);
-                            }),
-                          }
-                        : locations
+                <TacticalCard padding="lg">
+                  <TacticalCollapsible
+                    title={
+                      <>
+                        Locations
+                        {(selectedRoundFilter !== null || mapHighlightRounds.length > 0) && (
+                          <span className="ml-3 px-2 py-1 border border-tactical-accent-orange text-tactical-accent-orange text-sm font-normal inline-flex items-center gap-2">
+                            <span>
+                              Filtering by Round{mapHighlightRounds.length > 1 || selectedRoundFilter !== null ? 's' : ''}: {
+                                selectedRoundFilter !== null
+                                  ? selectedRoundFilter
+                                  : mapHighlightRounds.join(', ')
+                              }
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMapHighlightRounds([]);
+                                setSelectedRoundFilter(null);
+                              }}
+                              className="hover:text-tactical-accent-orange/70 transition-colors"
+                              aria-label="Clear filter"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )}
+                      </>
                     }
-                    onEditLocation={handleEditLocation}
-                  />
+                    collapsedSummary={(() => {
+                      let count = locations.features.length;
+                      if (selectedRoundFilter !== null) {
+                        count = locations.features.filter((f: any) => {
+                          const rounds = f.properties?.rounds || [];
+                          return rounds.includes(selectedRoundFilter);
+                        }).length;
+                      } else if (mapHighlightRounds.length > 0) {
+                        count = locations.features.filter((f: any) => {
+                          const rounds = f.properties?.rounds || [];
+                          return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
+                        }).length;
+                      }
+                      return `(${count} ${count === 1 ? 'Location' : 'Locations'})`;
+                    })()}
+                    actionButton={
+                      <TacticalButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setIsLocationUploadModalOpen(true)}
+                      >
+                        + Add Locations
+                      </TacticalButton>
+                    }
+                  >
+                    <div className="border border-tactical-border-medium -mx-6 -mb-6">
+                      <LocationsTable
+                        locations={
+                          selectedRoundFilter !== null
+                            ? {
+                                type: 'FeatureCollection',
+                                features: locations.features.filter((f: any) => {
+                                  const rounds = f.properties?.rounds || [];
+                                  return rounds.includes(selectedRoundFilter);
+                                }),
+                              }
+                            : mapHighlightRounds.length > 0
+                            ? {
+                                type: 'FeatureCollection',
+                                features: locations.features.filter((f: any) => {
+                                  const rounds = f.properties?.rounds || [];
+                                  return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
+                                }),
+                              }
+                            : locations
+                        }
+                        onEditLocation={handleEditLocation}
+                      />
+                    </div>
+                  </TacticalCollapsible>
                 </TacticalCard>
               </>
             )}

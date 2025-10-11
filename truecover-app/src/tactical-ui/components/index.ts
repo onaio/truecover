@@ -41,3 +41,6 @@ export type { TacticalMultiSelectProps, TacticalMultiSelectOption } from './Tact
 
 export { TacticalDatePicker } from './TacticalDatePicker';
 export type { TacticalDatePickerProps } from './TacticalDatePicker';
+
+export { TacticalCollapsible } from './TacticalCollapsible';
+export type { TacticalCollapsibleProps } from './TacticalCollapsible';
