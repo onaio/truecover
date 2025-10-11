@@ -1,0 +1,191 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { TacticalCard, TacticalButton, TacticalBadge } from '../tactical-ui';
+import CreateRoundModal from './CreateRoundModal';
+import axios from 'axios';
+import { useAuth } from '@clerk/clerk-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+interface Round {
+  id: string;
+  round_number: number;
+  name: string;
+  description: string;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+  location_count: number;
+}
+
+interface RoundsManagerProps {
+  areaId: string;
+  onRoundSelected?: (roundNumber: number | null) => void;
+}
+
+const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }) => {
+  const { getToken } = useAuth();
+  const [rounds, setRounds] = useState<Round[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadRounds = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const token = await getToken();
+      const response = await axios.get(
+        `${API_URL}/api/areas/${areaId}/rounds`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setRounds(response.data.rounds || []);
+    } catch (err: any) {
+      console.error('Error loading rounds:', err);
+      // Don't set error if it's just an empty result or table doesn't exist
+      // Only show error for actual server failures
+      if (err.response?.status !== 404 && err.response?.status !== 500) {
+        setError('Failed to load rounds');
+      } else {
+        // Treat as no rounds available
+        setRounds([]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [areaId, getToken]);
+
+  useEffect(() => {
+    if (areaId) {
+      loadRounds();
+    }
+  }, [areaId, loadRounds]);
+
+  const handleRoundCreated = async () => {
+    await loadRounds();
+  };
+
+  const handleRoundClick = (roundNumber: number) => {
+    const newSelected = selectedRound === roundNumber ? null : roundNumber;
+    setSelectedRound(newSelected);
+    if (onRoundSelected) {
+      onRoundSelected(newSelected);
+    }
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return 'Not set';
+    try {
+      return new Date(dateStr).toLocaleDateString();
+    } catch {
+      return 'Invalid date';
+    }
+  };
+
+  return (
+    <>
+      <TacticalCard padding="lg" className="mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
+            Data Collection Rounds
+          </h2>
+          <TacticalButton
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            + Create New Round
+          </TacticalButton>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-8">
+            <p className="text-tactical-text-dim">Loading rounds...</p>
+          </div>
+        ) : error ? (
+          <div className="p-3 border border-tactical-accent-red bg-tactical-accent-red/10">
+            <p className="text-sm text-tactical-accent-red">{error}</p>
+          </div>
+        ) : rounds.length === 0 ? (
+          <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
+            <p className="text-tactical-text-dim mb-2">No rounds created yet</p>
+            <p className="text-xs text-tactical-text-muted">
+              Create a round to run adaptive sampling on your locations
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {rounds.map((round) => (
+              <div
+                key={round.id}
+                onClick={() => handleRoundClick(round.round_number)}
+                className={`
+                  border p-4 cursor-pointer transition-all
+                  ${
+                    selectedRound === round.round_number
+                      ? 'border-tactical-accent-orange bg-tactical-accent-orange/10'
+                      : 'border-tactical-border-medium bg-tactical-bg-secondary hover:border-tactical-accent-orange/50'
+                  }
+                `}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <TacticalBadge variant="success">
+                    Round {round.round_number}
+                  </TacticalBadge>
+                  <span className="text-xs text-tactical-text-dim">
+                    {round.location_count} locations
+                  </span>
+                </div>
+
+                <h3 className="text-sm font-bold text-tactical-text-primary mb-2">
+                  {round.name}
+                </h3>
+
+                {round.description && (
+                  <p className="text-xs text-tactical-text-muted mb-3 line-clamp-2">
+                    {round.description}
+                  </p>
+                )}
+
+                <div className="space-y-1 text-xs text-tactical-text-dim">
+                  <div className="flex justify-between">
+                    <span>Start:</span>
+                    <span>{formatDate(round.start_date)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>End:</span>
+                    <span>{formatDate(round.end_date)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {selectedRound !== null && (
+          <div className="mt-4 p-3 border border-tactical-accent-orange bg-tactical-accent-orange/10">
+            <p className="text-sm text-tactical-text-secondary">
+              Filtering locations for Round {selectedRound}. Click the card again to clear filter.
+            </p>
+          </div>
+        )}
+      </TacticalCard>
+
+      <CreateRoundModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        areaId={areaId}
+        onRoundCreated={handleRoundCreated}
+      />
+    </>
+  );
+};
+
+export default RoundsManager;

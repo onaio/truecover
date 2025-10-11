@@ -36,10 +36,10 @@ export const TacticalBadge: React.FC<TacticalBadgeProps> = ({
 }) => {
   const variantClasses = {
     default: 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-muted',
-    success: 'bg-tactical-accent-green-dim border-tactical-accent-green text-tactical-accent-green',
-    danger: 'bg-tactical-accent-red-dim border-tactical-accent-red text-tactical-accent-red',
-    warning: 'bg-yellow-900 border-yellow-600 text-yellow-400',
-    info: 'bg-tactical-accent-blue-dim border-tactical-accent-blue text-tactical-accent-blue',
+    success: 'border-tactical-accent-green text-tactical-accent-green',
+    danger: 'border-tactical-accent-red text-tactical-accent-red',
+    warning: 'border-yellow-600 text-yellow-400',
+    info: 'border-tactical-accent-blue text-tactical-accent-blue',
   };
 
   const sizeClasses = {

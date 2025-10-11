@@ -16,6 +16,7 @@ import OrganizationSettings from './components/OrganizationSettings';
 import LocationUploadModal from './components/LocationUploadModal';
 import LocationEditModal from './components/LocationEditModal';
 import LocationsTable from './components/LocationsTable';
+import RoundsManager from './components/RoundsManager';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 import { locationsApi, organizationsApi, projectsApi, areasApi } from './services/api';
@@ -71,6 +72,7 @@ function App() {
   const [isLocationEditModalOpen, setIsLocationEditModalOpen] = useState(false);
   const [selectedLocationForEdit, setSelectedLocationForEdit] = useState<any | null>(null);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const [selectedRoundFilter, setSelectedRoundFilter] = useState<number | null>(null);
 
   // Auto-sync user to database on sign-in
   useEffect(() => {
@@ -997,6 +999,12 @@ function App() {
             Locations
           </h1>
 
+          {/* Rounds Manager */}
+          <RoundsManager
+            areaId={selectedArea?.id || ''}
+            onRoundSelected={setSelectedRoundFilter}
+          />
+
           {/* Location Summary */}
           {locations && locations.features && (
             <>
@@ -1049,9 +1057,19 @@ function App() {
                 <TacticalCard padding="none" className="mb-6">
                   {locations && locations.features && locations.features.length > 0 ? (
                     <MapView
-                      key={`map-${selectedArea?.id || 'default'}`}
+                      key={`map-${selectedArea?.id || 'default'}-${selectedRoundFilter}`}
                       data={{ type: 'FeatureCollection', features: [] }}
-                      locations={locations}
+                      locations={
+                        selectedRoundFilter !== null
+                          ? {
+                              type: 'FeatureCollection',
+                              features: locations.features.filter((f: any) => {
+                                const rounds = f.properties?.rounds || [];
+                                return rounds.includes(selectedRoundFilter);
+                              }),
+                            }
+                          : locations
+                      }
                       mode="locations"
                     />
                   ) : (
@@ -1066,10 +1084,25 @@ function App() {
                   <div className="p-4 border-b border-tactical-border-medium">
                     <h2 className="text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
                       Location Data
+                      {selectedRoundFilter !== null && (
+                        <span className="ml-2 text-sm text-tactical-accent-orange">
+                          (Filtered by Round {selectedRoundFilter})
+                        </span>
+                      )}
                     </h2>
                   </div>
                   <LocationsTable
-                    locations={locations}
+                    locations={
+                      selectedRoundFilter !== null
+                        ? {
+                            type: 'FeatureCollection',
+                            features: locations.features.filter((f: any) => {
+                              const rounds = f.properties?.rounds || [];
+                              return rounds.includes(selectedRoundFilter);
+                            }),
+                          }
+                        : locations
+                    }
                     onEditLocation={handleEditLocation}
                   />
                 </TacticalCard>

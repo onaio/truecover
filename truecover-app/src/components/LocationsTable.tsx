@@ -9,6 +9,13 @@ interface LocationsTableProps {
 const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocation }) => {
   const features = locations?.features || [];
 
+  // Debug: Log a sample feature to see what data we're getting
+  if (features.length > 0) {
+    console.log('LocationsTable - Sample feature:', features[0]);
+    console.log('LocationsTable - Sample feature.properties:', features[0].properties);
+    console.log('LocationsTable - Sample rounds value:', features[0].properties?.rounds);
+  }
+
   if (features.length === 0) {
     return (
       <div className="w-full h-[400px] flex items-center justify-center border border-tactical-border-medium bg-tactical-bg-secondary">
@@ -27,13 +34,13 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
   // Define the columns based on the locations table schema
   const headers = [
     { key: 'external_id', label: 'External ID' },
+    { key: 'rounds', label: 'Rounds' },
     { key: 'latitude', label: 'Latitude' },
     { key: 'longitude', label: 'Longitude' },
     { key: 'exceedance_probability', label: 'Exceedance Probability' },
     { key: 'exceedance_uncertainty', label: 'Exceedance Uncertainty' },
     { key: 'prevalence_bci_width', label: 'Prevalence BCI Width' },
     { key: 'prevalence_prediction', label: 'Prevalence Prediction' },
-    { key: 'adaptively_selected', label: 'Adaptively Selected' },
   ];
 
   return (
@@ -54,14 +61,26 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
         <tbody>
           {features.map((feature: any, index: number) => {
             const props = feature.properties || {};
-            const selectedValue = props.adaptively_selected;
+            const roundsValue = props.rounds;
 
-            // Check if selected (handle both number and string values)
+            // Check if location has any rounds assigned
             let isSelected = false;
-            if (selectedValue !== undefined && selectedValue !== null) {
-              const numValue = typeof selectedValue === 'string' ? parseFloat(selectedValue) : Number(selectedValue);
-              isSelected = !isNaN(numValue) && numValue >= 0.5;
+            let roundsArray: number[] = [];
+
+            if (Array.isArray(roundsValue)) {
+              roundsArray = roundsValue;
+            } else if (typeof roundsValue === 'string') {
+              try {
+                const parsed = JSON.parse(roundsValue);
+                if (Array.isArray(parsed)) {
+                  roundsArray = parsed;
+                }
+              } catch {
+                roundsArray = [];
+              }
             }
+
+            isSelected = roundsArray.length > 0;
 
             const rowClasses = isSelected
               ? '!text-tactical-accent-green border-l-4 border-l-tactical-accent-green !font-bold'
@@ -76,9 +95,7 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
                   let displayValue = '';
                   if (value !== undefined && value !== null) {
                     if (typeof value === 'number') {
-                      if (header.key === 'adaptively_selected') {
-                        displayValue = Math.round(value).toString();
-                      } else if (header.key === 'latitude' || header.key === 'longitude') {
+                      if (header.key === 'latitude' || header.key === 'longitude') {
                         displayValue = value.toFixed(6);
                       } else {
                         displayValue = value.toFixed(2);
@@ -93,6 +110,45 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
                     return (
                       <td key={header.key} title={displayValue}>
                         {displayValue.substring(0, 12)}...
+                      </td>
+                    );
+                  }
+
+                  // Special rendering for rounds array
+                  if (header.key === 'rounds') {
+                    // Handle rounds - could be array, string, or null
+                    let roundsArray: number[] = [];
+                    if (Array.isArray(value)) {
+                      roundsArray = value;
+                    } else if (typeof value === 'string') {
+                      try {
+                        // Try parsing if it's a JSON string like "[1,2]"
+                        const parsed = JSON.parse(value);
+                        if (Array.isArray(parsed)) {
+                          roundsArray = parsed;
+                        }
+                      } catch {
+                        // If parsing fails, treat as empty
+                        roundsArray = [];
+                      }
+                    }
+
+                    return (
+                      <td key={header.key} className="text-center">
+                        {roundsArray.length > 0 ? (
+                          <div className="flex gap-1 flex-wrap justify-center">
+                            {roundsArray.map((round) => (
+                              <span
+                                key={round}
+                                className="inline-block px-2 py-0.5 text-xs font-mono text-tactical-accent-green border border-tactical-accent-green"
+                              >
+                                {round}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-tactical-text-dim">-</span>
+                        )}
                       </td>
                     );
                   }
