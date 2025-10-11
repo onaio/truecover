@@ -1067,19 +1067,17 @@ function App() {
               <>
                 {/* Map View */}
                 <TacticalCard padding="none" className="mb-6">
-                  <div className="h-[400px]">
-                    {locations && locations.features && locations.features.length > 0 ? (
-                      <MapView
-                        data={{ type: 'FeatureCollection', features: [] }}
-                        locations={locations}
-                        mode="locations"
-                      />
-                    ) : (
-                      <div className="h-full flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
-                        <p className="text-tactical-text-dim">No locations to display</p>
-                      </div>
-                    )}
-                  </div>
+                  {locations && locations.features && locations.features.length > 0 ? (
+                    <MapView
+                      data={{ type: 'FeatureCollection', features: [] }}
+                      locations={locations}
+                      mode="locations"
+                    />
+                  ) : (
+                    <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
+                      <p className="text-tactical-text-dim">No locations to display</p>
+                    </div>
+                  )}
                 </TacticalCard>
 
                 {/* Locations Table */}

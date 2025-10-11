@@ -377,11 +377,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   };
 
   return (
-    <div className="mb-6">
-      <h3 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-        Map Visualization
-      </h3>
-      <div className="relative h-[500px] w-full border border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
+    <div>
+      <div className="p-4 border-b border-tactical-border-medium">
+        <h3 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider">
+          Map Visualization
+        </h3>
+      </div>
+      <div className="relative h-[500px] w-full border-t-0 border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
         <Map
           mapboxAccessToken={mapboxToken}
           initialViewState={{
