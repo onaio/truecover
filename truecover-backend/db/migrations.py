@@ -231,6 +231,61 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_indicators_project_id ON indicators(project_id);
         """)
 
+        # Create visits table for tracking field visits
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS visits (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+                area_id UUID NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+                round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+                latitude DECIMAL(10, 8),
+                longitude DECIMAL(11, 8),
+                properties JSONB DEFAULT '{}'::jsonb,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Create indexes on visits table for faster lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_visits_location_id ON visits(location_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_visits_area_id ON visits(area_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_visits_round_id ON visits(round_id);
+        """)
+
+        # Create visit_indicators table for tracking indicator measurements per visit
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS visit_indicators (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                visit_id UUID NOT NULL REFERENCES visits(id) ON DELETE CASCADE,
+                location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+                indicator_id UUID NOT NULL REFERENCES indicators(id) ON DELETE CASCADE,
+                n_trials INTEGER NOT NULL,
+                n_positive INTEGER NOT NULL,
+                exceedance_probability DECIMAL(10, 8),
+                exceedance_uncertainty DECIMAL(10, 8),
+                prevalence_bci_width DECIMAL(10, 8),
+                prevalence_prediction DECIMAL(10, 8),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Create indexes on visit_indicators table for faster lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_visit_indicators_visit_id ON visit_indicators(visit_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_visit_indicators_location_id ON visit_indicators(location_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_visit_indicators_indicator_id ON visit_indicators(indicator_id);
+        """)
+
         conn.commit()
         print("Database migrations completed successfully")
 

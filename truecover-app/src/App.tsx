@@ -18,6 +18,7 @@ import LocationEditModal from './components/LocationEditModal';
 import LocationsTable from './components/LocationsTable';
 import RoundsManager from './components/RoundsManager';
 import IndicatorsManager from './components/IndicatorsManager';
+import AddVisitModal from './components/AddVisitModal';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 import { locationsApi, organizationsApi, projectsApi, areasApi } from './services/api';
@@ -78,6 +79,10 @@ function App() {
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [selectedRoundFilter, setSelectedRoundFilter] = useState<number | null>(null);
   const [mapHighlightRounds, setMapHighlightRounds] = useState<number[]>([]);
+
+  // Visit Data state
+  const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
+  const [selectedRoundForVisit, setSelectedRoundForVisit] = useState<string>('');
 
   // Auto-sync user to database on sign-in
   useEffect(() => {
@@ -1120,9 +1125,32 @@ function App() {
                   )}
                 </TacticalCard>
 
+                {/* Visit Data Section */}
+                <TacticalCard padding="lg" className="mb-6">
+                  <TacticalCollapsible
+                    title="Visit Data"
+                    defaultCollapsed={true}
+                    actionButton={
+                      <TacticalButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setIsAddVisitModalOpen(true)}
+                      >
+                        + Add Visit Data
+                      </TacticalButton>
+                    }
+                  >
+                    <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
+                      <p className="text-tactical-text-dim">No visit data yet</p>
+                    </div>
+                  </TacticalCollapsible>
+                </TacticalCard>
+
                 {/* Rounds Manager */}
                 <RoundsManager
+                  key={`rounds-${selectedArea?.id || 'none'}`}
                   areaId={selectedArea?.id || ''}
+                  projectId={selectedProject?.id || ''}
                   onRoundSelected={setSelectedRoundFilter}
                 />
 
@@ -1230,6 +1258,28 @@ function App() {
           areaId={selectedArea?.id || ''}
           onLocationUpdated={handleLocationUpdated}
           onLocationDeleted={handleLocationDeleted}
+        />
+
+        {/* Add Visit Modal */}
+        <AddVisitModal
+          isOpen={isAddVisitModalOpen}
+          onClose={() => {
+            setIsAddVisitModalOpen(false);
+            setSelectedRoundForVisit('');
+          }}
+          areaId={selectedArea?.id || ''}
+          roundId={selectedRoundForVisit}
+          projectId={selectedProject?.id || ''}
+          onSuccess={async () => {
+            // Reload locations after adding visit data
+            if (selectedArea) {
+              const token = await getToken();
+              if (token) {
+                const locationsData = await locationsApi.list(selectedArea.id, token);
+                setLocations(locationsData);
+              }
+            }
+          }}
         />
       </div>
     );

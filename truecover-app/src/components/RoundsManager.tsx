@@ -20,16 +20,18 @@ interface Round {
 
 interface RoundsManagerProps {
   areaId: string;
+  projectId: string;
   onRoundSelected?: (roundNumber: number | null) => void;
 }
 
-const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }) => {
+const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, projectId, onRoundSelected }) => {
   const { getToken } = useAuth();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
 
   const loadRounds = useCallback(async () => {
     setIsLoading(true);
@@ -151,9 +153,8 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }
                 {rounds.map((round) => (
                   <tr
                     key={round.id}
-                    onClick={() => handleRoundClick(round.round_number)}
                     className={`
-                      cursor-pointer transition-all border-b border-tactical-border-medium
+                      transition-all border-b border-tactical-border-medium
                       ${
                         selectedRound === round.round_number
                           ? 'bg-tactical-accent-orange/10'
@@ -161,21 +162,36 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }
                       }
                     `}
                   >
-                    <td className="px-4 py-3">
+                    <td
+                      className="px-4 py-3 cursor-pointer"
+                      onClick={() => handleRoundClick(round.round_number)}
+                    >
                       <TacticalBadge variant="success">
                         Round {round.round_number}
                       </TacticalBadge>
                     </td>
-                    <td className="px-4 py-3 text-sm text-tactical-text-primary font-mono">
+                    <td
+                      className="px-4 py-3 text-sm text-tactical-text-primary font-mono cursor-pointer"
+                      onClick={() => handleRoundClick(round.round_number)}
+                    >
                       {round.name}
                     </td>
-                    <td className="px-4 py-3 text-sm text-tactical-text-dim font-mono">
+                    <td
+                      className="px-4 py-3 text-sm text-tactical-text-dim font-mono cursor-pointer"
+                      onClick={() => handleRoundClick(round.round_number)}
+                    >
                       {formatDate(round.start_date)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-tactical-text-dim font-mono">
+                    <td
+                      className="px-4 py-3 text-sm text-tactical-text-dim font-mono cursor-pointer"
+                      onClick={() => handleRoundClick(round.round_number)}
+                    >
                       {formatDate(round.end_date)}
                     </td>
-                    <td className="px-4 py-3 text-center text-sm text-tactical-text-primary font-mono">
+                    <td
+                      className="px-4 py-3 text-center text-sm text-tactical-text-primary font-mono cursor-pointer"
+                      onClick={() => handleRoundClick(round.round_number)}
+                    >
                       {round.location_count}
                     </td>
                   </tr>
