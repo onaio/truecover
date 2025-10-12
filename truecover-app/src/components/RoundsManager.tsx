@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TacticalCard, TacticalButton, TacticalBadge, TacticalCollapsible } from '../tactical-ui';
 import CreateRoundModal from './CreateRoundModal';
+import ExportLocationsModal from './ExportLocationsModal';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -20,15 +21,18 @@ interface Round {
 
 interface RoundsManagerProps {
   areaId: string;
+  areaName: string;
   projectId: string;
+  locations: any; // GeoJSON FeatureCollection
   onRoundSelected?: (roundNumber: number | null) => void;
 }
 
-const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, projectId, onRoundSelected }) => {
+const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, projectId, locations, onRoundSelected }) => {
   const { getToken } = useAuth();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,13 +107,22 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, projectId, onRoun
               : undefined
           }
           actionButton={
-            <TacticalButton
-              variant="primary"
-              size="sm"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              + Create New Round
-            </TacticalButton>
+            <div className="flex gap-2">
+              <TacticalButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsExportModalOpen(true)}
+              >
+                Export Locations
+              </TacticalButton>
+              <TacticalButton
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCreateModalOpen(true)}
+              >
+                + Create New Round
+              </TacticalButton>
+            </div>
           }
         >
           {isLoading ? (
@@ -216,6 +229,14 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, projectId, onRoun
         onClose={() => setIsCreateModalOpen(false)}
         areaId={areaId}
         onRoundCreated={handleRoundCreated}
+      />
+
+      <ExportLocationsModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        areaId={areaId}
+        areaName={areaName}
+        locations={locations}
       />
     </>
   );

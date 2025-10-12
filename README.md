@@ -1,216 +1,204 @@
-# TrueCover - Geospatial Disease Surveillance Platform
+# TrueCover
 
-A microservices-based geospatial analysis platform for disease surveillance and coverage prediction, consisting of Docker-containerized OpenFaaS functions and web interfaces.
-
-## Architecture Overview
-
-TrueCover consists of:
-- **3 OpenFaaS Functions** (Docker containers)
-  - `fn-prevalence-predictor` - Predicts disease prevalence using GAM models
-  - `fn-covariate-extractor` - Extracts environmental covariates from global datasets  
-  - `fn-adaptive-sampling` - Recommends optimal survey locations
-- **2 Web Interfaces**
-  - `truecover-app` - Modern React app (simplified interface)
-  - `truecover_ui_v1.53.0` - Original Vue.js interface
+Geospatial disease surveillance platform with adaptive sampling capabilities.
 
 ## Quick Start
 
 ### Prerequisites
-- Docker Desktop installed and running
-- Node.js 16+ and npm (for web interfaces)
+
+- Docker Desktop (for PostgreSQL database)
+- Python 3.12+
+- Node.js 16+
 - Git
 
-### 1. Start the Docker Functions
-
-All Docker images are pre-built. Simply run:
+### 1. Start the Database
 
 ```bash
-# Start all three functions
-docker run -d -p 8081:8080 -e exec_timeout=910 disarm/fn-prevalence-predictor:1.3.0
-docker run -d -p 8082:8080 -e exec_timeout=600 disarm/fn-covariate-extractor:0.2.5
-docker run -d -p 8083:8080 -e exec_timeout=60 disarm/fn-adaptive-sampling:0.3.1
+cd truecover-backend
+docker-compose up -d
 ```
 
-The functions will be available at:
-- **Prevalence Predictor**: http://localhost:8081
-- **Covariate Extractor**: http://localhost:8082
-- **Adaptive Sampling**: http://localhost:8083
+This starts PostgreSQL on port 5432.
 
-### 2. Start the Web Interface
+### 2. Start the Backend API
 
-#### Option A: TrueCover Sample App (Recommended - Simpler, Modern React)
+```bash
+cd truecover-backend
+
+# Create virtual environment (first time only)
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies (first time only)
+pip install -r requirements.txt
+
+# Start the Flask server
+python app.py
+```
+
+The backend API will be available at **http://localhost:5001**
+
+### 3. Start the Frontend
 
 ```bash
 cd truecover-app
+
+# Install dependencies (first time only)
 npm install
 
-# Start the proxy server (required for API communication)
-node proxy-server.js &
-
-# Start the React app
-npm start
+# Start the development server
+npm run dev
 ```
 
-Opens at http://localhost:3000
+The frontend will be available at **http://localhost:3050**
 
-**Architecture:**
-- React app (port 3000) → Proxy server (port 3001) → Docker functions (port 8081)
-- The proxy server handles CORS and response parsing from the Docker functions
+## Project Structure
 
-**Note:** Both the proxy server and React app must be running for the app to work
-
-#### Option B: Original TrueCover UI (Full-featured Vue.js)
-
-```bash
-cd truecover_ui_v1.53.0
-npm install
-npm run serve
+```
+truecover/
+├── truecover-app/          # React frontend (Vite + TypeScript)
+├── truecover-backend/      # Flask API backend
+│   ├── app.py             # Main Flask application
+│   ├── routes/            # API route handlers
+│   ├── db/                # Database migrations and connections
+│   ├── auth/              # Clerk authentication middleware
+│   └── docker-compose.yml # PostgreSQL database
+└── README.md
 ```
 
-Opens at http://localhost:8080 (development mode)
+## Tech Stack
 
-## Function Details
+### Frontend
+- **React** with TypeScript
+- **Vite** for fast development
+- **TailwindCSS** for styling
+- **React Query** for data fetching
+- **Mapbox GL** for maps
+- **Clerk** for authentication
 
-### fn-prevalence-predictor (Port 8081)
-- **Purpose**: Predicts disease prevalence at geographic points using Generalized Additive Models
-- **Language**: Python with R integration
-- **Depends on**: fn-covariate-extractor (makes API calls to it)
-- **Input**: GeoJSON with survey data points
-- **Output**: Predictions with uncertainty bounds
+### Backend
+- **Flask** REST API
+- **PostgreSQL** with PostGIS extension
+- **psycopg2** for database connections
+- **Clerk** for authentication
+- Python 3.12+
 
-### fn-covariate-extractor (Port 8082)
-- **Purpose**: Extracts environmental data at specified locations
-- **Language**: R with geospatial packages
-- **Available layers**: 
-  - WorldClim bioclimatic variables (bioclim1-19)
-  - Elevation (elev_m)
-  - Distance to water (dist_to_water_m)
-  - Distance to roads (dist_to_road_m)
-- **Input**: GeoJSON points + layer names
-- **Output**: GeoJSON with added covariate properties
+## Environment Variables
 
-### fn-adaptive-sampling (Port 8083)
-- **Purpose**: Recommends optimal survey locations to minimize uncertainty
-- **Language**: R
-- **Algorithm**: Spatially-weighted uncertainty sampling
-- **Input**: GeoJSON with uncertainty values
-- **Output**: Selected points marked with `adaptively_selected: 1`
+### Backend (.env)
 
-## Docker Management
+Create a `.env` file in `truecover-backend/`:
 
-### Check Running Containers
-```bash
-docker ps | grep disarm
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/truecover
+CLERK_SECRET_KEY=your_clerk_secret_key
+FLASK_ENV=development
 ```
 
-### Stop All Functions
-```bash
-# Get container IDs
-docker ps | grep disarm | awk '{print $1}'
+### Frontend (.env)
 
-# Stop all
-docker stop $(docker ps | grep disarm | awk '{print $1}')
+Create a `.env` file in `truecover-app/`:
+
+```env
+VITE_API_URL=http://localhost:5001
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+VITE_MAPBOX_TOKEN=your_mapbox_token
 ```
 
-### View Logs
-```bash
-docker logs <container_id>
-```
+## API Endpoints
 
-### Platform Warning
-If you see warnings about platform mismatch on Apple Silicon (M1/M2), the containers will still run using Rosetta emulation. The warning can be safely ignored.
+### Projects
+- `GET /api/projects` - List all projects
+- `POST /api/projects` - Create new project
+- `GET /api/projects/:id` - Get project details
 
-## API Usage Examples
+### Areas
+- `GET /api/projects/:id/areas` - List areas in project
+- `POST /api/areas` - Create new area
+- `GET /api/areas/:id/locations` - Get locations in area
 
-### Test Function Health
-```bash
-# Check if functions are running
-curl http://localhost:8081
-curl http://localhost:8082
-curl http://localhost:8083
-```
+### Rounds
+- `GET /api/areas/:id/rounds` - List rounds for area
+- `POST /api/rounds` - Create new round
 
-### Sample API Call (Prevalence Predictor)
-```bash
-curl -X POST http://localhost:8081 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "point_data": {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "geometry": {"type": "Point", "coordinates": [35.0, -1.0]},
-          "properties": {"n_trials": 100, "n_positive": 25}
-        }
-      ]
-    }
-  }'
-```
+### Visits
+- `POST /api/visits` - Create single visit
+- `POST /api/visits/bulk` - Upload multiple visits with location matching
+
+### Visit Indicators
+- `POST /api/visit-indicators` - Create visit indicator
+- `POST /api/visit-indicators/bulk` - Create multiple indicators
+
+## Database Schema
+
+Key tables:
+- **users** - User accounts (Clerk)
+- **organizations** - Organizations/teams
+- **projects** - Disease surveillance projects
+- **areas** - Geographic survey areas
+- **locations** - Point locations with PostGIS geometry
+- **rounds** - Data collection rounds
+- **visits** - Field visit records
+- **indicators** - Project indicators (e.g., malaria prevalence)
+- **visit_indicators** - Indicator measurements per visit
+
+## Features
+
+- **Project Management** - Create and manage surveillance projects
+- **Area Definition** - Define geographic survey areas
+- **Location Upload** - Import location data (CSV/GeoJSON)
+- **Adaptive Sampling** - Run adaptive sampling algorithms
+- **Visit Data Collection** - Upload field visit data with field mapping
+- **Indicator Tracking** - Track multiple indicators per visit
+- **Data Export** - Export locations and visit data
 
 ## Development
 
-### Building Functions from Source
+### Running Migrations
 
-If you need to rebuild the Docker images:
+Database migrations run automatically on startup. To manually run:
 
 ```bash
-# Install OpenFaaS CLI
-curl -sL https://cli.openfaas.com | sh
-
-# Pull templates
-faas template pull https://github.com/disarm-platform/faas-templates.git
-
-# Build functions
-faas build -f fn-prevalence-predictor-1.3.0/stack.yml
-faas build -f fn-covariate-extractor-0.2.5/stack.yml
-faas build -f fn-adaptive-sampling-0.3.1/stack.yml
+cd truecover-backend
+python -m db.migrations
 ```
 
-### Project Structure
-```
-truecover/
-├── fn-prevalence-predictor-1.3.0/   # Python GAM predictor function
-├── fn-covariate-extractor-0.2.5/    # R covariate extraction function
-├── fn-adaptive-sampling-0.3.1/      # R adaptive sampling function
-├── truecover-app/                   # Modern React interface
-├── truecover_ui_v1.53.0/           # Original Vue.js interface
-└── truecover.md                     # Detailed technical documentation
-```
+### Stopping Services
 
-## Important Notes
+```bash
+# Stop backend (Ctrl+C in terminal)
 
-1. **Function Dependencies**: The prevalence predictor requires the covariate extractor to be running if you use environmental layers
-2. **Network Requirements**: Functions need internet access to download external data (WorldClim, elevation data, etc.)
-3. **Single Country Limitation**: All points must be within the same country for covariate extraction
-4. **Memory Requirements**: Docker Desktop should have at least 4GB RAM allocated
+# Stop database
+cd truecover-backend
+docker-compose down
+
+# Stop frontend (Ctrl+C in terminal)
+```
 
 ## Troubleshooting
 
-### Functions not responding
-1. Check Docker is running: `docker ps`
-2. Check logs: `docker logs <container_id>`
-3. Ensure ports aren't already in use: `lsof -i :8081`
+### Database connection errors
+- Ensure Docker is running
+- Check PostgreSQL is up: `docker ps | grep postgres`
+- Verify DATABASE_URL in backend/.env
 
-### TrueCover Sample App network errors
-1. Ensure the proxy server is running: `ps aux | grep proxy-server`
-2. If not, start it: `cd truecover-app && node proxy-server.js`
-3. Check proxy server logs for errors
-4. Verify Docker functions are running on ports 8081-8083
+### Backend not starting
+- Check Python version: `python --version` (should be 3.12+)
+- Ensure virtual environment is activated
+- Check for port conflicts: `lsof -i :5001`
 
-### Platform warnings on Apple Silicon
-- The images are built for x86_64 but will run under emulation
-- Performance may be slightly slower but functionality is unaffected
+### Frontend build errors
+- Clear node_modules: `rm -rf node_modules && npm install`
+- Check Node version: `node --version` (should be 16+)
+- Ensure VITE_API_URL points to backend
 
-### Connection errors in web apps
-- Ensure all three Docker functions are running
-- Check the proxy configuration in package.json matches the function ports
-- Try accessing functions directly via curl to verify they're responding
+### Authentication errors
+- Verify Clerk keys are set in .env files
+- Ensure keys match (publishable key in frontend, secret key in backend)
+- Check Clerk dashboard for API status
 
-## More Information
+## License
 
-See `truecover.md` for detailed technical documentation including:
-- API specifications for each function
-- Algorithm implementations
-- Data sources and limitations
-- Architecture diagrams
+Proprietary

@@ -19,6 +19,7 @@ import LocationsTable from './components/LocationsTable';
 import RoundsManager from './components/RoundsManager';
 import IndicatorsManager from './components/IndicatorsManager';
 import AddVisitModal from './components/AddVisitModal';
+import GenerateMockVisitDataModal from './components/GenerateMockVisitDataModal';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 import { locationsApi, organizationsApi, projectsApi, areasApi } from './services/api';
@@ -82,6 +83,7 @@ function App() {
 
   // Visit Data state
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
+  const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = useState(false);
   const [selectedRoundForVisit, setSelectedRoundForVisit] = useState<string>('');
 
   // Auto-sync user to database on sign-in
@@ -1131,13 +1133,22 @@ function App() {
                     title="Visit Data"
                     defaultCollapsed={true}
                     actionButton={
-                      <TacticalButton
-                        variant="primary"
-                        size="sm"
-                        onClick={() => setIsAddVisitModalOpen(true)}
-                      >
-                        + Add Visit Data
-                      </TacticalButton>
+                      <div className="flex gap-2">
+                        <TacticalButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setIsGenerateMockDataModalOpen(true)}
+                        >
+                          Generate Mock Data
+                        </TacticalButton>
+                        <TacticalButton
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setIsAddVisitModalOpen(true)}
+                        >
+                          + Add Visit Data
+                        </TacticalButton>
+                      </div>
                     }
                   >
                     <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
@@ -1150,7 +1161,9 @@ function App() {
                 <RoundsManager
                   key={`rounds-${selectedArea?.id || 'none'}`}
                   areaId={selectedArea?.id || ''}
+                  areaName={selectedArea?.name || ''}
                   projectId={selectedProject?.id || ''}
+                  locations={locations}
                   onRoundSelected={setSelectedRoundFilter}
                 />
 
@@ -1185,6 +1198,9 @@ function App() {
                       </>
                     }
                     collapsedSummary={(() => {
+                      if (!locations || !locations.features) {
+                        return '(Loading...)';
+                      }
                       let count = locations.features.length;
                       if (selectedRoundFilter !== null) {
                         count = locations.features.filter((f: any) => {
@@ -1212,7 +1228,9 @@ function App() {
                     <div className="border border-tactical-border-medium -mx-6 -mb-6">
                       <LocationsTable
                         locations={
-                          selectedRoundFilter !== null
+                          !locations || !locations.features
+                            ? { type: 'FeatureCollection', features: [] }
+                            : selectedRoundFilter !== null
                             ? {
                                 type: 'FeatureCollection',
                                 features: locations.features.filter((f: any) => {
@@ -1564,6 +1582,7 @@ function App() {
             setSelectedRoundForVisit('');
           }}
           areaId={selectedArea?.id || ''}
+          areaName={selectedArea?.name || ''}
           roundId={selectedRoundForVisit}
           projectId={selectedProject?.id || ''}
           onSuccess={async () => {
@@ -1578,6 +1597,12 @@ function App() {
           }}
         />
       )}
+
+      {/* Generate Mock Visit Data Modal - Global */}
+      <GenerateMockVisitDataModal
+        isOpen={isGenerateMockDataModalOpen}
+        onClose={() => setIsGenerateMockDataModalOpen(false)}
+      />
     </div>
   );
 }

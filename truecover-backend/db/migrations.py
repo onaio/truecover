@@ -265,7 +265,7 @@ def run_migrations():
                 location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
                 indicator_id UUID NOT NULL REFERENCES indicators(id) ON DELETE CASCADE,
                 n_trials INTEGER NOT NULL,
-                n_positive INTEGER NOT NULL,
+                n_covered INTEGER NOT NULL,
                 exceedance_probability DECIMAL(10, 8),
                 exceedance_uncertainty DECIMAL(10, 8),
                 prevalence_bci_width DECIMAL(10, 8),
@@ -273,6 +273,18 @@ def run_migrations():
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             );
+        """)
+
+        # Rename n_positive to n_covered if the table exists
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.columns
+                          WHERE table_name = 'visit_indicators'
+                          AND column_name = 'n_positive') THEN
+                    ALTER TABLE visit_indicators RENAME COLUMN n_positive TO n_covered;
+                END IF;
+            END $$;
         """)
 
         # Create indexes on visit_indicators table for faster lookups

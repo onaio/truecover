@@ -20,10 +20,10 @@ def create_visit_indicator(user):
         location_id = data.get('location_id')
         indicator_id = data.get('indicator_id')
         n_trials = data.get('n_trials')
-        n_positive = data.get('n_positive')
+        n_covered = data.get('n_covered')
 
-        if not all([visit_id, location_id, indicator_id, n_trials is not None, n_positive is not None]):
-            return jsonify({'error': 'visit_id, location_id, indicator_id, n_trials, and n_positive are required'}), 400
+        if not all([visit_id, location_id, indicator_id, n_trials is not None, n_covered is not None]):
+            return jsonify({'error': 'visit_id, location_id, indicator_id, n_trials, and n_covered are required'}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -46,10 +46,10 @@ def create_visit_indicator(user):
 
         # Create visit indicator
         cursor.execute("""
-            INSERT INTO visit_indicators (visit_id, location_id, indicator_id, n_trials, n_positive)
+            INSERT INTO visit_indicators (visit_id, location_id, indicator_id, n_trials, n_covered)
             VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, visit_id, location_id, indicator_id, n_trials, n_positive, created_at, updated_at
-        """, (visit_id, location_id, indicator_id, n_trials, n_positive))
+            RETURNING id, visit_id, location_id, indicator_id, n_trials, n_covered, created_at, updated_at
+        """, (visit_id, location_id, indicator_id, n_trials, n_covered))
 
         indicator_data = cursor.fetchone()
         conn.commit()
@@ -60,7 +60,7 @@ def create_visit_indicator(user):
             'location_id': str(indicator_data[2]),
             'indicator_id': str(indicator_data[3]),
             'n_trials': indicator_data[4],
-            'n_positive': indicator_data[5],
+            'n_covered': indicator_data[5],
             'created_at': indicator_data[6].isoformat() if indicator_data[6] else None,
             'updated_at': indicator_data[7].isoformat() if indicator_data[7] else None
         }
@@ -119,18 +119,18 @@ def create_visit_indicators_bulk(user):
             location_id = indicator.get('location_id')
             indicator_id = indicator.get('indicator_id')
             n_trials = indicator.get('n_trials')
-            n_positive = indicator.get('n_positive')
+            n_covered = indicator.get('n_covered')
 
-            if not all([visit_id, location_id, indicator_id, n_trials is not None, n_positive is not None]):
+            if not all([visit_id, location_id, indicator_id, n_trials is not None, n_covered is not None]):
                 conn.rollback()
                 cursor.close()
-                return jsonify({'error': 'Each indicator must have visit_id, location_id, indicator_id, n_trials, and n_positive'}), 400
+                return jsonify({'error': 'Each indicator must have visit_id, location_id, indicator_id, n_trials, and n_covered'}), 400
 
             cursor.execute("""
-                INSERT INTO visit_indicators (visit_id, location_id, indicator_id, n_trials, n_positive)
+                INSERT INTO visit_indicators (visit_id, location_id, indicator_id, n_trials, n_covered)
                 VALUES (%s, %s, %s, %s, %s)
-                RETURNING id, visit_id, location_id, indicator_id, n_trials, n_positive, created_at, updated_at
-            """, (visit_id, location_id, indicator_id, n_trials, n_positive))
+                RETURNING id, visit_id, location_id, indicator_id, n_trials, n_covered, created_at, updated_at
+            """, (visit_id, location_id, indicator_id, n_trials, n_covered))
 
             indicator_data = cursor.fetchone()
             created_indicators.append({
@@ -139,7 +139,7 @@ def create_visit_indicators_bulk(user):
                 'location_id': str(indicator_data[2]),
                 'indicator_id': str(indicator_data[3]),
                 'n_trials': indicator_data[4],
-                'n_positive': indicator_data[5],
+                'n_covered': indicator_data[5],
                 'created_at': indicator_data[6].isoformat() if indicator_data[6] else None,
                 'updated_at': indicator_data[7].isoformat() if indicator_data[7] else None
             })
@@ -184,7 +184,7 @@ def list_visit_indicators(user, visit_id):
             return jsonify({'error': 'Access denied'}), 403
 
         cursor.execute("""
-            SELECT id, visit_id, location_id, indicator_id, n_trials, n_positive, created_at, updated_at
+            SELECT id, visit_id, location_id, indicator_id, n_trials, n_covered, created_at, updated_at
             FROM visit_indicators
             WHERE visit_id = %s
             ORDER BY created_at ASC
@@ -198,7 +198,7 @@ def list_visit_indicators(user, visit_id):
                 'location_id': str(row[2]),
                 'indicator_id': str(row[3]),
                 'n_trials': row[4],
-                'n_positive': row[5],
+                'n_covered': row[5],
                 'created_at': row[6].isoformat() if row[6] else None,
                 'updated_at': row[7].isoformat() if row[7] else None
             })
@@ -224,7 +224,7 @@ def get_visit_indicator(user, indicator_id):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT vi.id, vi.visit_id, vi.location_id, vi.indicator_id, vi.n_trials, vi.n_positive,
+            SELECT vi.id, vi.visit_id, vi.location_id, vi.indicator_id, vi.n_trials, vi.n_covered,
                    vi.created_at, vi.updated_at, v.area_id
             FROM visit_indicators vi
             JOIN visits v ON v.id = vi.visit_id
@@ -248,7 +248,7 @@ def get_visit_indicator(user, indicator_id):
             'location_id': str(row[2]),
             'indicator_id': str(row[3]),
             'n_trials': row[4],
-            'n_positive': row[5],
+            'n_covered': row[5],
             'created_at': row[6].isoformat() if row[6] else None,
             'updated_at': row[7].isoformat() if row[7] else None
         }
@@ -302,13 +302,13 @@ def update_visit_indicator(user, indicator_id):
             UPDATE visit_indicators
             SET
                 n_trials = COALESCE(%s, n_trials),
-                n_positive = COALESCE(%s, n_positive),
+                n_covered = COALESCE(%s, n_covered),
                 updated_at = NOW()
             WHERE id = %s
-            RETURNING id, visit_id, location_id, indicator_id, n_trials, n_positive, created_at, updated_at
+            RETURNING id, visit_id, location_id, indicator_id, n_trials, n_covered, created_at, updated_at
         """, (
             data.get('n_trials'),
-            data.get('n_positive'),
+            data.get('n_covered'),
             indicator_id
         ))
 
@@ -325,7 +325,7 @@ def update_visit_indicator(user, indicator_id):
             'location_id': str(indicator_data[2]),
             'indicator_id': str(indicator_data[3]),
             'n_trials': indicator_data[4],
-            'n_positive': indicator_data[5],
+            'n_covered': indicator_data[5],
             'created_at': indicator_data[6].isoformat() if indicator_data[6] else None,
             'updated_at': indicator_data[7].isoformat() if indicator_data[7] else None
         }
