@@ -238,6 +238,72 @@ export const areasApi = {
   }
 };
 
+// Indicators API calls
+export const indicatorsApi = {
+  async create(projectId: string, name: string, description: string, token: string): Promise<any> {
+    const response = await axios.post(
+      `${API_URL}/api/projects/${projectId}/indicators`,
+      { name, description },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async list(projectId: string, token: string): Promise<any[]> {
+    const response = await axios.get(
+      `${API_URL}/api/projects/${projectId}/indicators`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data.indicators;
+  },
+
+  async get(indicatorId: string, token: string): Promise<any> {
+    const response = await axios.get(
+      `${API_URL}/api/indicators/${indicatorId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async update(indicatorId: string, name: string, description: string, token: string): Promise<any> {
+    const response = await axios.put(
+      `${API_URL}/api/indicators/${indicatorId}`,
+      { name, description },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async delete(indicatorId: string, token: string): Promise<void> {
+    await axios.delete(
+      `${API_URL}/api/indicators/${indicatorId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+  }
+};
+
 // Locations API calls
 export const locationsApi = {
   async upload(

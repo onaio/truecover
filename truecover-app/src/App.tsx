@@ -17,6 +17,7 @@ import LocationUploadModal from './components/LocationUploadModal';
 import LocationEditModal from './components/LocationEditModal';
 import LocationsTable from './components/LocationsTable';
 import RoundsManager from './components/RoundsManager';
+import IndicatorsManager from './components/IndicatorsManager';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 import { locationsApi, organizationsApi, projectsApi, areasApi } from './services/api';
@@ -249,6 +250,11 @@ function App() {
                 />
               </TacticalCard>
             </div>
+
+            {/* Indicators Manager */}
+            {selectedProject && (
+              <IndicatorsManager projectId={selectedProject.id} />
+            )}
 
             {/* Locations List */}
             <AreasList

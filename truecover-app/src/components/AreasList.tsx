@@ -6,7 +6,8 @@ import CreateAreaModal from './CreateAreaModal';
 import {
   TacticalCard,
   TacticalButton,
-  TacticalBadge
+  TacticalBadge,
+  TacticalCollapsible
 } from '../tactical-ui';
 
 interface AreasListProps {
@@ -83,87 +84,93 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
 
   return (
     <>
-    <TacticalCard title="Areas" padding="lg">
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-tactical-text-muted">
-          {areas.length} area{areas.length !== 1 ? 's' : ''}
-        </p>
-        <TacticalButton
-          variant="primary"
-          size="sm"
-          onClick={() => setIsCreateModalOpen(true)}
-        >
-          + New Area
-        </TacticalButton>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
-          <div className="flex items-start gap-3">
-            <TacticalBadge variant="danger">ERROR</TacticalBadge>
-            <span className="text-sm text-tactical-accent-red">{error}</span>
-          </div>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="text-center py-8">
-          <span className="text-sm text-tactical-text-muted tactical-loading-dots">
-            LOADING AREAS<span>.</span><span>.</span><span>.</span>
-          </span>
-        </div>
-      ) : areas.length === 0 ? (
-        <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
-          <p className="text-sm text-tactical-text-dim mb-3">
-            No areas yet
-          </p>
+    <TacticalCard padding="lg">
+      <TacticalCollapsible
+        title="Areas"
+        defaultCollapsed={false}
+        collapsedSummary={
+          !isLoading
+            ? `(${areas.length} ${areas.length === 1 ? 'Area' : 'Areas'})`
+            : undefined
+        }
+        actionButton={
           <TacticalButton
-            variant="secondary"
+            variant="primary"
             size="sm"
             onClick={() => setIsCreateModalOpen(true)}
           >
-            Create Your First Area
+            + New Area
           </TacticalButton>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {areas.map((area) => (
-            <div
-              key={area.id}
-              className="group border border-tactical-border-medium bg-tactical-bg-secondary p-4 hover:border-tactical-accent-orange transition-colors cursor-pointer"
-              onClick={() => onAreaSelect?.(area)}
+        }
+      >
+        {error && (
+          <div className="mb-4 p-3 border border-tactical-accent-red bg-tactical-accent-red/10">
+            <div className="flex items-start gap-3">
+              <TacticalBadge variant="danger">ERROR</TacticalBadge>
+              <span className="text-sm text-tactical-accent-red">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="text-center py-8">
+            <span className="text-sm text-tactical-text-muted tactical-loading-dots">
+              LOADING AREAS<span>.</span><span>.</span><span>.</span>
+            </span>
+          </div>
+        ) : areas.length === 0 ? (
+          <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
+            <p className="text-sm text-tactical-text-dim mb-3">
+              No areas yet
+            </p>
+            <TacticalButton
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
             >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h4 className="font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-1">
-                    {area.name}
-                  </h4>
-                  {area.description && (
-                    <p className="text-sm text-tactical-text-muted mb-2">
-                      {area.description}
+              Create Your First Area
+            </TacticalButton>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {areas.map((area) => (
+              <div
+                key={area.id}
+                className="group border border-tactical-border-medium bg-tactical-bg-secondary p-4 hover:border-tactical-accent-orange transition-colors cursor-pointer"
+                onClick={() => onAreaSelect?.(area)}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h4 className="font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-1">
+                      {area.name}
+                    </h4>
+                    {area.description && (
+                      <p className="text-sm text-tactical-text-muted mb-2">
+                        {area.description}
+                      </p>
+                    )}
+                    <p className="text-xs text-tactical-text-dim">
+                      Created {new Date(area.created_at).toLocaleDateString()}
                     </p>
-                  )}
-                  <p className="text-xs text-tactical-text-dim">
-                    Created {new Date(area.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <TacticalButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditClick(area);
-                    }}
-                  >
-                    Edit
-                  </TacticalButton>
+                  </div>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <TacticalButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditClick(area);
+                      }}
+                    >
+                      Edit
+                    </TacticalButton>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </TacticalCollapsible>
     </TacticalCard>
 
     {/* Create/Edit Area Modal */}
