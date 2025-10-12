@@ -6,13 +6,6 @@ import { useBulkCreateVisitIndicators } from '../hooks/useVisitIndicators';
 import { useIndicators } from '../hooks/useIndicators';
 import { FileData } from '../types';
 
-interface IndicatorMeasurement {
-  indicator_id: string;
-  indicator_name: string;
-  n_trials: string;
-  n_positive: string;
-}
-
 interface AddVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -34,17 +27,19 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
 
-  // Indicator measurements - start with one empty row
-  const [measurements, setMeasurements] = useState<IndicatorMeasurement[]>([
-    { indicator_id: '', indicator_name: '', n_trials: '', n_positive: '' }
-  ]);
+  // Field mapping state
+  const [locationIdField, setLocationIdField] = useState<string>('');
+  const [roundField, setRoundField] = useState<string>('');
+  const [indicatorId, setIndicatorId] = useState<string>('');
+  const [nTrialsField, setNTrialsField] = useState<string>('');
+  const [nPositiveField, setNPositiveField] = useState<string>('');
 
   const createVisit = useCreateVisit();
   const createIndicators = useBulkCreateVisitIndicators();
   const { data: projectIndicators = [], isLoading: loadingIndicators } = useIndicators(projectId);
 
   useEffect(() => {
-    console.log('AddVisitModal isOpen changed to:', isOpen);
+    console.log('AddVisitModal MOUNTED or isOpen changed to:', isOpen);
   }, [isOpen]);
 
   useEffect(() => {
@@ -53,13 +48,22 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
 
   useEffect(() => {
     console.log('AddVisitModal fileData changed:', fileData ? `${fileData.data.features.length} features` : 'null');
+    if (fileData) {
+      console.log('Available fields in modal:', fileData.fields);
+    }
   }, [fileData]);
 
   const handleFileLoaded = (data: FileData) => {
-    console.log('File loaded, setting fileData', data.data.features.length, 'features');
-    setFileData(data);
-    setError(null);
-    // Don't automatically move to step 2 - let user click "Continue"
+    try {
+      console.log('File loaded, setting fileData', data.data.features.length, 'features');
+      console.log('Available fields:', data.fields);
+      setFileData(data);
+      setError(null);
+      // Don't automatically move to step 2 - let user click "Continue"
+    } catch (err: any) {
+      console.error('Error in handleFileLoaded:', err);
+      setError(`Failed to load file: ${err.message}`);
+    }
   };
 
   const handleContinueToStep2 = () => {
@@ -67,28 +71,12 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
     setStep(2);
   };
 
-  const handleAddMeasurement = () => {
-    setMeasurements([
-      ...measurements,
-      { indicator_id: '', indicator_name: '', n_trials: '', n_positive: '' }
-    ]);
-  };
-
-  const handleRemoveMeasurement = (index: number) => {
-    setMeasurements(measurements.filter((_, i) => i !== index));
-  };
-
-  const handleMeasurementChange = (index: number, field: keyof IndicatorMeasurement, value: string) => {
-    const updated = [...measurements];
-    updated[index] = { ...updated[index], [field]: value };
-
-    // If changing indicator, also update the name
-    if (field === 'indicator_id') {
-      const indicator = projectIndicators.find(ind => ind.id === value);
-      updated[index].indicator_name = indicator?.name || '';
-    }
-
-    setMeasurements(updated);
+  const resetFieldMapping = () => {
+    setLocationIdField('');
+    setRoundField('');
+    setIndicatorId('');
+    setNTrialsField('');
+    setNPositiveField('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,70 +88,133 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
       return;
     }
 
-    // Validate measurements
-    const validMeasurements = measurements.filter(m =>
-      m.indicator_id && m.n_trials && m.n_positive
-    );
-
-    if (validMeasurements.length === 0) {
-      setError('Please add at least one indicator measurement');
+    // Validate field mapping
+    if (!locationIdField) {
+      setError('Please select a Location ID field');
       return;
     }
 
-    // Validate n_positive <= n_trials
-    for (const m of validMeasurements) {
-      const trials = parseInt(m.n_trials);
-      const positive = parseInt(m.n_positive);
-      if (positive > trials) {
-        setError('Number of positive results cannot exceed number of trials');
-        return;
-      }
+    if (!indicatorId) {
+      setError('Please select an indicator');
+      return;
+    }
+
+    if (!nTrialsField) {
+      setError('Please select the n_trials field');
+      return;
+    }
+
+    if (!nPositiveField) {
+      setError('Please select the n_positive field');
+      return;
     }
 
     try {
       // Process each feature in the uploaded file
       const features = fileData.data.features;
+      let successCount = 0;
+      let errorCount = 0;
 
       for (const feature of features) {
-        const coords = feature.geometry.coordinates;
-        const longitude = coords[0];
-        const latitude = coords[1];
+        try {
+          const props = feature.properties || {};
 
-        // Step 1: Create the visit for this location
-        const visitData = {
-          area_id: areaId,
-          round_id: roundId,
-          latitude,
-          longitude,
-          properties: feature.properties || {}
-        };
+          // Extract coordinates - handle both Point and Polygon geometries
+          let longitude: number;
+          let latitude: number;
 
-        const visit = await createVisit.mutateAsync(visitData);
+          if (feature.geometry.type === 'Point') {
+            longitude = feature.geometry.coordinates[0];
+            latitude = feature.geometry.coordinates[1];
+          } else if (feature.geometry.type === 'Polygon') {
+            // Use first coordinate of the outer ring
+            longitude = feature.geometry.coordinates[0][0][0];
+            latitude = feature.geometry.coordinates[0][0][1];
+          } else if (feature.geometry.type === 'MultiPolygon') {
+            // Use first coordinate of the first polygon's outer ring
+            longitude = feature.geometry.coordinates[0][0][0][0];
+            latitude = feature.geometry.coordinates[0][0][0][1];
+          } else {
+            console.warn(`Skipping feature: unsupported geometry type "${feature.geometry.type}"`);
+            errorCount++;
+            continue;
+          }
 
-        // Step 2: Create all indicator measurements for this visit
-        // Extract prediction fields from GeoJSON properties if they exist
-        const props = feature.properties || {};
-        const indicatorData = validMeasurements.map(m => ({
-          visit_id: visit.id,
-          location_id: visit.location_id,
-          indicator_id: m.indicator_id,
-          n_trials: parseInt(m.n_trials),
-          n_positive: parseInt(m.n_positive),
-          exceedance_probability: props.exceedance_probability || null,
-          exceedance_uncertainty: props.exceedance_uncertainty || null,
-          prevalence_bci_width: props.prevalence_bci_width || null,
-          prevalence_prediction: props.prevalence_prediction || null,
-        }));
+          // Extract values from mapped fields
+          const mappedLocationId = props[locationIdField];
+          const nTrials = parseInt(props[nTrialsField]);
+          const nPositive = parseInt(props[nPositiveField]);
+          const mappedRound = roundField ? props[roundField] : null;
 
-        await createIndicators.mutateAsync({ indicators: indicatorData });
+          // Validate extracted values
+          if (!mappedLocationId) {
+            console.warn(`Skipping feature: missing location_id in field "${locationIdField}"`);
+            errorCount++;
+            continue;
+          }
+
+          if (isNaN(nTrials) || isNaN(nPositive)) {
+            console.warn(`Skipping feature: invalid n_trials or n_positive for location ${mappedLocationId}`);
+            errorCount++;
+            continue;
+          }
+
+          if (nPositive > nTrials) {
+            console.warn(`Skipping feature: n_positive (${nPositive}) > n_trials (${nTrials}) for location ${mappedLocationId}`);
+            errorCount++;
+            continue;
+          }
+
+          // Step 1: Create the visit for this location
+          const visitData = {
+            area_id: areaId,
+            round_id: mappedRound || roundId,
+            location_id: mappedLocationId,
+            latitude,
+            longitude,
+            properties: props
+          };
+
+          const visit = await createVisit.mutateAsync(visitData);
+
+          // Step 2: Create indicator measurement for this visit
+          const indicatorData = [{
+            visit_id: visit.id,
+            location_id: visit.location_id,
+            indicator_id: indicatorId,
+            n_trials: nTrials,
+            n_positive: nPositive,
+            exceedance_probability: props.exceedance_probability || null,
+            exceedance_uncertainty: props.exceedance_uncertainty || null,
+            prevalence_bci_width: props.prevalence_bci_width || null,
+            prevalence_prediction: props.prevalence_prediction || null,
+          }];
+
+          await createIndicators.mutateAsync({ indicators: indicatorData });
+          successCount++;
+        } catch (featureErr: any) {
+          console.error('Error processing feature:', featureErr);
+          errorCount++;
+        }
       }
 
-      // Success!
-      setFileData(null);
-      setStep(1);
-      setMeasurements([{ indicator_id: '', indicator_name: '', n_trials: '', n_positive: '' }]);
-      onSuccess();
-      onClose();
+      // Show results
+      if (successCount > 0) {
+        setError(errorCount > 0
+          ? `Successfully created ${successCount} visits, ${errorCount} failed`
+          : null
+        );
+        setFileData(null);
+        setStep(1);
+        resetFieldMapping();
+        onSuccess();
+
+        if (errorCount === 0) {
+          onClose();
+        }
+      } else {
+        setError('Failed to create any visits. Please check your data and field mappings.');
+      }
     } catch (err: any) {
       console.error('Error creating visits:', err);
       setError(
@@ -180,7 +231,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
       setError(null);
       setFileData(null);
       setStep(1);
-      setMeasurements([{ indicator_id: '', indicator_name: '', n_trials: '', n_positive: '' }]);
+      resetFieldMapping();
       onClose();
     }
   };
@@ -188,6 +239,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
   const handleBackToStep1 = () => {
     setFileData(null);
     setStep(1);
+    resetFieldMapping();
   };
 
   const isSubmitting = createVisit.isPending || createIndicators.isPending;
@@ -209,7 +261,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
           <div className="flex-1 h-px bg-tactical-border-medium"></div>
           <div className={`flex items-center gap-2 ${step === 2 ? 'opacity-100' : 'opacity-50'}`}>
             <TacticalBadge variant={step === 2 ? "primary" : "secondary"}>STEP 2</TacticalBadge>
-            <span className="text-sm font-mono text-tactical-text-primary">Configure Indicators</span>
+            <span className="text-sm font-mono text-tactical-text-primary">Map Fields</span>
           </div>
         </div>
 
@@ -240,7 +292,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
                     variant="primary"
                     onClick={handleContinueToStep2}
                   >
-                    Continue to Configure Indicators →
+                    Continue to Map Fields →
                   </TacticalButton>
                 </div>
               </>
@@ -248,7 +300,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
           </>
         )}
 
-        {/* Step 2: Configure Indicators */}
+        {/* Step 2: Map Fields */}
         {step === 2 && fileData && (
           <>
             {/* Area Information */}
@@ -283,75 +335,89 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
               </div>
             </div>
 
-            {/* Indicator Configuration */}
+            {/* Field Mapping Configuration */}
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
-                  Indicator Measurements
-                </label>
-                <TacticalButton
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleAddMeasurement}
-                  disabled={isSubmitting}
-                >
-                  + Add Indicator
-                </TacticalButton>
-              </div>
+              <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                Field Mapping
+              </label>
+              <p className="text-xs text-tactical-text-dim font-mono mb-3">
+                Map fields from your uploaded file to the required data fields
+              </p>
 
-              {measurements.map((measurement, index) => (
-                <div key={index} className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary space-y-3">
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-mono text-tactical-text-dim">Indicator {index + 1}</span>
-                    {measurements.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveMeasurement(index)}
-                        disabled={isSubmitting}
-                        className="text-xs text-tactical-accent-red hover:underline"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
+              {/* Location ID Field */}
+              <TacticalSelect
+                label="Location ID Field *"
+                value={locationIdField}
+                onChange={setLocationIdField}
+                options={[
+                  { value: '', label: 'Select a field...' },
+                  ...(fileData?.fields || []).map(field => ({
+                    value: field,
+                    label: field
+                  }))
+                ]}
+                disabled={isSubmitting}
+              />
 
-                  <TacticalSelect
-                    label="Indicator"
-                    value={measurement.indicator_id}
-                    onChange={(value) => handleMeasurementChange(index, 'indicator_id', value)}
-                    options={[
-                      { value: '', label: loadingIndicators ? 'Loading indicators...' : 'Select an indicator' },
-                      ...projectIndicators.map(ind => ({
-                        value: ind.id,
-                        label: ind.name
-                      }))
-                    ]}
-                    disabled={isSubmitting || loadingIndicators}
-                  />
+              {/* Round Field (Optional) */}
+              <TacticalSelect
+                label="Round Field (Optional)"
+                value={roundField}
+                onChange={setRoundField}
+                options={[
+                  { value: '', label: 'None - use current round' },
+                  ...(fileData?.fields || []).map(field => ({
+                    value: field,
+                    label: field
+                  }))
+                ]}
+                disabled={isSubmitting}
+              />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <TacticalInput
-                      label="Number of Trials"
-                      type="number"
-                      min="0"
-                      value={measurement.n_trials}
-                      onChange={(value) => handleMeasurementChange(index, 'n_trials', value)}
-                      placeholder="e.g., 100"
-                      disabled={isSubmitting}
-                    />
-                    <TacticalInput
-                      label="Number Positive"
-                      type="number"
-                      min="0"
-                      value={measurement.n_positive}
-                      onChange={(value) => handleMeasurementChange(index, 'n_positive', value)}
-                      placeholder="e.g., 75"
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
-              ))}
+              {/* Indicator Selector */}
+              <TacticalSelect
+                label="Indicator *"
+                value={indicatorId}
+                onChange={setIndicatorId}
+                options={[
+                  { value: '', label: loadingIndicators ? 'Loading indicators...' : 'Select an indicator' },
+                  ...projectIndicators.map(ind => ({
+                    value: ind.id,
+                    label: ind.name
+                  }))
+                ]}
+                disabled={isSubmitting || loadingIndicators}
+              />
+
+              {/* N Trials Field */}
+              <TacticalSelect
+                label="N Trials Field *"
+                value={nTrialsField}
+                onChange={setNTrialsField}
+                options={[
+                  { value: '', label: 'Select a field...' },
+                  ...(fileData?.fields || []).map(field => ({
+                    value: field,
+                    label: field
+                  }))
+                ]}
+                disabled={isSubmitting}
+              />
+
+              {/* N Positive Field */}
+              <TacticalSelect
+                label="N Positive Field *"
+                value={nPositiveField}
+                onChange={setNPositiveField}
+                options={[
+                  { value: '', label: 'Select a field...' },
+                  ...(fileData?.fields || []).map(field => ({
+                    value: field,
+                    label: field
+                  }))
+                ]}
+                disabled={isSubmitting}
+              />
             </div>
           </>
         )}

@@ -1260,27 +1260,6 @@ function App() {
           onLocationDeleted={handleLocationDeleted}
         />
 
-        {/* Add Visit Modal */}
-        <AddVisitModal
-          isOpen={isAddVisitModalOpen}
-          onClose={() => {
-            setIsAddVisitModalOpen(false);
-            setSelectedRoundForVisit('');
-          }}
-          areaId={selectedArea?.id || ''}
-          roundId={selectedRoundForVisit}
-          projectId={selectedProject?.id || ''}
-          onSuccess={async () => {
-            // Reload locations after adding visit data
-            if (selectedArea) {
-              const token = await getToken();
-              if (token) {
-                const locationsData = await locationsApi.list(selectedArea.id, token);
-                setLocations(locationsData);
-              }
-            }
-          }}
-        />
       </div>
     );
   };
@@ -1575,6 +1554,30 @@ function App() {
           }
         }}
       />
+
+      {/* Add Visit Modal - Global */}
+      {isAddVisitModalOpen && (
+        <AddVisitModal
+          isOpen={isAddVisitModalOpen}
+          onClose={() => {
+            setIsAddVisitModalOpen(false);
+            setSelectedRoundForVisit('');
+          }}
+          areaId={selectedArea?.id || ''}
+          roundId={selectedRoundForVisit}
+          projectId={selectedProject?.id || ''}
+          onSuccess={async () => {
+            // Reload locations after adding visit data
+            if (selectedArea) {
+              const token = await getToken();
+              if (token) {
+                const locationsData = await locationsApi.list(selectedArea.id, token);
+                setLocations(locationsData);
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
