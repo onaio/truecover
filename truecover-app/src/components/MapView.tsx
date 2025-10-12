@@ -530,7 +530,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               </div>
               {selectedFeatures.length > 0 && (
                 <div className="flex items-center">
-                  <div className="w-4 h-4 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
+                  <div className="w-3 h-3 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
                     {mode === 'locations' ? 'Locations to visit' : 'Adaptively Selected'} ({selectedFeatures.length})
                   </span>

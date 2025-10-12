@@ -12,10 +12,6 @@ interface Location {
     external_id?: string;
     latitude?: number;
     longitude?: number;
-    exceedance_probability?: number;
-    exceedance_uncertainty?: number;
-    prevalence_bci_width?: number;
-    prevalence_prediction?: number;
     rounds?: number[];
   };
 }
@@ -45,10 +41,6 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
 }) => {
   const { getToken } = useAuth();
   const [externalId, setExternalId] = useState('');
-  const [exceedanceProbability, setExceedanceProbability] = useState('');
-  const [exceedanceUncertainty, setExceedanceUncertainty] = useState('');
-  const [prevalenceBciWidth, setPrevalenceBciWidth] = useState('');
-  const [prevalencePrediction, setPrevalencePrediction] = useState('');
   const [selectedRounds, setSelectedRounds] = useState<number[]>([]);
   const [availableRounds, setAvailableRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,10 +50,6 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
   useEffect(() => {
     if (location) {
       setExternalId(location.properties.external_id || '');
-      setExceedanceProbability(location.properties.exceedance_probability?.toString() || '');
-      setExceedanceUncertainty(location.properties.exceedance_uncertainty?.toString() || '');
-      setPrevalenceBciWidth(location.properties.prevalence_bci_width?.toString() || '');
-      setPrevalencePrediction(location.properties.prevalence_prediction?.toString() || '');
       setSelectedRounds(location.properties.rounds || []);
     }
   }, [location]);
@@ -114,10 +102,6 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
       const data: any = {};
 
       if (externalId.trim()) data.external_id = externalId.trim();
-      if (exceedanceProbability.trim()) data.exceedance_probability = parseFloat(exceedanceProbability);
-      if (exceedanceUncertainty.trim()) data.exceedance_uncertainty = parseFloat(exceedanceUncertainty);
-      if (prevalenceBciWidth.trim()) data.prevalence_bci_width = parseFloat(prevalenceBciWidth);
-      if (prevalencePrediction.trim()) data.prevalence_prediction = parseFloat(prevalencePrediction);
       data.rounds = selectedRounds;
 
       await locationsApi.update(areaId, location.id, data, token);
@@ -211,80 +195,6 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
             disabled={isLoading}
             className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label
-              htmlFor="exceedanceProbability"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              Exceedance Probability
-            </label>
-            <input
-              id="exceedanceProbability"
-              type="number"
-              step="0.01"
-              value={exceedanceProbability}
-              onChange={(e) => setExceedanceProbability(e.target.value)}
-              disabled={isLoading}
-              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="exceedanceUncertainty"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              Exceedance Uncertainty
-            </label>
-            <input
-              id="exceedanceUncertainty"
-              type="number"
-              step="0.01"
-              value={exceedanceUncertainty}
-              onChange={(e) => setExceedanceUncertainty(e.target.value)}
-              disabled={isLoading}
-              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label
-              htmlFor="prevalenceBciWidth"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              Prevalence BCI Width
-            </label>
-            <input
-              id="prevalenceBciWidth"
-              type="number"
-              step="0.01"
-              value={prevalenceBciWidth}
-              onChange={(e) => setPrevalenceBciWidth(e.target.value)}
-              disabled={isLoading}
-              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="prevalencePrediction"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              Prevalence Prediction
-            </label>
-            <input
-              id="prevalencePrediction"
-              type="number"
-              step="0.01"
-              value={prevalencePrediction}
-              onChange={(e) => setPrevalencePrediction(e.target.value)}
-              disabled={isLoading}
-              className="w-full px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:outline-none focus:border-tactical-accent-orange disabled:opacity-50"
-            />
-          </div>
         </div>
 
         <TacticalMultiSelect

@@ -37,10 +37,6 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
     { key: 'rounds', label: 'Rounds' },
     { key: 'latitude', label: 'Latitude' },
     { key: 'longitude', label: 'Longitude' },
-    { key: 'exceedance_probability', label: 'Exceedance Probability' },
-    { key: 'exceedance_uncertainty', label: 'Exceedance Uncertainty' },
-    { key: 'prevalence_bci_width', label: 'Prevalence BCI Width' },
-    { key: 'prevalence_prediction', label: 'Prevalence Prediction' },
   ];
 
   return (
