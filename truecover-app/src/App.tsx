@@ -1011,19 +1011,34 @@ function App() {
                   <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Locations to Visit</p>
                   <p className="text-3xl font-bold text-tactical-text-primary font-mono">
                     {(() => {
+                      const totalLocations = locations.features.length;
+                      let locationsToVisit = 0;
+
                       // Filter locations based on mapHighlightRounds
                       if (mapHighlightRounds.length === 0) {
                         // Show all locations with any round data
-                        return locations.features.filter((f: any) => {
+                        locationsToVisit = locations.features.filter((f: any) => {
                           const rounds = f.properties?.rounds || [];
                           return Array.isArray(rounds) && rounds.length > 0;
                         }).length;
+                      } else {
+                        // Show only locations in selected rounds
+                        locationsToVisit = locations.features.filter((f: any) => {
+                          const rounds = f.properties?.rounds || [];
+                          return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
+                        }).length;
                       }
-                      // Show only locations in selected rounds
-                      return locations.features.filter((f: any) => {
-                        const rounds = f.properties?.rounds || [];
-                        return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
-                      }).length;
+
+                      const percentage = totalLocations > 0 ? Math.round((locationsToVisit / totalLocations) * 100) : 0;
+
+                      return (
+                        <>
+                          {locationsToVisit}
+                          <span className="text-lg text-tactical-text-dim ml-2">
+                            ({percentage}%)
+                          </span>
+                        </>
+                      );
                     })()}
                   </p>
                 </div>

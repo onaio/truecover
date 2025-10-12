@@ -25,6 +25,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   const [endDate, setEndDate] = useState('');
   const [batchSize, setBatchSize] = useState('10');
   const [uncertaintyField, setUncertaintyField] = useState('prevalence_bci_width');
+  const [allowRevisit, setAllowRevisit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +58,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           end_date: endDate || null,
           batch_size: batchSizeNum,
           uncertainty_field: uncertaintyField,
+          allow_revisit: allowRevisit,
         },
         {
           headers: {
@@ -74,6 +76,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         setEndDate('');
         setBatchSize('10');
         setUncertaintyField('prevalence_bci_width');
+        setAllowRevisit(false);
 
         onRoundCreated();
         onClose();
@@ -165,6 +168,23 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
               required
               disabled={isSubmitting}
             />
+
+            <div className="flex items-center gap-3 mt-4">
+              <input
+                type="checkbox"
+                id="allowRevisit"
+                checked={allowRevisit}
+                onChange={(e) => setAllowRevisit(e.target.checked)}
+                disabled={isSubmitting}
+                className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
+              />
+              <label
+                htmlFor="allowRevisit"
+                className="text-sm font-mono text-tactical-text-primary cursor-pointer select-none"
+              >
+                Allow visit to same location
+              </label>
+            </div>
           </div>
         </div>
 

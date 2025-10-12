@@ -93,7 +93,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, onRoundSelected }
     <>
       <TacticalCard padding="lg" className="mb-6">
         <TacticalCollapsible
-          title="Data Collection Rounds"
+          title="Rounds"
           defaultCollapsed={true}
           collapsedSummary={
             !isLoading
