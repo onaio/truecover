@@ -16,3 +16,33 @@ code {
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New',
     monospace;
 }
+
+/* Mapbox Popup Tactical UI Styling */
+.tactical-popup .mapboxgl-popup-content {
+  background-color: #0a0a0a !important;
+  border: 1px solid #333333 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+}
+
+.tactical-popup .mapboxgl-popup-close-button {
+  color: #00ff00 !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  padding: 4px 8px !important;
+  right: 4px !important;
+  top: 4px !important;
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.tactical-popup .mapboxgl-popup-close-button:hover {
+  background-color: rgba(0, 255, 0, 0.1) !important;
+  color: #00ff00 !important;
+}
+
+.tactical-popup .mapboxgl-popup-tip {
+  border-top-color: #0a0a0a !important;
+}

@@ -458,18 +458,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               onClose={() => setPopupInfo(null)}
               closeButton={true}
               closeOnClick={false}
+              className="tactical-popup"
             >
-              <div style={{ maxWidth: '200px', fontSize: '12px' }}>
-                <strong>Properties:</strong>
-                <pre style={{
-                  marginTop: '5px',
-                  fontSize: '11px',
-                  maxHeight: '150px',
-                  overflow: 'auto',
-                  backgroundColor: '#f5f5f5',
-                  padding: '5px',
-                  borderRadius: '3px'
-                }}>
+              <div className="bg-tactical-bg-primary border border-tactical-border-medium p-3" style={{ maxWidth: '300px' }}>
+                <div className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+                  Properties
+                </div>
+                <pre className="text-xs font-mono text-tactical-text-secondary bg-tactical-bg-tertiary border border-tactical-border-light p-2 overflow-auto tactical-scrollbar" style={{ maxHeight: '200px' }}>
                   {JSON.stringify(popupInfo.properties, null, 2)}
                 </pre>
               </div>

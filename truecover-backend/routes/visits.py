@@ -3,6 +3,8 @@ from auth.middleware import require_auth
 from auth.helpers import check_area_access
 from db.connection import get_db_connection, return_db_connection
 import uuid
+import json
+from datetime import datetime
 
 visits_bp = Blueprint('visits', __name__)
 
@@ -136,7 +138,76 @@ def create_visits_bulk(user):
         total_processed = 0
         errors = []
 
-        for visit_data in visits_data:
+        # Create ONE visit ID for this entire upload session
+        visit_id = str(uuid.uuid4())
+
+        # Process the FIRST location to get its actual_location_id for the visit record
+        first_visit = visits_data[0] if visits_data else None
+        if not first_visit:
+            return jsonify({'error': 'No visit data provided'}), 400
+
+        uploaded_location_id = first_visit.get('location_id')
+        latitude = first_visit.get('latitude')
+        longitude = first_visit.get('longitude')
+        n_trials = first_visit.get('n_trials')
+        n_covered = first_visit.get('n_covered')
+
+        if not latitude or not longitude:
+            return jsonify({'error': 'First location must have latitude and longitude'}), 400
+
+        if n_trials is None or n_covered is None:
+            return jsonify({'error': 'First location must have n_trials and n_covered'}), 400
+
+        # Get or create location for the first visit
+        first_location_id = None
+        if uploaded_location_id:
+            cursor.execute("""
+                SELECT id FROM locations
+                WHERE id = %s AND area_id = %s
+            """, (uploaded_location_id, area_id))
+
+            location_result = cursor.fetchone()
+            if location_result:
+                first_location_id = str(location_result[0])
+                matched_locations += 1
+
+        # If no match, create new location
+        if not first_location_id:
+            cursor.execute("""
+                INSERT INTO locations (area_id, external_id, latitude, longitude, geometry)
+                VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+                RETURNING id
+            """, (area_id, uploaded_location_id, latitude, longitude, longitude, latitude))
+
+            location_result = cursor.fetchone()
+            first_location_id = str(location_result[0])
+            new_locations += 1
+
+        # Build properties object with upload metadata
+        properties = {
+            'indicator_id': indicator_id,
+            'upload_timestamp': datetime.utcnow().isoformat(),
+            'total_locations': len(visits_data),
+            'upload_type': 'bulk'
+        }
+
+        # Create the visit record with the first location's ID
+        cursor.execute("""
+            INSERT INTO visits (id, location_id, area_id, round_id, latitude, longitude, properties)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (visit_id, first_location_id, area_id, round_id, latitude, longitude, json.dumps(properties)))
+
+        # Create visit_indicator for the first location
+        cursor.execute("""
+            INSERT INTO visit_indicators (visit_id, location_id, indicator_id, n_trials, n_covered)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (visit_id, first_location_id, indicator_id, n_trials, n_covered))
+
+        total_processed += 1
+
+        # Process remaining locations (skip the first one since we already processed it)
+        for visit_data in visits_data[1:]:
             try:
                 uploaded_location_id = visit_data.get('location_id')
                 latitude = visit_data.get('latitude')
@@ -180,15 +251,7 @@ def create_visits_bulk(user):
                     actual_location_id = str(location_result[0])
                     new_locations += 1
 
-                # Create a unique visit for this location
-                visit_id = str(uuid.uuid4())
-                cursor.execute("""
-                    INSERT INTO visits (id, location_id, area_id, round_id, latitude, longitude, properties)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                """, (visit_id, actual_location_id, area_id, round_id, latitude, longitude, '{}'))
-
-                # Create visit_indicator record
+                # Create visit_indicator record using the shared visit_id
                 cursor.execute("""
                     INSERT INTO visit_indicators (visit_id, location_id, indicator_id, n_trials, n_covered)
                     VALUES (%s, %s, %s, %s, %s)
