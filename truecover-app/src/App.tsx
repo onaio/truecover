@@ -20,6 +20,7 @@ import RoundsManager from './components/RoundsManager';
 import IndicatorsManager from './components/IndicatorsManager';
 import AddVisitModal from './components/AddVisitModal';
 import GenerateMockVisitDataModal from './components/GenerateMockVisitDataModal';
+import PredictedCoverageSection from './components/PredictedCoverageSection';
 import { FileData, SamplingRequest, Organization, Project } from './types';
 import { mergeSampleFrameAndSurvey } from './utils/dataMerger';
 import { locationsApi, organizationsApi, projectsApi, areasApi } from './services/api';
@@ -1126,6 +1127,12 @@ function App() {
                     </div>
                   )}
                 </TacticalCard>
+
+                {/* Predicted Coverage Section */}
+                <PredictedCoverageSection
+                  areaId={selectedArea?.id || ''}
+                  projectId={selectedProject?.id || ''}
+                />
 
                 {/* Visit Data Section */}
                 <TacticalCard padding="lg" className="mb-6">

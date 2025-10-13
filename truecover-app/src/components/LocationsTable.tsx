@@ -9,13 +9,6 @@ interface LocationsTableProps {
 const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocation }) => {
   const features = locations?.features || [];
 
-  // Debug: Log a sample feature to see what data we're getting
-  if (features.length > 0) {
-    console.log('LocationsTable - Sample feature:', features[0]);
-    console.log('LocationsTable - Sample feature.properties:', features[0].properties);
-    console.log('LocationsTable - Sample rounds value:', features[0].properties?.rounds);
-  }
-
   if (features.length === 0) {
     return (
       <div className="w-full h-[400px] flex items-center justify-center border border-tactical-border-medium bg-tactical-bg-secondary">

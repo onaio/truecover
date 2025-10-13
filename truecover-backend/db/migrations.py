@@ -77,15 +77,9 @@ def run_migrations():
             CREATE EXTENSION IF NOT EXISTS postgis;
         """)
 
-        # Rename locations table to areas if it exists
+        # Drop visits table if it exists (no longer needed) - do this early before other migrations
         cursor.execute("""
-            DO $$
-            BEGIN
-                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'locations') THEN
-                    ALTER TABLE locations RENAME TO areas;
-                    ALTER INDEX IF EXISTS idx_locations_project_id RENAME TO idx_areas_project_id;
-                END IF;
-            END $$;
+            DROP TABLE IF EXISTS visits CASCADE;
         """)
 
         # Create areas table
@@ -103,25 +97,6 @@ def run_migrations():
         # Create index on project_id for faster area lookups
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_areas_project_id ON areas(project_id);
-        """)
-
-        # Rename location_features table to locations if it exists
-        cursor.execute("""
-            DO $$
-            BEGIN
-                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'location_features') THEN
-                    ALTER TABLE location_features RENAME TO locations;
-                    ALTER TABLE locations RENAME COLUMN location_id TO area_id;
-                    ALTER INDEX IF EXISTS idx_location_features_geometry RENAME TO idx_locations_geometry;
-                    ALTER INDEX IF EXISTS idx_location_features_location_id RENAME TO idx_locations_area_id;
-                    ALTER INDEX IF EXISTS idx_location_features_coords RENAME TO idx_locations_coords;
-                ELSIF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'area_features') THEN
-                    ALTER TABLE area_features RENAME TO locations;
-                    ALTER INDEX IF EXISTS idx_area_features_geometry RENAME TO idx_locations_geometry;
-                    ALTER INDEX IF EXISTS idx_area_features_area_id RENAME TO idx_locations_area_id;
-                    ALTER INDEX IF EXISTS idx_area_features_coords RENAME TO idx_locations_coords;
-                END IF;
-            END $$;
         """)
 
         # Create locations table with PostGIS geometry
@@ -231,45 +206,16 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_indicators_project_id ON indicators(project_id);
         """)
 
-        # Create visits table for tracking field visits
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS visits (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
-                area_id UUID NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
-                round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
-                latitude DECIMAL(10, 8),
-                longitude DECIMAL(11, 8),
-                properties JSONB DEFAULT '{}'::jsonb,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
-            );
-        """)
-
-        # Create indexes on visits table for faster lookups
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_visits_location_id ON visits(location_id);
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_visits_area_id ON visits(area_id);
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_visits_round_id ON visits(round_id);
-        """)
-
-        # Create visit_indicators table for tracking indicator measurements per visit
+        # Create visit_indicators table for tracking indicator measurements
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS visit_indicators (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                visit_id UUID NOT NULL REFERENCES visits(id) ON DELETE CASCADE,
+                upload_id UUID NOT NULL,
+                round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
                 location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
                 indicator_id UUID NOT NULL REFERENCES indicators(id) ON DELETE CASCADE,
                 n_trials INTEGER NOT NULL,
                 n_covered INTEGER NOT NULL,
-                exceedance_probability DECIMAL(10, 8),
-                exceedance_uncertainty DECIMAL(10, 8),
-                prevalence_bci_width DECIMAL(10, 8),
-                prevalence_prediction DECIMAL(10, 8),
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             );
@@ -287,15 +233,83 @@ def run_migrations():
             END $$;
         """)
 
+        # Remove visit_id column and add upload_id if table exists, also remove prediction fields
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'visit_indicators') THEN
+                    -- Drop old visit_id constraint and column
+                    ALTER TABLE visit_indicators DROP CONSTRAINT IF EXISTS visit_indicators_visit_id_fkey;
+                    ALTER TABLE visit_indicators DROP COLUMN IF EXISTS visit_id;
+
+                    -- Add new columns if they don't exist
+                    ALTER TABLE visit_indicators ADD COLUMN IF NOT EXISTS upload_id UUID NOT NULL DEFAULT gen_random_uuid();
+                    ALTER TABLE visit_indicators ADD COLUMN IF NOT EXISTS round_id UUID REFERENCES rounds(id) ON DELETE CASCADE;
+
+                    -- Drop prediction/analysis columns that are no longer needed
+                    ALTER TABLE visit_indicators DROP COLUMN IF EXISTS exceedance_probability;
+                    ALTER TABLE visit_indicators DROP COLUMN IF EXISTS exceedance_uncertainty;
+                    ALTER TABLE visit_indicators DROP COLUMN IF EXISTS prevalence_bci_width;
+                    ALTER TABLE visit_indicators DROP COLUMN IF EXISTS prevalence_prediction;
+                END IF;
+            END $$;
+        """)
+
         # Create indexes on visit_indicators table for faster lookups
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_visit_indicators_visit_id ON visit_indicators(visit_id);
+            CREATE INDEX IF NOT EXISTS idx_visit_indicators_upload_id ON visit_indicators(upload_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_visit_indicators_round_id ON visit_indicators(round_id);
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_visit_indicators_location_id ON visit_indicators(location_id);
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_visit_indicators_indicator_id ON visit_indicators(indicator_id);
+        """)
+
+        # Drop old visit_id index if it exists
+        cursor.execute("""
+            DROP INDEX IF EXISTS idx_visit_indicators_visit_id;
+        """)
+
+        # Create coverage table for storing prediction results
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS coverage (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+                area_id UUID NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+                indicator_id UUID NOT NULL REFERENCES indicators(id) ON DELETE CASCADE,
+                round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+                version INTEGER NOT NULL,
+                n_trials INTEGER NOT NULL,
+                n_covered INTEGER NOT NULL,
+                exceedance_probability DECIMAL(10, 8),
+                exceedance_uncertainty DECIMAL(10, 8),
+                prevalence_bci_width DECIMAL(10, 8),
+                prevalence_prediction DECIMAL(10, 8),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(location_id, indicator_id, version)
+            );
+        """)
+
+        # Create indexes on coverage table for faster lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_location_id ON coverage(location_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_area_id ON coverage(area_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_indicator_id ON coverage(indicator_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_round_id ON coverage(round_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_version ON coverage(indicator_id, version);
         """)
 
         conn.commit()

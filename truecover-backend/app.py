@@ -17,6 +17,7 @@ from routes.rounds import rounds_bp
 from routes.indicators import indicators_bp
 from routes.visits import visits_bp
 from routes.visit_indicators import visit_indicators_bp
+from routes.coverage import coverage_bp
 
 # Import database utilities
 from db.migrations import run_migrations
@@ -42,6 +43,7 @@ app.register_blueprint(rounds_bp)
 app.register_blueprint(indicators_bp)
 app.register_blueprint(visits_bp)
 app.register_blueprint(visit_indicators_bp)
+app.register_blueprint(coverage_bp)
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])
