@@ -76,17 +76,7 @@ def predict_coverage(user):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Get next version number for this indicator
-        cursor.execute("""
-            SELECT COALESCE(MAX(version), 0) + 1
-            FROM coverage
-            WHERE indicator_id = %s
-        """, (indicator_id,))
-
-        version_result = cursor.fetchone()
-        version = version_result[0] if version_result else 1
-
-        # Join locations with coverage for selected indicator (all rounds)
+        # Query ALL coverage records for this indicator and area
         cursor.execute("""
             SELECT
                 l.id,
@@ -98,7 +88,6 @@ def predict_coverage(user):
             JOIN coverage c ON l.id = c.location_id
             WHERE c.indicator_id = %s
               AND l.area_id = %s
-              AND c.n_trials > 0
         """, (indicator_id, area_id))
 
         location_data = cursor.fetchall()
@@ -204,7 +193,7 @@ def predict_coverage(user):
                 'details': prediction_result if isinstance(prediction_result, dict) else str(prediction_result)
             }), 500
 
-        # Parse results and insert into coverage table
+        # Parse results and update coverage table
         if 'features' not in prediction_result:
             cursor.close()
             return jsonify({
@@ -212,7 +201,7 @@ def predict_coverage(user):
                 'details': 'Expected FeatureCollection with features'
             }), 500
 
-        inserted_count = 0
+        updated_count = 0
         errors = []
 
         for feature in prediction_result['features']:
@@ -224,41 +213,30 @@ def predict_coverage(user):
                     errors.append('Missing location ID in prediction result')
                     continue
 
-                # Find corresponding location data
-                location_match = None
-                for row in location_data:
-                    if str(row[0]) == location_id:
-                        location_match = row
-                        break
-
-                if not location_match:
-                    errors.append(f'Location {location_id} not found in original data')
-                    continue
-
-                _, area_id_db, _, n_trials, n_covered = location_match
-
-                # Insert coverage record
+                # Update coverage record with prediction results
                 cursor.execute("""
-                    INSERT INTO coverage (
-                        location_id, area_id, indicator_id, version,
-                        n_trials, n_covered,
-                        exceedance_probability, exceedance_uncertainty,
-                        prevalence_bci_width, prevalence_prediction
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    UPDATE coverage
+                    SET exceedance_probability = %s,
+                        exceedance_uncertainty = %s,
+                        prevalence_bci_width = %s,
+                        prevalence_prediction = %s,
+                        last_predicted_at = NOW(),
+                        updated_at = NOW()
+                    WHERE location_id = %s
+                      AND indicator_id = %s
                 """, (
-                    location_id,
-                    area_id_db,
-                    indicator_id,
-                    version,
-                    n_trials,
-                    n_covered,
                     props.get('exceedance_probability'),
                     props.get('exceedance_uncertainty'),
                     props.get('prevalence_bci_width'),
-                    props.get('prevalence_prediction')
+                    props.get('prevalence_prediction'),
+                    location_id,
+                    indicator_id
                 ))
 
-                inserted_count += 1
+                if cursor.rowcount > 0:
+                    updated_count += 1
+                else:
+                    errors.append(f'Location {location_id} not found in coverage table')
 
             except Exception as e:
                 errors.append(f'Error processing location {location_id}: {str(e)}')
@@ -269,11 +247,10 @@ def predict_coverage(user):
 
         return jsonify({
             'success': True,
-            'version': version,
             'total_locations': len(features),
-            'inserted': inserted_count,
+            'updated': updated_count,
             'errors': errors
-        }), 201
+        }), 200
 
     except Exception as e:
         if conn:
@@ -311,7 +288,7 @@ def list_area_coverage(user, area_id):
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
-                c.created_at, c.updated_at,
+                c.created_at, c.updated_at, c.last_predicted_at,
                 l.latitude, l.longitude, l.external_id,
                 i.name as indicator_name,
                 c.rounds
@@ -344,11 +321,12 @@ def list_area_coverage(user, area_id):
                 'prevalence_prediction': float(row[10]) if row[10] is not None else None,
                 'created_at': row[11].isoformat() if row[11] else None,
                 'updated_at': row[12].isoformat() if row[12] else None,
-                'latitude': float(row[13]) if row[13] is not None else None,
-                'longitude': float(row[14]) if row[14] is not None else None,
-                'external_id': row[15],
-                'indicator_name': row[16],
-                'rounds': list(row[17]) if row[17] else []
+                'last_predicted_at': row[13].isoformat() if row[13] else None,
+                'latitude': float(row[14]) if row[14] is not None else None,
+                'longitude': float(row[15]) if row[15] is not None else None,
+                'external_id': row[16],
+                'indicator_name': row[17],
+                'rounds': list(row[18]) if row[18] else []
             })
 
         cursor.close()
@@ -520,7 +498,7 @@ def get_coverage_by_version(user, indicator_id, version):
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
-                c.created_at, c.updated_at,
+                c.created_at, c.updated_at, c.last_predicted_at,
                 l.latitude, l.longitude,
                 c.rounds
             FROM coverage c
@@ -545,9 +523,10 @@ def get_coverage_by_version(user, indicator_id, version):
                 'prevalence_prediction': float(row[10]) if row[10] is not None else None,
                 'created_at': row[11].isoformat() if row[11] else None,
                 'updated_at': row[12].isoformat() if row[12] else None,
-                'latitude': float(row[13]) if row[13] is not None else None,
-                'longitude': float(row[14]) if row[14] is not None else None,
-                'rounds': list(row[15]) if row[15] else []
+                'last_predicted_at': row[13].isoformat() if row[13] else None,
+                'latitude': float(row[14]) if row[14] is not None else None,
+                'longitude': float(row[15]) if row[15] is not None else None,
+                'rounds': list(row[16]) if row[16] else []
             })
 
         cursor.close()

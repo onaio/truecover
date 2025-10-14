@@ -321,6 +321,21 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_coverage_rounds ON coverage USING GIN(rounds);
         """)
 
+        # Add last_predicted_at column to coverage table to track when predictions were last generated
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'coverage') THEN
+                    ALTER TABLE coverage ADD COLUMN IF NOT EXISTS last_predicted_at TIMESTAMP;
+                END IF;
+            END $$;
+        """)
+
+        # Create index on last_predicted_at for filtering/sorting
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_last_predicted_at ON coverage(last_predicted_at);
+        """)
+
         # Add indicator_id to rounds table
         cursor.execute("""
             DO $$

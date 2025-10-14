@@ -62,7 +62,7 @@ const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
       });
 
       setSuccess(
-        `Coverage predictions generated successfully! Version ${result.version} with ${result.inserted} locations.`
+        `Coverage predictions updated successfully! ${result.updated} of ${result.total_locations} locations updated.`
       );
 
       // Close modal after 2 seconds
@@ -122,12 +122,12 @@ const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
         {/* Info Box */}
         <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
           <p className="text-xs text-tactical-text-dim mb-1">
-            This will generate coverage predictions by:
+            This will update coverage predictions by:
           </p>
           <ul className="text-xs text-tactical-text-dim list-disc list-inside space-y-1">
-            <li>Joining location data with visit indicators</li>
-            <li>Calling the prevalence predictor algorithm</li>
-            <li>Storing predictions in the coverage table</li>
+            <li>Collecting all coverage data for the selected indicator</li>
+            <li>Running the prevalence predictor algorithm</li>
+            <li>Updating prediction fields in the coverage table</li>
           </ul>
         </div>
 
@@ -146,7 +146,7 @@ const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
             variant="primary"
             disabled={isSubmitting || !selectedIndicatorId}
           >
-            {isSubmitting ? 'Generating...' : 'Generate Predictions'}
+            {isSubmitting ? 'Updating...' : 'Update Predictions'}
           </TacticalButton>
         </div>
       </form>

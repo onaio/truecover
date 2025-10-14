@@ -7,14 +7,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 interface PredictCoverageParams {
   area_id: string;
   indicator_id: string;
-  round_id: string;
 }
 
 interface PredictCoverageResult {
   success: boolean;
-  version: number;
   total_locations: number;
-  inserted: number;
+  updated: number;
   errors: string[];
 }
 
@@ -33,6 +31,7 @@ export interface CoverageRecord {
   prevalence_prediction: number | null;
   created_at: string | null;
   updated_at: string | null;
+  last_predicted_at: string | null;
   latitude: number | null;
   longitude: number | null;
   external_id: string | null;
