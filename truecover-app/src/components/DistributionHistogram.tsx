@@ -96,7 +96,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       marginRight: 20,
       marginTop: 20,
       marginBottom: 60,
-      insetLeft: 0.5,
+      insetLeft: 1,
       style: {
         background: '#0a0a0a',
         color: '#ffffff',
