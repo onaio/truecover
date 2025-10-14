@@ -421,6 +421,7 @@ const LocationsPage: React.FC = () => {
                     ? String(selectedRoundIds[0])
                     : ''
               }
+              indicators={indicators || []}
             />
 
             {/* Rounds Manager */}

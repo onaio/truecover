@@ -3,6 +3,7 @@ import { TacticalCard, TacticalButton, TacticalCollapsible } from '../tactical-u
 import PredictCoverageModal from './PredictCoverageModal';
 import GenerateMockVisitDataModal from './GenerateMockVisitDataModal';
 import AddVisitModal from './AddVisitModal';
+import ExportDataModal from './ExportDataModal';
 import { useCoverage, CoverageRecord } from '../hooks/useCoverage';
 
 interface PredictedCoverageSectionProps {
@@ -11,6 +12,7 @@ interface PredictedCoverageSectionProps {
   projectId: string;
   selectedIndicatorId: string;
   selectedRoundId: string;
+  indicators: Array<{ id: string; name: string }>;
 }
 
 const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
@@ -19,10 +21,12 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   projectId,
   selectedIndicatorId,
   selectedRoundId,
+  indicators,
 }) => {
   const [isPredictCoverageModalOpen, setIsPredictCoverageModalOpen] = useState(false);
   const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = useState(false);
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
+  const [isExportDataModalOpen, setIsExportDataModalOpen] = useState(false);
   const [coverageData, setCoverageData] = useState<CoverageRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -70,6 +74,13 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
           collapsedSummary={`(${coverageData.length} ${coverageData.length === 1 ? 'Location' : 'Locations'})`}
           actionButton={
             <div className="flex gap-2">
+              <TacticalButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsExportDataModalOpen(true)}
+              >
+                Export Data
+              </TacticalButton>
               <TacticalButton
                 variant="secondary"
                 size="sm"
@@ -203,6 +214,14 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
         roundId={selectedRoundId}
         projectId={projectId}
         onSuccess={loadCoverageData}
+      />
+
+      <ExportDataModal
+        isOpen={isExportDataModalOpen}
+        onClose={() => setIsExportDataModalOpen(false)}
+        areaId={areaId}
+        projectId={projectId}
+        indicators={indicators}
       />
     </>
   );
