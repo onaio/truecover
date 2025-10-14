@@ -1,8 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../contexts/AppContext';
 import { useLocationsData } from '../hooks/useLocationsData';
+import { useCoverage } from '../hooks/useCoverage';
+import { useIndicators } from '../hooks/useIndicators';
+import { useRounds } from '../hooks/useRounds';
 import LocationUploadModal from '../components/LocationUploadModal';
 import LocationEditModal from '../components/LocationEditModal';
 import LocationsTable from '../components/LocationsTable';
@@ -15,6 +18,7 @@ import {
   TacticalHeader,
   TacticalCollapsible,
   TacticalMultiSelect,
+  TacticalSelect,
 } from '../tactical-ui';
 
 const LocationsPage: React.FC = () => {
@@ -38,10 +42,6 @@ const LocationsPage: React.FC = () => {
     setSelectedRoundFilter,
     mapHighlightRounds,
     setMapHighlightRounds,
-    isAddVisitModalOpen,
-    setIsAddVisitModalOpen,
-    isGenerateMockDataModalOpen,
-    setIsGenerateMockDataModalOpen,
     loadLocations,
     handleLocationsUploaded,
     handleEditLocation,
@@ -49,11 +49,50 @@ const LocationsPage: React.FC = () => {
     handleLocationDeleted,
   } = useLocationsData();
 
+  const { getCoverageGeoJSON } = useCoverage();
+  const [coverageGeoJSON, setCoverageGeoJSON] = useState<any>(null);
+  const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
+
+  // Indicator and Round filters
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('');
+  const { data: indicators } = useIndicators(selectedProject?.id);
+  const { data: rounds } = useRounds(selectedArea?.id);
+
+  // Set default indicator to first one when indicators load
+  useEffect(() => {
+    if (indicators && indicators.length > 0 && !selectedIndicatorId) {
+      setSelectedIndicatorId(indicators[0].id);
+    }
+  }, [indicators]);
+
   // Load locations when entering the page
   useEffect(() => {
     if (selectedArea?.id) {
       loadLocations(selectedArea.id, setLocations);
     }
+  }, [selectedArea?.id]);
+
+  // Load coverage GeoJSON for map visualization
+  useEffect(() => {
+    const loadCoverage = async () => {
+      if (!selectedArea?.id) return;
+
+      setIsLoadingCoverage(true);
+      try {
+        const geojson = await getCoverageGeoJSON({
+          area_id: selectedArea.id,
+        });
+        setCoverageGeoJSON(geojson);
+      } catch (error) {
+        console.error('Error loading coverage GeoJSON:', error);
+        setCoverageGeoJSON(null);
+      } finally {
+        setIsLoadingCoverage(false);
+      }
+    };
+
+    loadCoverage();
   }, [selectedArea?.id]);
 
   if (!selectedArea) {
@@ -160,64 +199,54 @@ const LocationsPage: React.FC = () => {
           </TacticalCard>
         ) : (
           <>
+            {/* Filter Dropdowns Above Map */}
+            <div className="mb-4 flex gap-4">
+              {/* Indicator Filter */}
+              <div className="w-64 text-lg">
+                <TacticalSelect
+                  value={selectedIndicatorId}
+                  onChange={(value) => setSelectedIndicatorId(value)}
+                  options={
+                    (indicators || []).map(ind => ({
+                      value: ind.id,
+                      label: ind.name
+                    }))
+                  }
+                  placeholder="Select Indicator"
+                />
+              </div>
+
+              {/* Round Filter */}
+              <div className="w-64 text-lg">
+                <TacticalSelect
+                  value={selectedRoundId}
+                  onChange={(value) => setSelectedRoundId(value)}
+                  options={[
+                    { value: '', label: 'All Rounds' },
+                    ...(rounds || []).map(round => ({
+                      value: round.id,
+                      label: round.name || `Round ${round.round_number}`
+                    }))
+                  ]}
+                  placeholder="Filter by Round"
+                />
+              </div>
+            </div>
+
             {/* Map View */}
             <TacticalCard padding="none" className="mb-6">
-              {locations && locations.features && locations.features.length > 0 ? (
-                <>
-                  {/* Map Filter */}
-                  <div className="p-4 border-b border-tactical-border-medium bg-tactical-bg-secondary">
-                    <div className="max-w-md">
-                      <TacticalMultiSelect
-                        options={(() => {
-                          const uniqueRounds = new Set<number>();
-                          locations.features.forEach((f: any) => {
-                            const rounds = f.properties?.rounds || [];
-                            rounds.forEach((r: number) => uniqueRounds.add(r));
-                          });
-                          const roundOptions = Array.from(uniqueRounds)
-                            .sort((a, b) => a - b)
-                            .map(r => ({
-                              value: r.toString(),
-                              label: `Round ${r}`
-                            }));
-                          return [
-                            { value: 'all', label: 'All Rounds' },
-                            ...roundOptions
-                          ];
-                        })()}
-                        value={mapHighlightRounds.length === 0 ? ['all'] : mapHighlightRounds.map(r => r.toString())}
-                        onChange={(values) => {
-                          const currentValue = mapHighlightRounds.length === 0 ? ['all'] : mapHighlightRounds.map(r => r.toString());
-
-                          // Check if "all" was just selected
-                          const allWasSelected = !currentValue.includes('all') && values.includes('all');
-
-                          // If "all" was just clicked, clear all filters
-                          if (allWasSelected) {
-                            setMapHighlightRounds([]);
-                          }
-                          // If nothing selected, default to all
-                          else if (values.length === 0) {
-                            setMapHighlightRounds([]);
-                          }
-                          // Otherwise, filter out 'all' if present and set specific rounds
-                          else {
-                            setMapHighlightRounds(values.filter(v => v !== 'all').map(v => parseInt(v as string)));
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <MapView
-                    data={{ type: 'FeatureCollection', features: [] }}
-                    locations={locations}
-                    mode="locations"
-                    highlightRounds={mapHighlightRounds}
-                  />
-                </>
+              {(coverageGeoJSON?.features?.length > 0 || (locations?.features?.length > 0)) ? (
+                <MapView
+                  data={{ type: 'FeatureCollection', features: [] }}
+                  locations={coverageGeoJSON?.features?.length > 0 ? coverageGeoJSON : locations}
+                  mode="locations"
+                  highlightRounds={mapHighlightRounds}
+                />
               ) : (
                 <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
-                  <p className="text-tactical-text-dim">No locations to display</p>
+                  <p className="text-tactical-text-dim">
+                    {isLoadingCoverage ? 'Loading coverage data...' : 'No data to display'}
+                  </p>
                 </div>
               )}
             </TacticalCard>
@@ -226,37 +255,9 @@ const LocationsPage: React.FC = () => {
             <PredictedCoverageSection
               areaId={selectedArea?.id || ''}
               projectId={selectedProject?.id || ''}
+              selectedIndicatorId={selectedIndicatorId}
+              selectedRoundId={selectedRoundId}
             />
-
-            {/* Visit Data Section */}
-            <TacticalCard padding="lg" className="mb-6">
-              <TacticalCollapsible
-                title="Visit Data"
-                defaultCollapsed={true}
-                actionButton={
-                  <div className="flex gap-2">
-                    <TacticalButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setIsGenerateMockDataModalOpen(true)}
-                    >
-                      Generate Mock Data
-                    </TacticalButton>
-                    <TacticalButton
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setIsAddVisitModalOpen(true)}
-                    >
-                      + Add Visit Data
-                    </TacticalButton>
-                  </div>
-                }
-              >
-                <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
-                  <p className="text-tactical-text-dim">No visit data yet</p>
-                </div>
-              </TacticalCollapsible>
-            </TacticalCard>
 
             {/* Rounds Manager */}
             <RoundsManager

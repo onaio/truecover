@@ -289,6 +289,195 @@ def predict_coverage(user):
             return_db_connection(conn)
 
 
+@coverage_bp.route('/api/areas/<area_id>/coverage', methods=['GET'])
+@require_auth
+def list_area_coverage(user, area_id):
+    """Get all coverage records for an area with optional filtering"""
+    conn = None
+    try:
+        # Check if user has access to this area
+        if not check_area_access(user['id'], area_id):
+            return jsonify({'error': 'Access denied'}), 403
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get query parameters for filtering
+        indicator_id = request.args.get('indicator_id')
+        round_id = request.args.get('round_id')
+
+        # Build dynamic query based on filters
+        query = """
+            SELECT
+                c.id, c.location_id, c.area_id, c.indicator_id, c.round_id, c.version,
+                c.n_trials, c.n_covered,
+                c.exceedance_probability, c.exceedance_uncertainty,
+                c.prevalence_bci_width, c.prevalence_prediction,
+                c.created_at, c.updated_at,
+                l.latitude, l.longitude, l.external_id,
+                i.name as indicator_name
+            FROM coverage c
+            JOIN locations l ON c.location_id = l.id
+            JOIN indicators i ON c.indicator_id = i.id
+            WHERE c.area_id = %s
+        """
+        params = [area_id]
+
+        if indicator_id:
+            query += " AND c.indicator_id = %s"
+            params.append(indicator_id)
+
+        if round_id:
+            query += " AND c.round_id = %s"
+            params.append(round_id)
+
+        query += " ORDER BY c.created_at DESC"
+
+        cursor.execute(query, tuple(params))
+
+        coverage_records = []
+        for row in cursor.fetchall():
+            coverage_records.append({
+                'id': str(row[0]),
+                'location_id': str(row[1]),
+                'area_id': str(row[2]),
+                'indicator_id': str(row[3]),
+                'round_id': str(row[4]) if row[4] else None,
+                'version': row[5],
+                'n_trials': row[6],
+                'n_covered': row[7],
+                'exceedance_probability': float(row[8]) if row[8] is not None else None,
+                'exceedance_uncertainty': float(row[9]) if row[9] is not None else None,
+                'prevalence_bci_width': float(row[10]) if row[10] is not None else None,
+                'prevalence_prediction': float(row[11]) if row[11] is not None else None,
+                'created_at': row[12].isoformat() if row[12] else None,
+                'updated_at': row[13].isoformat() if row[13] else None,
+                'latitude': float(row[14]) if row[14] is not None else None,
+                'longitude': float(row[15]) if row[15] is not None else None,
+                'external_id': row[16],
+                'indicator_name': row[17]
+            })
+
+        cursor.close()
+        return jsonify({'coverage': coverage_records}), 200
+
+    except Exception as e:
+        print(f"Error listing area coverage: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to list coverage', 'details': str(e)}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@coverage_bp.route('/api/areas/<area_id>/coverage/geojson', methods=['GET'])
+@require_auth
+def get_coverage_geojson(user, area_id):
+    """Get coverage data as GeoJSON with geometries from locations table"""
+    conn = None
+    try:
+        # Check if user has access to this area
+        if not check_area_access(user['id'], area_id):
+            return jsonify({'error': 'Access denied'}), 403
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get query parameters for filtering
+        indicator_id = request.args.get('indicator_id')
+        round_id = request.args.get('round_id')
+
+        # Build dynamic query - left join coverage with locations
+        query = """
+            SELECT
+                c.id, c.location_id, c.area_id, c.indicator_id, c.round_id, c.version,
+                c.n_trials, c.n_covered,
+                c.exceedance_probability, c.exceedance_uncertainty,
+                c.prevalence_bci_width, c.prevalence_prediction,
+                l.latitude, l.longitude, l.external_id,
+                ST_AsGeoJSON(l.geometry) as geometry,
+                l.properties,
+                i.name as indicator_name
+            FROM coverage c
+            LEFT JOIN locations l ON c.location_id = l.id
+            LEFT JOIN indicators i ON c.indicator_id = i.id
+            WHERE c.area_id = %s
+        """
+        params = [area_id]
+
+        if indicator_id:
+            query += " AND c.indicator_id = %s"
+            params.append(indicator_id)
+
+        if round_id:
+            query += " AND c.round_id = %s"
+            params.append(round_id)
+
+        query += " ORDER BY c.created_at DESC"
+
+        cursor.execute(query, tuple(params))
+
+        features = []
+        for row in cursor.fetchall():
+            # Parse geometry from PostGIS
+            geometry = json.loads(row[15]) if row[15] else {
+                'type': 'Point',
+                'coordinates': [float(row[13]), float(row[12])]  # lng, lat
+            }
+
+            # Get location properties
+            location_props = row[16] if isinstance(row[16], dict) else json.loads(row[16]) if row[16] else {}
+
+            # Build feature properties with coverage data
+            properties = {
+                'coverage_id': str(row[0]),
+                'location_id': str(row[1]),
+                'external_id': row[14],
+                'indicator_id': str(row[3]),
+                'indicator_name': row[17],
+                'round_id': str(row[4]) if row[4] else None,
+                'version': row[5],
+                'n_trials': row[6],
+                'n_covered': row[7],
+                'exceedance_probability': float(row[8]) if row[8] is not None else 0,
+                'exceedance_uncertainty': float(row[9]) if row[9] is not None else 0,
+                'prevalence_bci_width': float(row[10]) if row[10] is not None else 0,
+                'prevalence_prediction': float(row[11]) if row[11] is not None else 0,
+                'latitude': float(row[12]) if row[12] is not None else None,
+                'longitude': float(row[13]) if row[13] is not None else None,
+            }
+
+            # Merge with location properties
+            properties.update(location_props)
+
+            feature = {
+                'type': 'Feature',
+                'id': str(row[0]),  # Use coverage ID as feature ID
+                'geometry': geometry,
+                'properties': properties
+            }
+            features.append(feature)
+
+        cursor.close()
+
+        geojson = {
+            'type': 'FeatureCollection',
+            'features': features
+        }
+
+        return jsonify(geojson), 200
+
+    except Exception as e:
+        print(f"Error getting coverage GeoJSON: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get coverage GeoJSON', 'details': str(e)}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
 @coverage_bp.route('/api/coverage/indicator/<indicator_id>', methods=['GET'])
 @require_auth
 def list_coverage_versions(user, indicator_id):
