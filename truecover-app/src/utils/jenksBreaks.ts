@@ -32,6 +32,7 @@ export function calculateJenksBreaks(data: number[], numClasses: number): number
     let s1 = 0;
     let s2 = 0;
     let w = 0;
+    let v = 0;
 
     for (let m = 1; m <= l; m++) {
       const i3 = l - m + 1;
@@ -41,7 +42,7 @@ export function calculateJenksBreaks(data: number[], numClasses: number): number
       s1 += val;
       w += 1;
 
-      const v = s2 - (s1 * s1) / w;
+      v = s2 - (s1 * s1) / w;
       const i4 = i3 - 1;
 
       if (i4 !== 0) {
@@ -74,7 +75,15 @@ export function calculateJenksBreaks(data: number[], numClasses: number): number
   // Reverse to get ascending order
   breaks.reverse();
 
-  return breaks;
+  // Remove duplicates and ensure strictly ascending order
+  const uniqueBreaks: number[] = [];
+  for (let i = 0; i < breaks.length; i++) {
+    if (i === 0 || breaks[i] > uniqueBreaks[uniqueBreaks.length - 1]) {
+      uniqueBreaks.push(breaks[i]);
+    }
+  }
+
+  return uniqueBreaks;
 }
 
 /**

@@ -49,14 +49,14 @@ const getCentroid = (geometry: any): [number, number] => {
 
 // Color palettes for Jenks classification
 const PREVALENCE_COLORS = [
-  '#1a9850',  // Dark green (low)
-  '#66bd63',  // Green
-  '#a6d96a',  // Green-yellow
-  '#d9ef8b',  // Light green-yellow
-  '#fee08b',  // Light yellow
-  '#fdae61',  // Orange
+  '#d73027',  // Red (low)
   '#f46d43',  // Orange-red
-  '#d73027'   // Red (high)
+  '#fdae61',  // Orange
+  '#fee08b',  // Light yellow
+  '#d9ef8b',  // Light green-yellow
+  '#a6d96a',  // Green-yellow
+  '#66bd63',  // Green
+  '#1a9850'   // Dark green (high)
 ];
 
 const UNCERTAINTY_COLORS = [
@@ -444,7 +444,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         : interpolationMode === 'uncertainty' && uncertaintyJenksExpression
           ? uncertaintyJenksExpression
           : '#999',
-      'fill-opacity': interpolationMode !== 'none' ? 0.8 : 0
+      'fill-opacity': interpolationMode !== 'none' ? 0.9 : 0
     }
   };
 
