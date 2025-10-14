@@ -18,9 +18,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, label = 'Upload F
 
       // Check if it's a GeoJSON FeatureCollection directly
       if (parsed.type === 'FeatureCollection' && Array.isArray(parsed.features)) {
-        console.log('FileUpload: Parsed GeoJSON FeatureCollection with', parsed.features.length, 'features');
         const fields = extractFieldsFromGeoJSON(parsed);
-        console.log('FileUpload: Extracted fields:', fields);
         onFileLoaded({
           type: 'geojson',
           data: parsed,
@@ -31,9 +29,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, label = 'Upload F
 
       // Check if it has a point_data wrapper (like survey files)
       if (parsed.point_data && parsed.point_data.type === 'FeatureCollection' && Array.isArray(parsed.point_data.features)) {
-        console.log('FileUpload: Parsed point_data wrapper with', parsed.point_data.features.length, 'features');
         const fields = extractFieldsFromGeoJSON(parsed.point_data);
-        console.log('FileUpload: Extracted fields:', fields);
         onFileLoaded({
           type: 'geojson',
           data: parsed.point_data,
@@ -45,7 +41,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, label = 'Upload F
       // If neither format matches, throw error to try CSV parsing
       throw new Error('Not a valid GeoJSON FeatureCollection');
     } catch (jsonError) {
-      console.log('FileUpload: JSON parsing failed, trying CSV...', jsonError);
       // Try parsing as CSV
       Papa.parse(content, {
         header: true,
@@ -54,11 +49,9 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, label = 'Upload F
           try {
             const csvData = results.data as Record<string, any>[];
             const fields = results.meta.fields || [];
-            console.log('FileUpload: Parsed CSV with', csvData.length, 'rows and fields:', fields);
 
             // Convert CSV to GeoJSON
             const geojson = csvToGeoJSON(csvData, fields);
-            console.log('FileUpload: Converted to GeoJSON with', geojson.features.length, 'features');
 
             onFileLoaded({
               type: 'csv',

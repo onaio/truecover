@@ -5,6 +5,7 @@ from db.connection import get_db_connection, return_db_connection
 import requests
 import json
 import os
+import sys
 
 coverage_bp = Blueprint('coverage', __name__)
 
@@ -96,6 +97,10 @@ def predict_coverage(user):
             cursor.close()
             return jsonify({'error': 'No coverage data found for this indicator'}), 404
 
+        print(f"INFO: Found {len(location_data)} coverage records for indicator {indicator_id}")
+        print(f"INFO: Prevalence predictor URL: {PREVALENCE_PREDICTOR_URL}")
+        sys.stdout.flush()
+
         # Format as GeoJSON for prevalence predictor
         features = []
         for row in location_data:
@@ -133,15 +138,19 @@ def predict_coverage(user):
 
         # Call prevalence predictor
         print(f"Calling prevalence predictor with {len(features)} locations...")
+        sys.stdout.flush()
         print(f"DEBUG: First feature sample: {json.dumps(features[0] if features else {}, indent=2)}")
+        sys.stdout.flush()
         print(f"DEBUG: Payload structure - has point_data: {'point_data' in payload}")
         print(f"DEBUG: Payload point_data type: {type(payload.get('point_data'))}")
         print(f"DEBUG: Payload point_data has features: {'features' in payload.get('point_data', {})}")
         print(f"DEBUG: Number of features in point_data: {len(payload.get('point_data', {}).get('features', []))}")
+        sys.stdout.flush()
 
         # Print first 1000 chars of the actual JSON payload
         payload_json = json.dumps(payload)
         print(f"DEBUG: Payload JSON (first 1000 chars): {payload_json[:1000]}")
+        sys.stdout.flush()
 
         try:
             # Note: The prevalence predictor has a longer timeout (910 seconds max)
@@ -153,16 +162,20 @@ def predict_coverage(user):
             )
 
             print(f"DEBUG: Response status code: {response.status_code}")
+            sys.stdout.flush()
             print(f"DEBUG: Response text (first 1000 chars): {response.text[:1000]}")
+            sys.stdout.flush()
 
             # Try to parse JSON response, handling extra data after JSON
             try:
                 prediction_result = parse_json_response(response)
                 print(f"DEBUG: Successfully parsed response")
+                sys.stdout.flush()
                 print(f"DEBUG: Response keys: {prediction_result.keys() if isinstance(prediction_result, dict) else 'Not a dict'}")
                 print(f"DEBUG: Response type: {type(prediction_result)}")
                 if isinstance(prediction_result, dict):
                     print(f"DEBUG: Response structure sample: {json.dumps({k: type(v).__name__ for k, v in list(prediction_result.items())[:5]})}")
+                sys.stdout.flush()
             except (ValueError, json.JSONDecodeError) as json_error:
                 cursor.close()
                 print(f"JSON parsing error from prevalence predictor: {json_error}")
@@ -194,17 +207,28 @@ def predict_coverage(user):
             }), 500
 
         # Parse results and update coverage table
-        if 'features' not in prediction_result:
+        # The prevalence predictor wraps the result in a "result" key
+        if 'result' in prediction_result and 'features' in prediction_result['result']:
+            features_data = prediction_result['result']['features']
+        elif 'features' in prediction_result:
+            features_data = prediction_result['features']
+        else:
             cursor.close()
+            print(f"ERROR: Response missing 'features' key")
+            sys.stdout.flush()
+            print(f"ERROR: Actual response keys: {prediction_result.keys() if isinstance(prediction_result, dict) else 'Not a dict'}")
+            print(f"ERROR: Full response: {json.dumps(prediction_result, indent=2)[:2000]}")
+            sys.stdout.flush()
             return jsonify({
                 'error': 'Invalid response from prevalence predictor',
-                'details': 'Expected FeatureCollection with features'
+                'details': 'Expected FeatureCollection with features',
+                'actual_response': prediction_result if isinstance(prediction_result, dict) else str(prediction_result)
             }), 500
 
         updated_count = 0
         errors = []
 
-        for feature in prediction_result['features']:
+        for feature in features_data:
             try:
                 props = feature.get('properties', {})
                 location_id = props.get('id')
@@ -247,7 +271,7 @@ def predict_coverage(user):
 
         return jsonify({
             'success': True,
-            'total_locations': len(features),
+            'total_locations': len(features_data),
             'updated': updated_count,
             'errors': errors
         }), 200

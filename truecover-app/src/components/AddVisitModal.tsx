@@ -54,25 +54,8 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
     }
   }, [isOpen, roundId]);
 
-  useEffect(() => {
-    console.log('AddVisitModal MOUNTED or isOpen changed to:', isOpen);
-  }, [isOpen]);
-
-  useEffect(() => {
-    console.log('AddVisitModal step changed to:', step);
-  }, [step]);
-
-  useEffect(() => {
-    console.log('AddVisitModal fileData changed:', fileData ? `${fileData.data.features.length} features` : 'null');
-    if (fileData) {
-      console.log('Available fields in modal:', fileData.fields);
-    }
-  }, [fileData]);
-
   const handleFileLoaded = (data: FileData) => {
     try {
-      console.log('File loaded, setting fileData', data.data.features.length, 'features');
-      console.log('Available fields:', data.fields);
       setFileData(data);
       setError(null);
       // Don't automatically move to step 2 - let user click "Continue"
@@ -83,7 +66,6 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
   };
 
   const handleContinueToStep2 = () => {
-    console.log('Moving to step 2');
     setStep(2);
   };
 

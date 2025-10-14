@@ -118,10 +118,10 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                     <th className="bg-tactical-bg-secondary">Longitude</th>
                     <th className="bg-tactical-bg-secondary">N Trials</th>
                     <th className="bg-tactical-bg-secondary">N Covered</th>
+                    <th className="bg-tactical-bg-secondary">Prevalence Pred</th>
+                    <th className="bg-tactical-bg-secondary">Prevalence BCI</th>
                     <th className="bg-tactical-bg-secondary">Exceedance Prob</th>
                     <th className="bg-tactical-bg-secondary">Exceedance Unc</th>
-                    <th className="bg-tactical-bg-secondary">Prevalence BCI</th>
-                    <th className="bg-tactical-bg-secondary">Prevalence Pred</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -154,13 +154,8 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                       <td className={rowTextColor}>{record.n_trials}</td>
                       <td className={rowTextColor}>{record.n_covered}</td>
                       <td className={rowTextColor}>
-                        {record.exceedance_probability !== null
-                          ? record.exceedance_probability.toFixed(3)
-                          : '-'}
-                      </td>
-                      <td className={rowTextColor}>
-                        {record.exceedance_uncertainty !== null
-                          ? record.exceedance_uncertainty.toFixed(3)
+                        {record.prevalence_prediction !== null
+                          ? record.prevalence_prediction.toFixed(3)
                           : '-'}
                       </td>
                       <td className={rowTextColor}>
@@ -169,8 +164,13 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                           : '-'}
                       </td>
                       <td className={rowTextColor}>
-                        {record.prevalence_prediction !== null
-                          ? record.prevalence_prediction.toFixed(3)
+                        {record.exceedance_probability !== null
+                          ? record.exceedance_probability.toFixed(3)
+                          : '-'}
+                      </td>
+                      <td className={rowTextColor}>
+                        {record.exceedance_uncertainty !== null
+                          ? record.exceedance_uncertainty.toFixed(3)
                           : '-'}
                       </td>
                     </tr>
