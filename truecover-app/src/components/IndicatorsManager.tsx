@@ -35,6 +35,7 @@ const IndicatorsManager: React.FC<IndicatorsManagerProps> = ({ projectId }) => {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedIndicator(null);
+    refetch();
   };
 
   const handleSuccess = () => {

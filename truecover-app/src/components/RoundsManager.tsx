@@ -35,6 +35,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
 
   const loadRounds = useCallback(async () => {
@@ -72,7 +73,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
     if (areaId) {
       loadRounds();
     }
-  }, [areaId, loadRounds]);
+  }, [areaId, loadRounds, refreshKey]);
 
   const handleRoundCreated = async () => {
     await loadRounds();
@@ -226,7 +227,10 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
 
       <CreateRoundModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setRefreshKey(prev => prev + 1);
+        }}
         areaId={areaId}
         projectId={projectId}
         onRoundCreated={handleRoundCreated}

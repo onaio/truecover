@@ -22,6 +22,7 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<Area | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (project) {
@@ -29,7 +30,7 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
     } else {
       setAreas([]);
     }
-  }, [project]);
+  }, [project, refreshKey]);
 
   const loadAreas = async () => {
     if (!project) return;
@@ -65,11 +66,13 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
 
   const handleAreaCreated = (newArea: Area) => {
     setAreas([newArea, ...areas]);
+    setRefreshKey(prev => prev + 1);
   };
 
   const handleAreaUpdated = (updatedArea: Area) => {
     setAreas(areas.map(area => area.id === updatedArea.id ? updatedArea : area));
     setEditingArea(null);
+    setRefreshKey(prev => prev + 1);
   };
 
   const handleEditClick = (area: Area) => {
@@ -80,6 +83,7 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
   const handleModalClose = () => {
     setIsCreateModalOpen(false);
     setEditingArea(null);
+    setRefreshKey(prev => prev + 1);
   };
 
   return (
