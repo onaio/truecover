@@ -8,8 +8,18 @@ Geospatial disease surveillance platform with adaptive sampling capabilities.
 
 - Docker Desktop (for PostgreSQL database)
 - Python 3.12+
+- [uv](https://docs.astral.sh/uv/) - Fast Python package manager
 - Node.js 16+
 - Git
+
+**Install uv** (if not already installed):
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or using Homebrew
+brew install uv
+```
 
 ### 1. Start the Database
 
@@ -25,20 +35,28 @@ This starts PostgreSQL on port 5432.
 ```bash
 cd truecover-backend
 
-# Create virtual environment (first time only)
-python3 -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate
-
 # Install dependencies (first time only)
-pip install -r requirements.txt
+# This creates a .venv and installs all dependencies
+uv sync --no-install-project
 
 # Start the Flask server
-python app.py
+uv run python app.py
 ```
 
 The backend API will be available at **http://localhost:5001**
+
+**Alternative (legacy method without uv):**
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start server
+python app.py
+```
 
 ### 3. Start the Frontend
 
@@ -61,6 +79,7 @@ truecover/
 ├── truecover-app/          # React frontend (Vite + TypeScript)
 ├── truecover-backend/      # Flask API backend
 │   ├── app.py             # Main Flask application
+│   ├── pyproject.toml     # Python dependencies (uv)
 │   ├── routes/            # API route handlers
 │   ├── db/                # Database migrations and connections
 │   ├── auth/              # Clerk authentication middleware
@@ -80,10 +99,11 @@ truecover/
 
 ### Backend
 - **Flask** REST API
-- **PostgreSQL** with PostGIS extension
-- **psycopg2** for database connections
+- **PostgreSQL** with PostGIS extension (geospatial queries)
+- **uv** for fast Python package management
 - **Clerk** for authentication
 - Python 3.12+
+- **Shapely** for geospatial operations
 
 ## Environment Variables
 
