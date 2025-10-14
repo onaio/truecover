@@ -228,6 +228,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         areaId={areaId}
+        projectId={projectId}
         onRoundCreated={handleRoundCreated}
       />
 

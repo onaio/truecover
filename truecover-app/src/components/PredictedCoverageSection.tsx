@@ -91,6 +91,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                 <thead>
                   <tr className="sticky top-0 z-10">
                     <th className="bg-tactical-bg-secondary">Location ID</th>
+                    <th className="bg-tactical-bg-secondary">Rounds</th>
                     <th className="bg-tactical-bg-secondary">Latitude</th>
                     <th className="bg-tactical-bg-secondary">Longitude</th>
                     <th className="bg-tactical-bg-secondary">N Trials</th>
@@ -103,50 +104,62 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {coverageData.map((record) => (
-                    <tr key={record.id}>
-                      <td title={record.location_id}>
-                        {record.location_id.substring(0, 8)}...
-                      </td>
-                      <td>
+                  {coverageData.map((record) => {
+                    const hasRounds = record.rounds && record.rounds.length > 0;
+                    const rowTextColor = hasRounds ? 'text-tactical-accent-green' : '';
+                    return (
+                      <tr
+                        key={record.id}
+                        className={hasRounds ? 'group hover:bg-tactical-bg-tertiary transition-colors' : ''}
+                      >
+                        <td title={record.location_id} className={rowTextColor}>
+                          {record.location_id.substring(0, 8)}...
+                        </td>
+                        <td className={`font-bold ${rowTextColor}`}>
+                          {hasRounds
+                            ? record.rounds.sort((a, b) => a - b).join(', ')
+                            : '-'}
+                        </td>
+                      <td className={rowTextColor}>
                         {record.latitude !== null
                           ? record.latitude.toFixed(3)
                           : '-'}
                       </td>
-                      <td>
+                      <td className={rowTextColor}>
                         {record.longitude !== null
                           ? record.longitude.toFixed(3)
                           : '-'}
                       </td>
-                      <td>{record.n_trials}</td>
-                      <td>{record.n_covered}</td>
-                      <td>
+                      <td className={rowTextColor}>{record.n_trials}</td>
+                      <td className={rowTextColor}>{record.n_covered}</td>
+                      <td className={rowTextColor}>
                         {record.exceedance_probability !== null
                           ? record.exceedance_probability.toFixed(3)
                           : '-'}
                       </td>
-                      <td>
+                      <td className={rowTextColor}>
                         {record.exceedance_uncertainty !== null
                           ? record.exceedance_uncertainty.toFixed(3)
                           : '-'}
                       </td>
-                      <td>
+                      <td className={rowTextColor}>
                         {record.prevalence_bci_width !== null
                           ? record.prevalence_bci_width.toFixed(3)
                           : '-'}
                       </td>
-                      <td>
+                      <td className={rowTextColor}>
                         {record.prevalence_prediction !== null
                           ? record.prevalence_prediction.toFixed(3)
                           : '-'}
                       </td>
-                      <td>
+                      <td className={rowTextColor}>
                         {record.created_at
                           ? new Date(record.created_at).toLocaleString()
                           : '-'}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

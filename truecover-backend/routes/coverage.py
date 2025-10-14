@@ -86,31 +86,31 @@ def predict_coverage(user):
         version_result = cursor.fetchone()
         version = version_result[0] if version_result else 1
 
-        # Join locations with visit_indicators for selected indicator (all rounds)
+        # Join locations with coverage for selected indicator (all rounds)
         cursor.execute("""
             SELECT
                 l.id,
                 l.area_id,
                 ST_AsGeoJSON(l.geometry) as geometry,
-                vi.n_trials,
-                vi.n_covered,
-                vi.round_id
+                c.n_trials,
+                c.n_covered
             FROM locations l
-            JOIN visit_indicators vi ON l.id = vi.location_id
-            WHERE vi.indicator_id = %s
+            JOIN coverage c ON l.id = c.location_id
+            WHERE c.indicator_id = %s
               AND l.area_id = %s
+              AND c.n_trials > 0
         """, (indicator_id, area_id))
 
         location_data = cursor.fetchall()
 
         if not location_data:
             cursor.close()
-            return jsonify({'error': 'No visit data found for this indicator'}), 404
+            return jsonify({'error': 'No coverage data found for this indicator'}), 404
 
         # Format as GeoJSON for prevalence predictor
         features = []
         for row in location_data:
-            location_id, area_id_db, geometry_json, n_trials, n_covered, round_id_db = row
+            location_id, area_id_db, geometry_json, n_trials, n_covered = row
 
             # Parse the geometry JSON from PostGIS
             import json as json_module
@@ -235,21 +235,20 @@ def predict_coverage(user):
                     errors.append(f'Location {location_id} not found in original data')
                     continue
 
-                _, area_id_db, _, _, n_trials, n_covered, round_id_db = location_match
+                _, area_id_db, _, n_trials, n_covered = location_match
 
                 # Insert coverage record
                 cursor.execute("""
                     INSERT INTO coverage (
-                        location_id, area_id, indicator_id, round_id, version,
+                        location_id, area_id, indicator_id, version,
                         n_trials, n_covered,
                         exceedance_probability, exceedance_uncertainty,
                         prevalence_bci_width, prevalence_prediction
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     location_id,
                     area_id_db,
                     indicator_id,
-                    round_id_db,
                     version,
                     n_trials,
                     n_covered,
@@ -304,18 +303,18 @@ def list_area_coverage(user, area_id):
 
         # Get query parameters for filtering
         indicator_id = request.args.get('indicator_id')
-        round_id = request.args.get('round_id')
 
         # Build dynamic query based on filters
         query = """
             SELECT
-                c.id, c.location_id, c.area_id, c.indicator_id, c.round_id, c.version,
+                c.id, c.location_id, c.area_id, c.indicator_id, c.version,
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
                 c.created_at, c.updated_at,
                 l.latitude, l.longitude, l.external_id,
-                i.name as indicator_name
+                i.name as indicator_name,
+                c.rounds
             FROM coverage c
             JOIN locations l ON c.location_id = l.id
             JOIN indicators i ON c.indicator_id = i.id
@@ -327,12 +326,6 @@ def list_area_coverage(user, area_id):
             query += " AND c.indicator_id = %s"
             params.append(indicator_id)
 
-        if round_id:
-            query += " AND c.round_id = %s"
-            params.append(round_id)
-
-        query += " ORDER BY c.created_at DESC"
-
         cursor.execute(query, tuple(params))
 
         coverage_records = []
@@ -342,20 +335,20 @@ def list_area_coverage(user, area_id):
                 'location_id': str(row[1]),
                 'area_id': str(row[2]),
                 'indicator_id': str(row[3]),
-                'round_id': str(row[4]) if row[4] else None,
-                'version': row[5],
-                'n_trials': row[6],
-                'n_covered': row[7],
-                'exceedance_probability': float(row[8]) if row[8] is not None else None,
-                'exceedance_uncertainty': float(row[9]) if row[9] is not None else None,
-                'prevalence_bci_width': float(row[10]) if row[10] is not None else None,
-                'prevalence_prediction': float(row[11]) if row[11] is not None else None,
-                'created_at': row[12].isoformat() if row[12] else None,
-                'updated_at': row[13].isoformat() if row[13] else None,
-                'latitude': float(row[14]) if row[14] is not None else None,
-                'longitude': float(row[15]) if row[15] is not None else None,
-                'external_id': row[16],
-                'indicator_name': row[17]
+                'version': row[4],
+                'n_trials': row[5],
+                'n_covered': row[6],
+                'exceedance_probability': float(row[7]) if row[7] is not None else None,
+                'exceedance_uncertainty': float(row[8]) if row[8] is not None else None,
+                'prevalence_bci_width': float(row[9]) if row[9] is not None else None,
+                'prevalence_prediction': float(row[10]) if row[10] is not None else None,
+                'created_at': row[11].isoformat() if row[11] else None,
+                'updated_at': row[12].isoformat() if row[12] else None,
+                'latitude': float(row[13]) if row[13] is not None else None,
+                'longitude': float(row[14]) if row[14] is not None else None,
+                'external_id': row[15],
+                'indicator_name': row[16],
+                'rounds': list(row[17]) if row[17] else []
             })
 
         cursor.close()
@@ -386,19 +379,19 @@ def get_coverage_geojson(user, area_id):
 
         # Get query parameters for filtering
         indicator_id = request.args.get('indicator_id')
-        round_id = request.args.get('round_id')
 
         # Build dynamic query - left join coverage with locations
         query = """
             SELECT
-                c.id, c.location_id, c.area_id, c.indicator_id, c.round_id, c.version,
+                c.id, c.location_id, c.area_id, c.indicator_id, c.version,
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
                 l.latitude, l.longitude, l.external_id,
                 ST_AsGeoJSON(l.geometry) as geometry,
                 l.properties,
-                i.name as indicator_name
+                i.name as indicator_name,
+                c.rounds
             FROM coverage c
             LEFT JOIN locations l ON c.location_id = l.id
             LEFT JOIN indicators i ON c.indicator_id = i.id
@@ -410,42 +403,36 @@ def get_coverage_geojson(user, area_id):
             query += " AND c.indicator_id = %s"
             params.append(indicator_id)
 
-        if round_id:
-            query += " AND c.round_id = %s"
-            params.append(round_id)
-
-        query += " ORDER BY c.created_at DESC"
-
         cursor.execute(query, tuple(params))
 
         features = []
         for row in cursor.fetchall():
             # Parse geometry from PostGIS
-            geometry = json.loads(row[15]) if row[15] else {
+            geometry = json.loads(row[14]) if row[14] else {
                 'type': 'Point',
-                'coordinates': [float(row[13]), float(row[12])]  # lng, lat
+                'coordinates': [float(row[12]), float(row[11])]  # lng, lat
             }
 
             # Get location properties
-            location_props = row[16] if isinstance(row[16], dict) else json.loads(row[16]) if row[16] else {}
+            location_props = row[15] if isinstance(row[15], dict) else json.loads(row[15]) if row[15] else {}
 
             # Build feature properties with coverage data
             properties = {
                 'coverage_id': str(row[0]),
                 'location_id': str(row[1]),
-                'external_id': row[14],
+                'external_id': row[13],
                 'indicator_id': str(row[3]),
-                'indicator_name': row[17],
-                'round_id': str(row[4]) if row[4] else None,
-                'version': row[5],
-                'n_trials': row[6],
-                'n_covered': row[7],
-                'exceedance_probability': float(row[8]) if row[8] is not None else 0,
-                'exceedance_uncertainty': float(row[9]) if row[9] is not None else 0,
-                'prevalence_bci_width': float(row[10]) if row[10] is not None else 0,
-                'prevalence_prediction': float(row[11]) if row[11] is not None else 0,
-                'latitude': float(row[12]) if row[12] is not None else None,
-                'longitude': float(row[13]) if row[13] is not None else None,
+                'indicator_name': row[16],
+                'version': row[4],
+                'n_trials': row[5],
+                'n_covered': row[6],
+                'exceedance_probability': float(row[7]) if row[7] is not None else 0,
+                'exceedance_uncertainty': float(row[8]) if row[8] is not None else 0,
+                'prevalence_bci_width': float(row[9]) if row[9] is not None else 0,
+                'prevalence_prediction': float(row[10]) if row[10] is not None else 0,
+                'latitude': float(row[11]) if row[11] is not None else None,
+                'longitude': float(row[12]) if row[12] is not None else None,
+                'rounds': list(row[17]) if row[17] else []
             }
 
             # Merge with location properties
@@ -492,13 +479,10 @@ def list_coverage_versions(user, indicator_id):
             SELECT
                 c.version,
                 COUNT(*) as location_count,
-                MIN(c.created_at) as created_at,
-                c.round_id,
-                r.name as round_name
+                MIN(c.created_at) as created_at
             FROM coverage c
-            JOIN rounds r ON c.round_id = r.id
             WHERE c.indicator_id = %s
-            GROUP BY c.version, c.round_id, r.name
+            GROUP BY c.version
             ORDER BY c.version DESC
         """, (indicator_id,))
 
@@ -507,9 +491,7 @@ def list_coverage_versions(user, indicator_id):
             versions.append({
                 'version': row[0],
                 'location_count': row[1],
-                'created_at': row[2].isoformat() if row[2] else None,
-                'round_id': str(row[3]),
-                'round_name': row[4]
+                'created_at': row[2].isoformat() if row[2] else None
             })
 
         cursor.close()
@@ -534,12 +516,13 @@ def get_coverage_by_version(user, indicator_id, version):
 
         cursor.execute("""
             SELECT
-                c.id, c.location_id, c.area_id, c.indicator_id, c.round_id, c.version,
+                c.id, c.location_id, c.area_id, c.indicator_id, c.version,
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
                 c.created_at, c.updated_at,
-                l.latitude, l.longitude
+                l.latitude, l.longitude,
+                c.rounds
             FROM coverage c
             JOIN locations l ON c.location_id = l.id
             WHERE c.indicator_id = %s AND c.version = %s
@@ -553,18 +536,18 @@ def get_coverage_by_version(user, indicator_id, version):
                 'location_id': str(row[1]),
                 'area_id': str(row[2]),
                 'indicator_id': str(row[3]),
-                'round_id': str(row[4]),
-                'version': row[5],
-                'n_trials': row[6],
-                'n_covered': row[7],
-                'exceedance_probability': float(row[8]) if row[8] is not None else None,
-                'exceedance_uncertainty': float(row[9]) if row[9] is not None else None,
-                'prevalence_bci_width': float(row[10]) if row[10] is not None else None,
-                'prevalence_prediction': float(row[11]) if row[11] is not None else None,
-                'created_at': row[12].isoformat() if row[12] else None,
-                'updated_at': row[13].isoformat() if row[13] else None,
-                'latitude': float(row[14]) if row[14] is not None else None,
-                'longitude': float(row[15]) if row[15] is not None else None
+                'version': row[4],
+                'n_trials': row[5],
+                'n_covered': row[6],
+                'exceedance_probability': float(row[7]) if row[7] is not None else None,
+                'exceedance_uncertainty': float(row[8]) if row[8] is not None else None,
+                'prevalence_bci_width': float(row[9]) if row[9] is not None else None,
+                'prevalence_prediction': float(row[10]) if row[10] is not None else None,
+                'created_at': row[11].isoformat() if row[11] else None,
+                'updated_at': row[12].isoformat() if row[12] else None,
+                'latitude': float(row[13]) if row[13] is not None else None,
+                'longitude': float(row[14]) if row[14] is not None else None,
+                'rounds': list(row[15]) if row[15] else []
             })
 
         cursor.close()

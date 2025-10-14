@@ -10,6 +10,7 @@ interface MapViewProps {
   locations?: any | null;
   mode?: 'sampling' | 'prediction' | 'locations';
   highlightRounds?: number[];
+  showVisitLocations?: boolean;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -44,7 +45,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [] }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -97,6 +98,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
     if (mode === 'locations' && locations && locations.features) {
+      // If toggle is off, don't show any selected features
+      if (!showVisitLocations) {
+        return [];
+      }
       // If highlightRounds is specified and has values, only highlight those rounds
       if (highlightRounds && highlightRounds.length > 0) {
         return locations.features.filter(f => {
@@ -120,7 +125,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       );
     }
     return [];
-  }, [data, selectedData, mode, locations, highlightRounds]);
+  }, [data, selectedData, mode, locations, highlightRounds, showVisitLocations]);
 
   // Use mode prop to determine visualization type
   const isPredictionData = mode === 'prediction';

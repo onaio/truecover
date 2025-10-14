@@ -279,7 +279,6 @@ def run_migrations():
                 location_id UUID NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
                 area_id UUID NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
                 indicator_id UUID NOT NULL REFERENCES indicators(id) ON DELETE CASCADE,
-                round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
                 version INTEGER NOT NULL,
                 n_trials INTEGER NOT NULL,
                 n_covered INTEGER NOT NULL,
@@ -304,19 +303,55 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_coverage_indicator_id ON coverage(indicator_id);
         """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_coverage_round_id ON coverage(round_id);
-        """)
-        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_coverage_version ON coverage(indicator_id, version);
         """)
 
-        # Make round_id nullable in coverage table (for auto-population of locations before rounds exist)
+        # Add rounds column to coverage table (integer array to track which rounds include this location)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'coverage') THEN
+                    ALTER TABLE coverage ADD COLUMN IF NOT EXISTS rounds INTEGER[] DEFAULT '{}';
+                END IF;
+            END $$;
+        """)
+
+        # Create index on rounds column for faster lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_rounds ON coverage USING GIN(rounds);
+        """)
+
+        # Add indicator_id to rounds table
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'rounds') THEN
+                    -- Add indicator_id column (nullable initially to allow existing rows)
+                    ALTER TABLE rounds ADD COLUMN IF NOT EXISTS indicator_id UUID REFERENCES indicators(id) ON DELETE CASCADE;
+                END IF;
+            END $$;
+        """)
+
+        # Create index on indicator_id in rounds table
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rounds_indicator_id ON rounds(indicator_id);
+        """)
+
+        # Drop visit_indicators table (no longer used)
+        cursor.execute("""
+            DROP TABLE IF EXISTS visit_indicators CASCADE;
+        """)
+
+        # Drop round_id column from coverage table (replaced by rounds array)
         cursor.execute("""
             DO $$
             BEGIN
                 IF EXISTS (SELECT FROM information_schema.columns
                           WHERE table_name = 'coverage' AND column_name = 'round_id') THEN
-                    ALTER TABLE coverage ALTER COLUMN round_id DROP NOT NULL;
+                    -- Drop the index first
+                    DROP INDEX IF EXISTS idx_coverage_round_id;
+                    -- Then drop the column
+                    ALTER TABLE coverage DROP COLUMN round_id;
                 END IF;
             END $$;
         """)

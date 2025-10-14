@@ -49,13 +49,15 @@ const LocationsPage: React.FC = () => {
     handleLocationDeleted,
   } = useLocationsData();
 
-  const { getCoverageGeoJSON } = useCoverage();
+  const { getCoverageGeoJSON, listCoverage } = useCoverage();
   const [coverageGeoJSON, setCoverageGeoJSON] = useState<any>(null);
+  const [coverageData, setCoverageData] = useState<any[]>([]);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
 
   // Indicator and Round filters
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
-  const [selectedRoundId, setSelectedRoundId] = useState<string>('');
+  const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>(['all']);
+  const [showVisitLocations, setShowVisitLocations] = useState<boolean>(true);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
 
@@ -73,27 +75,71 @@ const LocationsPage: React.FC = () => {
     }
   }, [selectedArea?.id]);
 
-  // Load coverage GeoJSON for map visualization
+  // Load coverage GeoJSON for map visualization and coverage data for metrics
   useEffect(() => {
     const loadCoverage = async () => {
-      if (!selectedArea?.id) return;
+      if (!selectedArea?.id || !selectedIndicatorId) {
+        setCoverageGeoJSON(null);
+        setCoverageData([]);
+        return;
+      }
 
       setIsLoadingCoverage(true);
       try {
-        const geojson = await getCoverageGeoJSON({
-          area_id: selectedArea.id,
-        });
+        // If "all" is selected or multiple rounds, use undefined for round_id
+        const roundId = selectedRoundIds.includes('all') || selectedRoundIds.length === 0
+          ? undefined
+          : selectedRoundIds.length === 1
+            ? String(selectedRoundIds[0])
+            : undefined;
+
+        // Load both GeoJSON for map and coverage data for metrics
+        const [geojson, data] = await Promise.all([
+          getCoverageGeoJSON({
+            area_id: selectedArea.id,
+            indicator_id: selectedIndicatorId,
+            round_id: roundId,
+          }),
+          listCoverage({
+            area_id: selectedArea.id,
+            indicator_id: selectedIndicatorId,
+            round_id: roundId,
+          }),
+        ]);
+
         setCoverageGeoJSON(geojson);
+        setCoverageData(data);
       } catch (error) {
-        console.error('Error loading coverage GeoJSON:', error);
+        console.error('Error loading coverage data:', error);
         setCoverageGeoJSON(null);
+        setCoverageData([]);
       } finally {
         setIsLoadingCoverage(false);
       }
     };
 
     loadCoverage();
-  }, [selectedArea?.id]);
+  }, [selectedArea?.id, selectedIndicatorId, selectedRoundIds]);
+
+  // Update mapHighlightRounds based on toggle and selected rounds
+  useEffect(() => {
+    if (!showVisitLocations) {
+      // Toggle is off - don't highlight anything
+      setMapHighlightRounds([]);
+      return;
+    }
+
+    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+      // "All Rounds" selected - highlight all locations with any rounds data
+      setMapHighlightRounds([]);
+    } else {
+      // Specific rounds selected - find the round numbers
+      const roundNumbers = selectedRoundIds
+        .map(id => rounds?.find(r => r.id === id)?.round_number)
+        .filter((num): num is number => num !== undefined);
+      setMapHighlightRounds(roundNumbers);
+    }
+  }, [showVisitLocations, selectedRoundIds, rounds]);
 
   if (!selectedArea) {
     return null;
@@ -159,21 +205,25 @@ const LocationsPage: React.FC = () => {
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
                   {(() => {
                     const totalLocations = locations.features.length;
-                    let locationsToVisit = 0;
 
-                    // Filter locations based on mapHighlightRounds
-                    if (mapHighlightRounds.length === 0) {
-                      // Show all locations with any round data
-                      locationsToVisit = locations.features.filter((f: any) => {
-                        const rounds = f.properties?.rounds || [];
-                        return Array.isArray(rounds) && rounds.length > 0;
-                      }).length;
+                    // Count coverage table rows with rounds data matching selected filters
+                    let locationsToVisit = 0;
+                    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+                      // Count all records with any rounds data
+                      locationsToVisit = coverageData.filter(record =>
+                        record.rounds && record.rounds.length > 0
+                      ).length;
                     } else {
-                      // Show only locations in selected rounds
-                      locationsToVisit = locations.features.filter((f: any) => {
-                        const rounds = f.properties?.rounds || [];
-                        return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
-                      }).length;
+                      // Count records with rounds matching selected round IDs
+                      const selectedRoundNumbers = selectedRoundIds
+                        .map(id => rounds?.find(r => r.id === id)?.round_number)
+                        .filter((num): num is number => num !== undefined);
+
+                      locationsToVisit = coverageData.filter(record =>
+                        record.rounds &&
+                        record.rounds.length > 0 &&
+                        record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
+                      ).length;
                     }
 
                     const percentage = totalLocations > 0 ? Math.round((locationsToVisit / totalLocations) * 100) : 0;
@@ -200,7 +250,7 @@ const LocationsPage: React.FC = () => {
         ) : (
           <>
             {/* Filter Dropdowns Above Map */}
-            <div className="mb-4 flex gap-4">
+            <div className="mb-4 flex gap-4 items-center">
               {/* Indicator Filter */}
               <div className="w-64 text-lg">
                 <TacticalSelect
@@ -218,11 +268,11 @@ const LocationsPage: React.FC = () => {
 
               {/* Round Filter */}
               <div className="w-64 text-lg">
-                <TacticalSelect
-                  value={selectedRoundId}
-                  onChange={(value) => setSelectedRoundId(value)}
+                <TacticalMultiSelect
+                  value={selectedRoundIds}
+                  onChange={setSelectedRoundIds}
                   options={[
-                    { value: '', label: 'All Rounds' },
+                    { value: 'all', label: 'All Rounds' },
                     ...(rounds || []).map(round => ({
                       value: round.id,
                       label: round.name || `Round ${round.round_number}`
@@ -231,6 +281,16 @@ const LocationsPage: React.FC = () => {
                   placeholder="Filter by Round"
                 />
               </div>
+
+              {/* Visit Locations Toggle */}
+              <TacticalButton
+                variant={showVisitLocations ? "success" : "secondary"}
+                size="md"
+                isActive={showVisitLocations}
+                onClick={() => setShowVisitLocations(!showVisitLocations)}
+              >
+                Visit Locations
+              </TacticalButton>
             </div>
 
             {/* Map View */}
@@ -241,6 +301,7 @@ const LocationsPage: React.FC = () => {
                   locations={coverageGeoJSON?.features?.length > 0 ? coverageGeoJSON : locations}
                   mode="locations"
                   highlightRounds={mapHighlightRounds}
+                  showVisitLocations={showVisitLocations}
                 />
               ) : (
                 <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
@@ -256,7 +317,13 @@ const LocationsPage: React.FC = () => {
               areaId={selectedArea?.id || ''}
               projectId={selectedProject?.id || ''}
               selectedIndicatorId={selectedIndicatorId}
-              selectedRoundId={selectedRoundId}
+              selectedRoundId={
+                selectedRoundIds.includes('all') || selectedRoundIds.length === 0
+                  ? ''
+                  : selectedRoundIds.length === 1
+                    ? String(selectedRoundIds[0])
+                    : ''
+              }
             />
 
             {/* Rounds Manager */}
@@ -299,6 +366,7 @@ const LocationsPage: React.FC = () => {
                     )}
                   </>
                 }
+                defaultCollapsed={true}
                 collapsedSummary={(() => {
                   if (!locations || !locations.features) {
                     return '(Loading...)';

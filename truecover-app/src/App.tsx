@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage';
 import AdaptiveSamplingPage from './pages/AdaptiveSamplingPage';
 import CoveragePredictionPage from './pages/CoveragePredictionPage';
 import OrganizationManagementPage from './pages/OrganizationManagementPage';
+import TacticalShowcase from './pages/TacticalShowcase';
 import { LocationsWrapper } from './components/RouteWrappers';
 import CreateOrganizationModal from './components/CreateOrganizationModal';
 import CreateProjectModal from './components/CreateProjectModal';
@@ -62,7 +63,26 @@ const AppContent: React.FC = () => {
           </TacticalButton>
         )}
         {isSignedIn ? (
-          <UserButton afterSignOutUrl="/" />
+          <UserButton
+            afterSignOutUrl="/"
+            appearance={{
+              elements: {
+                userButtonBox: 'border-0',
+                userButtonTrigger: 'focus:shadow-none',
+                userButtonAvatarBox: 'border-0',
+                avatarBox: 'border-0',
+                userButtonPopoverCard: 'bg-black border border-white rounded-none shadow-none',
+                userButtonPopoverActions: 'border-t border-white',
+                userButtonPopoverActionButton: 'text-white hover:bg-white hover:text-black font-mono transition-colors',
+                userButtonPopoverActionButtonIcon: 'text-white',
+                userButtonPopoverActionButtonText: 'font-mono uppercase tracking-wider text-xs',
+                userButtonPopoverFooter: 'hidden',
+                userPreview: 'bg-black text-white',
+                userPreviewMainIdentifier: 'text-white font-mono',
+                userPreviewSecondaryIdentifier: 'text-gray-400 font-mono text-xs',
+              }
+            }}
+          />
         ) : (
           <SignInButton mode="modal">
             <TacticalButton variant="secondary" size="sm">
@@ -75,6 +95,7 @@ const AppContent: React.FC = () => {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/admin" element={<OrganizationManagementPage />} />
+        <Route path="/tactical" element={<TacticalShowcase />} />
         <Route path="/tools/adaptive-sampling" element={<AdaptiveSamplingPage />} />
         <Route path="/tools/coverage-prediction" element={<CoveragePredictionPage />} />
         <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId" element={<LocationsWrapper />} />

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TacticalModal, TacticalInput, TacticalButton, TacticalTextarea, TacticalSelect, TacticalDatePicker } from '../tactical-ui';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
+import { useIndicators } from '../hooks/useIndicators';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -9,6 +10,7 @@ interface CreateRoundModalProps {
   isOpen: boolean;
   onClose: () => void;
   areaId: string;
+  projectId: string;
   onRoundCreated: () => void;
 }
 
@@ -16,18 +18,28 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   isOpen,
   onClose,
   areaId,
+  projectId,
   onRoundCreated,
 }) => {
   const { getToken } = useAuth();
+  const { data: indicators } = useIndicators(projectId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState('');
   const [batchSize, setBatchSize] = useState('10');
   const [uncertaintyField, setUncertaintyField] = useState('prevalence_bci_width');
   const [allowRevisit, setAllowRevisit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-select first indicator when indicators load
+  useEffect(() => {
+    if (indicators && indicators.length > 0 && !selectedIndicatorId) {
+      setSelectedIndicatorId(indicators[0].id);
+    }
+  }, [indicators]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +47,11 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
 
     if (!name.trim()) {
       setError('Round name is required');
+      return;
+    }
+
+    if (!selectedIndicatorId) {
+      setError('Please select an indicator');
       return;
     }
 
@@ -56,6 +73,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           description: description.trim(),
           start_date: startDate || null,
           end_date: endDate || null,
+          indicator_id: selectedIndicatorId,
           batch_size: batchSizeNum,
           uncertainty_field: uncertaintyField,
           allow_revisit: allowRevisit,
@@ -74,6 +92,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         setDescription('');
         setStartDate('');
         setEndDate('');
+        setSelectedIndicatorId(indicators && indicators.length > 0 ? indicators[0].id : '');
         setBatchSize('10');
         setUncertaintyField('prevalence_bci_width');
         setAllowRevisit(false);
@@ -123,6 +142,21 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           onChange={setDescription}
           placeholder="Describe the purpose of this data collection round..."
           rows={3}
+          disabled={isSubmitting}
+        />
+
+        <TacticalSelect
+          label="Indicator"
+          value={selectedIndicatorId}
+          onChange={setSelectedIndicatorId}
+          options={
+            (indicators || []).map(ind => ({
+              value: ind.id,
+              label: ind.name
+            }))
+          }
+          placeholder="Select Indicator"
+          required
           disabled={isSubmitting}
         />
 

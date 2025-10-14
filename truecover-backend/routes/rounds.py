@@ -30,12 +30,16 @@ def create_round(user, area_id):
         description = data.get('description', '')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
+        indicator_id = data.get('indicator_id')
         batch_size = data.get('batch_size', 10)
         uncertainty_field = data.get('uncertainty_field', 'exceedance_uncertainty')
         allow_revisit = data.get('allow_revisit', False)
 
         if not name:
             return jsonify({'error': 'Round name is required'}), 400
+
+        if not indicator_id:
+            return jsonify({'error': 'Indicator ID is required'}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -50,26 +54,28 @@ def create_round(user, area_id):
 
         # Create the round
         cursor.execute("""
-            INSERT INTO rounds (area_id, round_number, name, description, start_date, end_date)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO rounds (area_id, round_number, name, description, start_date, end_date, indicator_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at
-        """, (area_id, round_number, name, description, start_date, end_date))
+        """, (area_id, round_number, name, description, start_date, end_date, indicator_id))
 
         round_data = cursor.fetchone()
         round_id = str(round_data[0])
 
-        # Fetch locations for this area
+        # Fetch coverage data for this area and indicator
         cursor.execute("""
             SELECT
-                id,
-                ST_AsGeoJSON(geometry) as geometry,
-                latitude, longitude,
-                exceedance_probability, exceedance_uncertainty,
-                prevalence_bci_width, prevalence_prediction,
-                adaptively_selected, properties, external_id
-            FROM locations
-            WHERE area_id = %s
-        """, (area_id,))
+                c.id as coverage_id,
+                c.location_id,
+                ST_AsGeoJSON(l.geometry) as geometry,
+                l.latitude, l.longitude,
+                c.exceedance_probability, c.exceedance_uncertainty,
+                c.prevalence_bci_width, c.prevalence_prediction,
+                l.properties, l.external_id
+            FROM coverage c
+            LEFT JOIN locations l ON c.location_id = l.id
+            WHERE c.area_id = %s AND c.indicator_id = %s
+        """, (area_id, indicator_id))
 
         locations = cursor.fetchall()
 
@@ -78,23 +84,24 @@ def create_round(user, area_id):
             cursor.close()
             return jsonify({'error': 'No locations found in this area'}), 400
 
-        # Convert locations to GeoJSON for adaptive sampling
+        # Convert coverage data to GeoJSON for adaptive sampling
         features = []
-        location_ids = {}
-        for idx, loc in enumerate(locations):
-            geometry = json.loads(loc[1]) if loc[1] else {
+        coverage_ids = {}  # Map feature index to coverage_id
+        for idx, cov in enumerate(locations):
+            coverage_id = str(cov[0])
+            location_id = str(cov[1])
+            geometry = json.loads(cov[2]) if cov[2] else {
                 'type': 'Point',
-                'coordinates': [float(loc[3]), float(loc[2])]
+                'coordinates': [float(cov[4]), float(cov[3])]
             }
 
-            properties = loc[9] if isinstance(loc[9], dict) else json.loads(loc[9]) if loc[9] else {}
-            external_id = loc[10]
+            properties = cov[9] if isinstance(cov[9], dict) else json.loads(cov[9]) if cov[9] else {}
+            external_id = cov[10]
             properties.update({
-                'exceedance_probability': float(loc[4]) if loc[4] else 0,
-                'exceedance_uncertainty': float(loc[5]) if loc[5] else 0,
-                'prevalence_bci_width': float(loc[6]) if loc[6] else 0,
-                'prevalence_prediction': float(loc[7]) if loc[7] else 0,
-                'adaptively_selected': loc[8] if loc[8] else 0,
+                'exceedance_probability': float(cov[5]) if cov[5] else 0,
+                'exceedance_uncertainty': float(cov[6]) if cov[6] else 0,
+                'prevalence_bci_width': float(cov[7]) if cov[7] else 0,
+                'prevalence_prediction': float(cov[8]) if cov[8] else 0,
                 'external_id': external_id,
             })
 
@@ -105,10 +112,10 @@ def create_round(user, area_id):
                 'properties': properties
             }
             features.append(feature)
-            # Map both by index and external_id for lookup
-            location_ids[idx] = str(loc[0])
+            # Map both by index and external_id to coverage_id for lookup
+            coverage_ids[idx] = coverage_id
             if external_id:
-                location_ids[external_id] = str(loc[0])
+                coverage_ids[external_id] = coverage_id
 
         geojson_data = {
             'type': 'FeatureCollection',
@@ -153,7 +160,7 @@ def create_round(user, area_id):
             # Debug logging
             print(f"DEBUG: Adaptive sampling returned {len(result.get('features', []))} features")
 
-            # Update locations with round assignment
+            # Update coverage.rounds array with round assignment
             selected_count = 0
             if result.get('features'):
                 for feature in result['features']:
@@ -165,19 +172,26 @@ def create_round(user, area_id):
                     print(f"DEBUG: Feature id={feature_id}, external_id={external_id}, adaptively_selected={adaptively_selected}")
 
                     if adaptively_selected == 1:
-                        # Try to find location_id using feature_id first, then external_id
-                        location_id = None
+                        # Try to find coverage_id using feature_id first, then external_id
+                        coverage_id = None
                         if feature_id is not None:
-                            location_id = location_ids.get(feature_id)
-                        if not location_id and external_id:
-                            location_id = location_ids.get(external_id)
+                            coverage_id = coverage_ids.get(feature_id)
+                        if not coverage_id and external_id:
+                            coverage_id = coverage_ids.get(external_id)
 
-                        print(f"DEBUG: Selected location -> location_id={location_id}")
-                        if location_id:
-                            print(f"DEBUG: Location {location_id} selected for round {round_number}")
+                        print(f"DEBUG: Selected location -> coverage_id={coverage_id}")
+                        if coverage_id:
+                            # Add round_number to coverage.rounds array
+                            cursor.execute("""
+                                UPDATE coverage
+                                SET rounds = array_append(rounds, %s),
+                                    updated_at = NOW()
+                                WHERE id = %s
+                            """, (round_number, coverage_id))
+                            print(f"DEBUG: Coverage {coverage_id} added to round {round_number}")
                             selected_count += 1
                         else:
-                            print(f"DEBUG: WARNING - Could not find location_id for feature {feature_id}/{external_id}")
+                            print(f"DEBUG: WARNING - Could not find coverage_id for feature {feature_id}/{external_id}")
 
             print(f"DEBUG: Total selected_count: {selected_count}")
 
@@ -243,10 +257,10 @@ def list_rounds(user, area_id):
 
         rounds = []
         for row in cursor.fetchall():
-            # Count locations in this round
+            # Count locations in this round (from coverage table)
             cursor.execute("""
-                SELECT COUNT(*)
-                FROM locations
+                SELECT COUNT(DISTINCT location_id)
+                FROM coverage
                 WHERE area_id = %s AND %s = ANY(rounds)
             """, (area_id, row[1]))
             location_count = cursor.fetchone()[0]
@@ -305,10 +319,10 @@ def get_round(user, area_id, round_id):
             cursor.close()
             return jsonify({'error': 'Round not found'}), 404
 
-        # Count locations in this round
+        # Count locations in this round (from coverage table)
         cursor.execute("""
-            SELECT COUNT(*)
-            FROM locations
+            SELECT COUNT(DISTINCT location_id)
+            FROM coverage
             WHERE area_id = %s AND %s = ANY(rounds)
         """, (area_id, row[1]))
         location_count = cursor.fetchone()[0]
@@ -400,7 +414,7 @@ def update_round(user, area_id, round_id):
 @rounds_bp.route('/api/areas/<area_id>/rounds/<round_id>', methods=['DELETE'])
 @require_auth
 def delete_round(user, area_id, round_id):
-    """Delete a round and remove it from all locations"""
+    """Delete a round and remove it from all coverage entries"""
     conn = None
     try:
         # Check if user has access to this area
@@ -423,9 +437,9 @@ def delete_round(user, area_id, round_id):
 
         round_number = result[0]
 
-        # Remove this round from all locations
+        # Remove this round from all coverage entries
         cursor.execute("""
-            UPDATE locations
+            UPDATE coverage
             SET rounds = array_remove(rounds, %s),
                 updated_at = NOW()
             WHERE area_id = %s AND %s = ANY(rounds)

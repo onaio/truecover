@@ -90,11 +90,47 @@ def create_visits_bulk(user):
                     actual_location_id = str(location_result[0])
                     new_locations += 1
 
-                # Create visit_indicator record using the shared upload_id
+                # Update coverage entry for this location + indicator
+                # Check if coverage entry exists for this location_id and indicator_id
                 cursor.execute("""
-                    INSERT INTO visit_indicators (upload_id, round_id, location_id, indicator_id, n_trials, n_covered)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (upload_id, round_id, actual_location_id, indicator_id, n_trials, n_covered))
+                    SELECT id, rounds FROM coverage
+                    WHERE location_id = %s AND indicator_id = %s
+                    LIMIT 1
+                """, (actual_location_id, indicator_id))
+
+                coverage_result = cursor.fetchone()
+
+                # Get the round number from round_id
+                cursor.execute("""
+                    SELECT round_number FROM rounds WHERE id = %s
+                """, (round_id,))
+                round_result = cursor.fetchone()
+                round_number = round_result[0] if round_result else None
+
+                if coverage_result:
+                    # Update existing coverage entry with new visit data
+                    # Add round_number to rounds array if not already present
+                    existing_rounds = coverage_result[1] if coverage_result[1] else []
+                    updated_rounds = list(set(existing_rounds + [round_number])) if round_number else existing_rounds
+
+                    cursor.execute("""
+                        UPDATE coverage
+                        SET n_trials = %s,
+                            n_covered = %s,
+                            rounds = %s,
+                            updated_at = NOW()
+                        WHERE id = %s
+                    """, (n_trials, n_covered, updated_rounds, coverage_result[0]))
+                else:
+                    # Only create new coverage entry if this is a new location_id
+                    initial_rounds = [round_number] if round_number else []
+                    cursor.execute("""
+                        INSERT INTO coverage (
+                            location_id, area_id, indicator_id,
+                            version, n_trials, n_covered, rounds
+                        )
+                        VALUES (%s, %s, %s, 0, %s, %s, %s)
+                    """, (actual_location_id, area_id, indicator_id, n_trials, n_covered, initial_rounds))
 
                 total_processed += 1
 

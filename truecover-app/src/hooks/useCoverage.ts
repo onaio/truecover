@@ -37,6 +37,7 @@ export interface CoverageRecord {
   longitude: number | null;
   external_id: string | null;
   indicator_name: string;
+  rounds: number[];
 }
 
 interface ListCoverageParams {

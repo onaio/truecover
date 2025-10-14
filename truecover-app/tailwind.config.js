@@ -55,6 +55,7 @@ module.exports = {
       },
       borderWidth: {
         '1': '1px',
+        '1.5': '1.5px',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
