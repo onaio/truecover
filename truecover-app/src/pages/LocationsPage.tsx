@@ -12,6 +12,7 @@ import LocationsTable from '../components/LocationsTable';
 import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
 import PredictedCoverageSection from '../components/PredictedCoverageSection';
+import DistributionHistogram from '../components/DistributionHistogram';
 import {
   TacticalCard,
   TacticalButton,
@@ -369,6 +370,14 @@ const LocationsPage: React.FC = () => {
                 </div>
               )}
             </TacticalCard>
+
+            {/* Distribution Histogram */}
+            <DistributionHistogram
+              data={coverageData}
+              mode={interpolationMode === 'coverage' ? 'coverage' : 'uncertainty'}
+              visible={interpolationMode === 'coverage' || interpolationMode === 'uncertainty'}
+              indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
+            />
 
             {/* Predicted Coverage Section */}
             <PredictedCoverageSection
