@@ -93,7 +93,23 @@ export function calculateJenksBreaks(data: number[], numClasses: number): number
   let k = n;
 
   for (let j = numClasses; j >= 2; j--) {
+    if (!mat1[k] || mat1[k][j] === undefined) {
+      console.warn('Jenks calculation error: invalid matrix access', { k, j, n, numClasses });
+      // Fallback to equal intervals
+      const min = sortedData[0];
+      const max = sortedData[n - 1];
+      const interval = (max - min) / numClasses;
+      return Array.from({ length: numClasses + 1 }, (_, i) => min + i * interval);
+    }
     const id = mat1[k][j] - 1;
+    if (id < 0 || id >= sortedData.length) {
+      console.warn('Jenks calculation error: invalid data index', { id, k, j, dataLength: sortedData.length });
+      // Fallback to equal intervals
+      const min = sortedData[0];
+      const max = sortedData[n - 1];
+      const interval = (max - min) / numClasses;
+      return Array.from({ length: numClasses + 1 }, (_, i) => min + i * interval);
+    }
     breaks.push(sortedData[id]);
     k = mat1[k][j] - 1;
   }
