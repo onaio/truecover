@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox';
 import type { LayerProps } from 'react-map-gl/mapbox';
 import { GeoJSONFeatureCollection } from '../types';
+import { createJenksColorExpression } from '../utils/jenksBreaks';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapViewProps {
@@ -45,6 +46,29 @@ const getCentroid = (geometry: any): [number, number] => {
 
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
+
+// Color palettes for Jenks classification
+const PREVALENCE_COLORS = [
+  '#1a9850',  // Dark green (low)
+  '#66bd63',  // Green
+  '#a6d96a',  // Green-yellow
+  '#d9ef8b',  // Light green-yellow
+  '#fee08b',  // Light yellow
+  '#fdae61',  // Orange
+  '#f46d43',  // Orange-red
+  '#d73027'   // Red (high)
+];
+
+const UNCERTAINTY_COLORS = [
+  '#1b7837',  // Dark green (low)
+  '#5aae61',  // Green
+  '#a6dba0',  // Light green
+  '#d9f0d3',  // Very light green
+  '#e7d4e8',  // Very light purple
+  '#c2a5cf',  // Light purple
+  '#9970ab',  // Purple
+  '#762a83'   // Dark purple (high)
+];
 
 const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
@@ -201,6 +225,42 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     }
 
     return { min, max };
+  }, [data, locations, mode]);
+
+  // Calculate Jenks breaks color expressions for coverage
+  const coverageJenksExpression = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return null;
+
+    const values: number[] = [];
+    dataSource.features.forEach(feature => {
+      const coverage = feature.properties?.prevalence_prediction;
+      if (typeof coverage === 'number' && !isNaN(coverage)) {
+        values.push(coverage);
+      }
+    });
+
+    if (values.length === 0) return null;
+
+    return createJenksColorExpression(values, 8, PREVALENCE_COLORS, 'prevalence_prediction');
+  }, [data, locations, mode]);
+
+  // Calculate Jenks breaks color expressions for uncertainty
+  const uncertaintyJenksExpression = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return null;
+
+    const values: number[] = [];
+    dataSource.features.forEach(feature => {
+      const uncertainty = feature.properties?.prevalence_bci_width;
+      if (typeof uncertainty === 'number' && !isNaN(uncertainty)) {
+        values.push(uncertainty);
+      }
+    });
+
+    if (values.length === 0) return null;
+
+    return createJenksColorExpression(values, 8, UNCERTAINTY_COLORS, 'prevalence_bci_width');
   }, [data, locations, mode]);
 
   // Early return AFTER all hooks
@@ -379,29 +439,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     type: 'fill',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'fill-color': interpolationMode === 'coverage' ? [
-        'interpolate',
-        ['linear'],
-        ['number', ['coalesce', ['get', 'prevalence_prediction'], (coverageRange.min + coverageRange.max) / 2]],
-        coverageRange.min, '#2166ac',
-        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.2, '#4393c3',
-        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.35, '#92c5de',
-        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.5, '#fddbc7',
-        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.65, '#f4a582',
-        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.8, '#d6604d',
-        coverageRange.max, '#b2182b'
-      ] : interpolationMode === 'uncertainty' ? [
-        'interpolate',
-        ['linear'],
-        ['number', ['coalesce', ['get', 'prevalence_bci_width'], (uncertaintyRange.min + uncertaintyRange.max) / 2]],
-        uncertaintyRange.min, '#ffffcc',
-        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.2, '#ffeda0',
-        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.4, '#fed976',
-        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.6, '#feb24c',
-        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.7, '#fd8d3c',
-        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.8, '#fc4e2a',
-        uncertaintyRange.max, '#e31a1c'
-      ] : '#999',
+      'fill-color': interpolationMode === 'coverage' && coverageJenksExpression
+        ? coverageJenksExpression
+        : interpolationMode === 'uncertainty' && uncertaintyJenksExpression
+          ? uncertaintyJenksExpression
+          : '#999',
       'fill-opacity': interpolationMode !== 'none' ? 0.8 : 0
     }
   };
@@ -614,11 +656,15 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               </div>
               <div className="flex flex-col mb-2">
                 <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
-                <div className="h-24 w-5 border border-tactical-border-dark"
-                  style={{
-                    background: 'linear-gradient(to bottom, #b2182b, #d6604d, #f4a582, #fddbc7, #92c5de, #4393c3, #2166ac)'
-                  }}
-                ></div>
+                <div className="flex flex-col w-24 border border-tactical-border-dark">
+                  {[...PREVALENCE_COLORS].reverse().map((color, idx) => (
+                    <div
+                      key={idx}
+                      className="h-3"
+                      style={{ backgroundColor: color }}
+                    ></div>
+                  ))}
+                </div>
                 <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
               </div>
               <div className="mt-3 pt-3 border-t border-tactical-border-medium">
@@ -646,11 +692,15 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               </div>
               <div className="flex flex-col mb-2">
                 <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
-                <div className="h-24 w-5 border border-tactical-border-dark"
-                  style={{
-                    background: 'linear-gradient(to bottom, #e31a1c, #fc4e2a, #fd8d3c, #feb24c, #fed976, #ffeda0, #ffffcc)'
-                  }}
-                ></div>
+                <div className="flex flex-col w-24 border border-tactical-border-dark">
+                  {[...UNCERTAINTY_COLORS].reverse().map((color, idx) => (
+                    <div
+                      key={idx}
+                      className="h-3"
+                      style={{ backgroundColor: color }}
+                    ></div>
+                  ))}
+                </div>
                 <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
               </div>
               <div className="mt-3 pt-3 border-t border-tactical-border-medium">
