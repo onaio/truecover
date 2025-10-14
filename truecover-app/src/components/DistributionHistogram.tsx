@@ -13,6 +13,7 @@ interface DistributionHistogramProps {
 
 const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mode, visible, indicatorName }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [numBins, setNumBins] = useState<number>(12);
 
   useEffect(() => {
