@@ -54,6 +54,7 @@ const LocationsPage: React.FC = () => {
   const [coverageGeoJSON, setCoverageGeoJSON] = useState<any>(null);
   const [coverageData, setCoverageData] = useState<any[]>([]);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
+  const [histogramBrushRanges, setHistogramBrushRanges] = useState<[number, number][] | null>(null);
 
   // Refresh key to trigger data reload after mutations
   const [refreshKey, setRefreshKey] = useState(0);
@@ -146,9 +147,36 @@ const LocationsPage: React.FC = () => {
     }
   }, [showVisitLocations, selectedRoundIds, rounds]);
 
+  // Clear histogram brush when interpolation mode changes
+  useEffect(() => {
+    setHistogramBrushRanges(null);
+  }, [interpolationMode]);
+
   if (!selectedArea) {
     return null;
   }
+
+  // Filter coverage GeoJSON based on histogram brush selection
+  const getFilteredCoverageGeoJSON = () => {
+    if (!coverageGeoJSON || !histogramBrushRanges || histogramBrushRanges.length === 0) {
+      return coverageGeoJSON;
+    }
+
+    const property = interpolationMode === 'coverage' ? 'prevalence_prediction' : 'prevalence_bci_width';
+
+    return {
+      ...coverageGeoJSON,
+      features: coverageGeoJSON.features.filter((feature: any) => {
+        const value = feature.properties[property];
+        if (typeof value !== 'number') return false;
+
+        // Check if value is in any of the selected ranges
+        return histogramBrushRanges.some(([min, max]) => value >= min && value <= max);
+      })
+    };
+  };
+
+  const filteredCoverageGeoJSON = getFilteredCoverageGeoJSON();
 
   return (
     <div className="min-h-screen bg-tactical-bg-primary">
@@ -353,10 +381,10 @@ const LocationsPage: React.FC = () => {
 
             {/* Map View */}
             <TacticalCard padding="none" className="mb-6">
-              {(coverageGeoJSON?.features?.length > 0 || (locations?.features?.length > 0)) ? (
+              {(filteredCoverageGeoJSON?.features?.length > 0 || (locations?.features?.length > 0)) ? (
                 <MapView
                   data={{ type: 'FeatureCollection', features: [] }}
-                  locations={coverageGeoJSON?.features?.length > 0 ? coverageGeoJSON : locations}
+                  locations={filteredCoverageGeoJSON?.features?.length > 0 ? filteredCoverageGeoJSON : locations}
                   mode="locations"
                   highlightRounds={mapHighlightRounds}
                   showVisitLocations={showVisitLocations}
@@ -365,7 +393,7 @@ const LocationsPage: React.FC = () => {
               ) : (
                 <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
                   <p className="text-tactical-text-dim">
-                    {isLoadingCoverage ? 'Loading coverage data...' : 'No data to display'}
+                    {isLoadingCoverage ? 'Loading coverage data...' : histogramBrushRanges && histogramBrushRanges.length > 0 ? 'No locations in selected ranges' : 'No data to display'}
                   </p>
                 </div>
               )}
@@ -377,6 +405,7 @@ const LocationsPage: React.FC = () => {
               mode={interpolationMode === 'coverage' ? 'coverage' : 'uncertainty'}
               visible={interpolationMode === 'coverage' || interpolationMode === 'uncertainty'}
               indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
+              onBrushChange={setHistogramBrushRanges}
             />
 
             {/* Predicted Coverage Section */}

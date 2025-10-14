@@ -10,13 +10,15 @@ interface DistributionHistogramProps {
   mode: 'coverage' | 'uncertainty';
   visible: boolean;
   indicatorName?: string;
+  onBrushChange?: (ranges: [number, number][] | null) => void;
 }
 
-const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mode, visible, indicatorName }) => {
+const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mode, visible, indicatorName, onBrushChange }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [numBins, setNumBins] = useState<number>(12);
   const [showColors, setShowColors] = useState<boolean>(true);
+  const [selectedRanges, setSelectedRanges] = useState<[number, number][]>([]);
 
   useEffect(() => {
     if (!containerRef.current || !visible || !data || data.length === 0) {
@@ -94,6 +96,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       marginRight: 20,
       marginTop: 20,
       marginBottom: 60,
+      insetLeft: 0.5,
       style: {
         background: '#0a0a0a',
         color: '#ffffff',
@@ -131,14 +134,30 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
     containerRef.current.innerHTML = '';
     containerRef.current.appendChild(plot);
 
-    // Add custom tooltip handlers
+    // Add custom tooltip and click handlers
     const rects = plot.querySelectorAll('rect');
     rects.forEach((rect, index) => {
       if (index < bins.length) {
         const bin = bins[index];
+
+        // Check if this bin is in the selected ranges
+        const isSelected = selectedRanges.some(range =>
+          bin.x0 === range[0] && bin.x1 === range[1]
+        );
+
+        // Add visual indicator for selected bins
+        if (isSelected) {
+          (rect as SVGRectElement).style.strokeWidth = '3';
+          (rect as SVGRectElement).style.stroke = showColors ? '#ffffff' : '#ff6600';
+        }
+
+        // Add cursor pointer to indicate clickability
+        (rect as SVGRectElement).style.cursor = 'pointer';
+
         rect.addEventListener('mouseenter', (e: MouseEvent) => {
           if (tooltipRef.current) {
-            tooltipRef.current.innerHTML = `${bin.x0.toFixed(3)} - ${bin.x1.toFixed(3)}<br/>${bin.count} locations`;
+            const action = isSelected ? 'click to unselect' : 'click to select';
+            tooltipRef.current.innerHTML = `${bin.x0.toFixed(3)} - ${bin.x1.toFixed(3)}<br/>${bin.count} locations<br/><i>(${action})</i>`;
             tooltipRef.current.style.display = 'block';
             tooltipRef.current.style.left = `${e.clientX + 10}px`;
             tooltipRef.current.style.top = `${e.clientY + 10}px`;
@@ -155,6 +174,30 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
             tooltipRef.current.style.display = 'none';
           }
         });
+        rect.addEventListener('click', () => {
+          const range: [number, number] = [bin.x0, bin.x1];
+
+          // Toggle selection
+          setSelectedRanges(prev => {
+            const isCurrentlySelected = prev.some(r => r[0] === range[0] && r[1] === range[1]);
+            let newRanges: [number, number][];
+
+            if (isCurrentlySelected) {
+              // Remove from selection
+              newRanges = prev.filter(r => !(r[0] === range[0] && r[1] === range[1]));
+            } else {
+              // Add to selection
+              newRanges = [...prev, range];
+            }
+
+            // Notify parent
+            if (onBrushChange) {
+              onBrushChange(newRanges.length > 0 ? newRanges : null);
+            }
+
+            return newRanges;
+          });
+        });
       }
     });
 
@@ -164,7 +207,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
         containerRef.current.innerHTML = '';
       }
     };
-  }, [data, mode, visible, numBins, showColors]);
+  }, [data, mode, visible, numBins, showColors, selectedRanges]);
 
   if (!visible) {
     return null;
@@ -179,6 +222,19 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           </h3>
         </div>
         <div className="flex items-center gap-2">
+          {selectedRanges.length > 0 && (
+            <button
+              onClick={() => {
+                setSelectedRanges([]);
+                if (onBrushChange) {
+                  onBrushChange(null);
+                }
+              }}
+              className="px-2 py-1 text-xs font-mono bg-tactical-accent-orange border border-tactical-accent-orange text-tactical-bg-primary cursor-pointer focus:outline-none hover:bg-tactical-bg-primary hover:text-tactical-accent-orange transition-colors"
+            >
+              Clear Filter ({selectedRanges.length})
+            </button>
+          )}
           <button
             onClick={() => setShowColors(!showColors)}
             className="px-2 py-1 text-xs font-mono bg-tactical-bg-primary border border-tactical-border-medium text-tactical-text-primary cursor-pointer focus:outline-none focus:border-tactical-accent-orange"
