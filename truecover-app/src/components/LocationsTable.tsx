@@ -27,7 +27,6 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
   // Define the columns based on the locations table schema
   const headers = [
     { key: 'external_id', label: 'External ID' },
-    { key: 'rounds', label: 'Rounds' },
     { key: 'latitude', label: 'Latitude' },
     { key: 'longitude', label: 'Longitude' },
   ];
@@ -50,33 +49,9 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
         <tbody>
           {features.map((feature: any, index: number) => {
             const props = feature.properties || {};
-            const roundsValue = props.rounds;
-
-            // Check if location has any rounds assigned
-            let isSelected = false;
-            let roundsArray: number[] = [];
-
-            if (Array.isArray(roundsValue)) {
-              roundsArray = roundsValue;
-            } else if (typeof roundsValue === 'string') {
-              try {
-                const parsed = JSON.parse(roundsValue);
-                if (Array.isArray(parsed)) {
-                  roundsArray = parsed;
-                }
-              } catch {
-                roundsArray = [];
-              }
-            }
-
-            isSelected = roundsArray.length > 0;
-
-            const rowClasses = isSelected
-              ? '!text-tactical-accent-green border-l-4 border-l-tactical-accent-green !font-bold'
-              : '';
 
             return (
-              <tr key={feature.id || index} className={rowClasses}>
+              <tr key={feature.id || index}>
                 {headers.map(header => {
                   const value = props[header.key];
 
@@ -99,45 +74,6 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
                     return (
                       <td key={header.key} title={displayValue}>
                         {displayValue.substring(0, 12)}...
-                      </td>
-                    );
-                  }
-
-                  // Special rendering for rounds array
-                  if (header.key === 'rounds') {
-                    // Handle rounds - could be array, string, or null
-                    let roundsArray: number[] = [];
-                    if (Array.isArray(value)) {
-                      roundsArray = value;
-                    } else if (typeof value === 'string') {
-                      try {
-                        // Try parsing if it's a JSON string like "[1,2]"
-                        const parsed = JSON.parse(value);
-                        if (Array.isArray(parsed)) {
-                          roundsArray = parsed;
-                        }
-                      } catch {
-                        // If parsing fails, treat as empty
-                        roundsArray = [];
-                      }
-                    }
-
-                    return (
-                      <td key={header.key} className="text-center">
-                        {roundsArray.length > 0 ? (
-                          <div className="flex gap-1 flex-wrap justify-center">
-                            {roundsArray.map((round) => (
-                              <span
-                                key={round}
-                                className="inline-block px-2 py-0.5 text-xs font-mono text-tactical-accent-green border border-tactical-accent-green"
-                              >
-                                {round}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-tactical-text-dim">-</span>
-                        )}
                       </td>
                     );
                   }

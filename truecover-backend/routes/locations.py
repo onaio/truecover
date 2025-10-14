@@ -78,6 +78,112 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     return None
 
 
+def populate_coverage_for_locations(cursor, area_id, new_location_ids):
+    """
+    Populate coverage table for newly added locations.
+    For each indicator in the project, create coverage entries for all new locations
+    with prediction values defaulting to 0 if not present in location properties.
+
+    Args:
+        cursor: Database cursor
+        area_id: UUID of the area
+        new_location_ids: List of UUIDs of newly inserted locations
+    """
+    if not new_location_ids:
+        return
+
+    try:
+        # Get the project_id from the area
+        cursor.execute("""
+            SELECT project_id FROM areas WHERE id = %s
+        """, (area_id,))
+        result = cursor.fetchone()
+        if not result:
+            print(f"Warning: Could not find area {area_id}")
+            return
+
+        project_id = result[0]
+
+        # Get all indicators for this project
+        cursor.execute("""
+            SELECT id FROM indicators WHERE project_id = %s
+        """, (project_id,))
+        indicators = cursor.fetchall()
+
+        if not indicators:
+            print(f"Info: No indicators found for project {project_id}, skipping coverage population")
+            return
+
+        # For each new location
+        for location_id in new_location_ids:
+            # Get location properties to extract prediction values
+            cursor.execute("""
+                SELECT properties FROM locations WHERE id = %s
+            """, (location_id,))
+            location_result = cursor.fetchone()
+
+            if not location_result:
+                continue
+
+            properties = location_result[0] if location_result[0] else {}
+
+            # Extract prediction values, defaulting to 0
+            exceedance_probability = properties.get('exceedance_probability', 0)
+            exceedance_uncertainty = properties.get('exceedance_uncertainty', 0)
+            prevalence_bci_width = properties.get('prevalence_bci_width', 0)
+            prevalence_prediction = properties.get('prevalence_prediction', 0)
+
+            # Ensure numeric types
+            try:
+                exceedance_probability = float(exceedance_probability) if exceedance_probability is not None else 0
+                exceedance_uncertainty = float(exceedance_uncertainty) if exceedance_uncertainty is not None else 0
+                prevalence_bci_width = float(prevalence_bci_width) if prevalence_bci_width is not None else 0
+                prevalence_prediction = float(prevalence_prediction) if prevalence_prediction is not None else 0
+            except (ValueError, TypeError):
+                # If conversion fails, default to 0
+                exceedance_probability = 0
+                exceedance_uncertainty = 0
+                prevalence_bci_width = 0
+                prevalence_prediction = 0
+
+            # For each indicator, create a coverage entry
+            for indicator_row in indicators:
+                indicator_id = indicator_row[0]
+
+                # Check if coverage entry already exists
+                cursor.execute("""
+                    SELECT id FROM coverage
+                    WHERE location_id = %s AND indicator_id = %s AND version = 0
+                """, (location_id, indicator_id))
+
+                if cursor.fetchone():
+                    # Entry already exists, skip
+                    continue
+
+                # Insert new coverage entry
+                cursor.execute("""
+                    INSERT INTO coverage (
+                        location_id, area_id, indicator_id, round_id,
+                        version, n_trials, n_covered,
+                        exceedance_probability, exceedance_uncertainty,
+                        prevalence_bci_width, prevalence_prediction
+                    )
+                    VALUES (%s, %s, %s, NULL, 0, 0, 0, %s, %s, %s, %s)
+                """, (
+                    location_id, area_id, indicator_id,
+                    exceedance_probability, exceedance_uncertainty,
+                    prevalence_bci_width, prevalence_prediction
+                ))
+
+        print(f"Populated coverage table for {len(new_location_ids)} locations × {len(indicators)} indicators")
+
+    except Exception as e:
+        print(f"Error populating coverage: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't raise - we don't want to fail the upload if coverage population fails
+
+
 @locations_bp.route('/api/areas/<area_id>/locations/upload', methods=['POST'])
 @require_auth
 def upload_locations(user, area_id):
@@ -182,6 +288,7 @@ def upload_locations(user, area_id):
         inserted_count = 0
         updated_count = 0
         errors = []
+        new_location_ids = []  # Track newly inserted location IDs for coverage population
 
         for idx, feature in enumerate(features):
             try:
@@ -237,16 +344,23 @@ def upload_locations(user, area_id):
                         VALUES (
                             %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s
                         )
+                        RETURNING id
                     """, (
                         area_id, external_id, geometry_wkt, lat, lng,
                         json.dumps(properties)
                     ))
+                    new_location_id = cursor.fetchone()[0]
+                    new_location_ids.append(str(new_location_id))
                     inserted_count += 1
 
             except Exception as e:
                 errors.append(f"Feature {idx + 1}: {str(e)}")
                 print(f"Error processing feature {idx + 1}: {e}")
                 continue
+
+        # Populate coverage table for new locations
+        if new_location_ids:
+            populate_coverage_for_locations(cursor, area_id, new_location_ids)
 
         conn.commit()
         cursor.close()
@@ -287,7 +401,7 @@ def list_locations(user, area_id):
                 ST_AsGeoJSON(geometry) as geometry,
                 latitude, longitude,
                 properties,
-                created_at, updated_at, rounds
+                created_at, updated_at
             FROM locations
             WHERE area_id = %s
             ORDER BY created_at DESC
@@ -312,7 +426,6 @@ def list_locations(user, area_id):
                 'external_id': row[1],
                 'latitude': float(row[3]) if row[3] else None,
                 'longitude': float(row[4]) if row[4] else None,
-                'rounds': row[8] if row[8] else [],
             })
 
             features.append({
@@ -369,33 +482,17 @@ def update_location(user, area_id, location_id):
             return jsonify({'error': 'Location not found'}), 404
 
         # Update location - excluding geometry, latitude, longitude
-        # Handle rounds array - if provided, update it directly
-        if 'rounds' in data:
-            cursor.execute("""
-                UPDATE locations
-                SET
-                    external_id = COALESCE(%s, external_id),
-                    rounds = %s,
-                    updated_at = NOW()
-                WHERE id = %s AND area_id = %s
-            """, (
-                data.get('external_id'),
-                data.get('rounds'),
-                location_id,
-                area_id
-            ))
-        else:
-            cursor.execute("""
-                UPDATE locations
-                SET
-                    external_id = COALESCE(%s, external_id),
-                    updated_at = NOW()
-                WHERE id = %s AND area_id = %s
-            """, (
-                data.get('external_id'),
-                location_id,
-                area_id
-            ))
+        cursor.execute("""
+            UPDATE locations
+            SET
+                external_id = COALESCE(%s, external_id),
+                updated_at = NOW()
+            WHERE id = %s AND area_id = %s
+        """, (
+            data.get('external_id'),
+            location_id,
+            area_id
+        ))
 
         conn.commit()
         cursor.close()

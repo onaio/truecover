@@ -173,19 +173,17 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_rounds_area_id ON rounds(area_id);
         """)
 
-        # Add rounds column to locations table to track which rounds selected each location
+        # Remove rounds column from locations table if it exists
         cursor.execute("""
             DO $$
             BEGIN
                 IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'locations') THEN
-                    ALTER TABLE locations ADD COLUMN IF NOT EXISTS rounds INTEGER[] DEFAULT '{}';
+                    -- Drop the GIN index first
+                    DROP INDEX IF EXISTS idx_locations_rounds;
+                    -- Then drop the column
+                    ALTER TABLE locations DROP COLUMN IF EXISTS rounds;
                 END IF;
             END $$;
-        """)
-
-        # Create GIN index on rounds array for efficient queries
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_locations_rounds ON locations USING GIN(rounds);
         """)
 
         # Create indicators table for project-level indicators
@@ -310,6 +308,17 @@ def run_migrations():
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_coverage_version ON coverage(indicator_id, version);
+        """)
+
+        # Make round_id nullable in coverage table (for auto-population of locations before rounds exist)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.columns
+                          WHERE table_name = 'coverage' AND column_name = 'round_id') THEN
+                    ALTER TABLE coverage ALTER COLUMN round_id DROP NOT NULL;
+                END IF;
+            END $$;
         """)
 
         conn.commit()

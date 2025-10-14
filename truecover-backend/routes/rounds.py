@@ -59,46 +59,24 @@ def create_round(user, area_id):
         round_id = str(round_data[0])
 
         # Fetch locations for this area
-        # If allow_revisit is False, exclude locations that have already been visited in previous rounds
-        if allow_revisit:
-            # Include all locations
-            cursor.execute("""
-                SELECT
-                    id,
-                    ST_AsGeoJSON(geometry) as geometry,
-                    latitude, longitude,
-                    exceedance_probability, exceedance_uncertainty,
-                    prevalence_bci_width, prevalence_prediction,
-                    adaptively_selected, properties, external_id,
-                    rounds
-                FROM locations
-                WHERE area_id = %s
-            """, (area_id,))
-        else:
-            # Exclude locations that have already been assigned to any round
-            cursor.execute("""
-                SELECT
-                    id,
-                    ST_AsGeoJSON(geometry) as geometry,
-                    latitude, longitude,
-                    exceedance_probability, exceedance_uncertainty,
-                    prevalence_bci_width, prevalence_prediction,
-                    adaptively_selected, properties, external_id,
-                    rounds
-                FROM locations
-                WHERE area_id = %s
-                AND (rounds IS NULL OR array_length(rounds, 1) IS NULL OR array_length(rounds, 1) = 0)
-            """, (area_id,))
+        cursor.execute("""
+            SELECT
+                id,
+                ST_AsGeoJSON(geometry) as geometry,
+                latitude, longitude,
+                exceedance_probability, exceedance_uncertainty,
+                prevalence_bci_width, prevalence_prediction,
+                adaptively_selected, properties, external_id
+            FROM locations
+            WHERE area_id = %s
+        """, (area_id,))
 
         locations = cursor.fetchall()
 
         if not locations:
             conn.rollback()
             cursor.close()
-            if allow_revisit:
-                return jsonify({'error': 'No locations found in this area'}), 400
-            else:
-                return jsonify({'error': 'No unvisited locations available. All locations have been assigned to previous rounds. Enable "Allow visit to same location" to select from all locations.'}), 400
+            return jsonify({'error': 'No locations found in this area'}), 400
 
         # Convert locations to GeoJSON for adaptive sampling
         features = []
@@ -196,14 +174,7 @@ def create_round(user, area_id):
 
                         print(f"DEBUG: Selected location -> location_id={location_id}")
                         if location_id:
-                            # Add this round to the location's rounds array
-                            print(f"DEBUG: Updating location {location_id} with round {round_number}")
-                            cursor.execute("""
-                                UPDATE locations
-                                SET rounds = array_append(rounds, %s),
-                                    updated_at = NOW()
-                                WHERE id = %s
-                            """, (round_number, location_id))
+                            print(f"DEBUG: Location {location_id} selected for round {round_number}")
                             selected_count += 1
                         else:
                             print(f"DEBUG: WARNING - Could not find location_id for feature {feature_id}/{external_id}")
