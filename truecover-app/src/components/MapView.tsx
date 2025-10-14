@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox';
 import type { LayerProps } from 'react-map-gl/mapbox';
 import { GeoJSONFeatureCollection } from '../types';
-import { createJenksColorExpression } from '../utils/jenksBreaks';
+import { createJenksColorExpression, PREVALENCE_COLORS, UNCERTAINTY_COLORS } from '../utils/jenksBreaks';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapViewProps {
@@ -46,29 +46,6 @@ const getCentroid = (geometry: any): [number, number] => {
 
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
-
-// Color palettes for Jenks classification
-const PREVALENCE_COLORS = [
-  '#d73027',  // Red (low)
-  '#f46d43',  // Orange-red
-  '#fdae61',  // Orange
-  '#fee08b',  // Light yellow
-  '#d9ef8b',  // Light green-yellow
-  '#a6d96a',  // Green-yellow
-  '#66bd63',  // Green
-  '#1a9850'   // Dark green (high)
-];
-
-const UNCERTAINTY_COLORS = [
-  '#1b7837',  // Dark green (low)
-  '#5aae61',  // Green
-  '#a6dba0',  // Light green
-  '#d9f0d3',  // Very light green
-  '#e7d4e8',  // Very light purple
-  '#c2a5cf',  // Light purple
-  '#9970ab',  // Purple
-  '#762a83'   // Dark purple (high)
-];
 
 const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
@@ -242,7 +219,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
     if (values.length === 0) return null;
 
-    return createJenksColorExpression(values, 8, PREVALENCE_COLORS, 'prevalence_prediction');
+    return createJenksColorExpression(values, PREVALENCE_COLORS.length, PREVALENCE_COLORS, 'prevalence_prediction');
   }, [data, locations, mode]);
 
   // Calculate Jenks breaks color expressions for uncertainty
@@ -260,7 +237,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
     if (values.length === 0) return null;
 
-    return createJenksColorExpression(values, 8, UNCERTAINTY_COLORS, 'prevalence_bci_width');
+    return createJenksColorExpression(values, UNCERTAINTY_COLORS.length, UNCERTAINTY_COLORS, 'prevalence_bci_width');
   }, [data, locations, mode]);
 
   // Early return AFTER all hooks
@@ -691,9 +668,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 Uncertainty (BCI Width)
               </div>
               <div className="flex flex-col mb-2">
-                <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
+                <span className="font-mono text-xs text-tactical-text-dim mb-1">Low (High Confidence)</span>
                 <div className="flex flex-col w-24 border border-tactical-border-dark">
-                  {[...UNCERTAINTY_COLORS].reverse().map((color, idx) => (
+                  {UNCERTAINTY_COLORS.map((color, idx) => (
                     <div
                       key={idx}
                       className="h-3"
@@ -701,7 +678,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     ></div>
                   ))}
                 </div>
-                <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
+                <span className="font-mono text-xs text-tactical-text-dim mt-1">High (Low Confidence)</span>
               </div>
               <div className="mt-3 pt-3 border-t border-tactical-border-medium">
                 <div className="flex items-center mb-2">

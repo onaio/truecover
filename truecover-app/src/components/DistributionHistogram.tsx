@@ -3,6 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as Plot from '@observablehq/plot';
+import { calculateJenksBreaks, PREVALENCE_COLORS, UNCERTAINTY_COLORS } from '../utils/jenksBreaks';
 
 interface DistributionHistogramProps {
   data: any[];
@@ -15,6 +16,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [numBins, setNumBins] = useState<number>(12);
+  const [showColors, setShowColors] = useState<boolean>(true);
 
   useEffect(() => {
     if (!containerRef.current || !visible || !data || data.length === 0) {
@@ -41,8 +43,34 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
     const max = Math.max(...values);
     const binWidth = (max - min) / numBins;
 
+    // Calculate Jenks breaks for coloring
+    const colorPalette = mode === 'coverage' ? PREVALENCE_COLORS : UNCERTAINTY_COLORS;
+    const jenksBreaks = showColors ? calculateJenksBreaks(values, colorPalette.length) : [];
+
+    // Helper function to get color for a bin based on Jenks breaks
+    const getBinColor = (binMin: number, binMax: number): string => {
+      if (!showColors || jenksBreaks.length === 0) return '#ffffff';
+
+      // Find which Jenks class has the most overlap with this bin
+      const binMid = (binMin + binMax) / 2;
+
+      // Handle bins below first break - use first color
+      if (binMid < jenksBreaks[0]) {
+        return colorPalette[0];
+      }
+
+      // Find which Jenks break interval contains the bin midpoint
+      for (let i = 0; i < jenksBreaks.length - 1; i++) {
+        if (binMid >= jenksBreaks[i] && binMid < jenksBreaks[i + 1]) {
+          return colorPalette[i] || '#ffffff';
+        }
+      }
+      // If at or beyond the last break
+      return colorPalette[colorPalette.length - 1] || '#ffffff';
+    };
+
     // Create bins
-    const bins: { x0: number; x1: number; count: number }[] = [];
+    const bins: { x0: number; x1: number; count: number; color: string }[] = [];
     const boundaries: number[] = [];
 
     for (let i = 0; i <= numBins; i++) {
@@ -53,8 +81,9 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       const x0 = boundaries[i];
       const x1 = boundaries[i + 1];
       const count = values.filter(v => v >= x0 && (i === numBins - 1 ? v <= x1 : v < x1)).length;
+      const color = getBinColor(x0, x1);
 
-      bins.push({ x0, x1, count });
+      bins.push({ x0, x1, count, color });
     }
 
     // Create the plot
@@ -90,7 +119,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           x1: 'x0',
           x2: 'x1',
           y: 'count',
-          fill: '#ffffff',
+          fill: 'color',
           stroke: '#333333',
           strokeWidth: 1
         }),
@@ -135,7 +164,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
         containerRef.current.innerHTML = '';
       }
     };
-  }, [data, mode, visible, numBins]);
+  }, [data, mode, visible, numBins, showColors]);
 
   if (!visible) {
     return null;
@@ -150,6 +179,12 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           </h3>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowColors(!showColors)}
+            className="px-2 py-1 text-xs font-mono bg-tactical-bg-primary border border-tactical-border-medium text-tactical-text-primary cursor-pointer focus:outline-none focus:border-tactical-accent-orange"
+          >
+            {showColors ? 'Colors: On' : 'Colors: Off'}
+          </button>
           <label className="text-xs text-tactical-text-dim font-mono">Bins:</label>
           <select
             value={numBins}

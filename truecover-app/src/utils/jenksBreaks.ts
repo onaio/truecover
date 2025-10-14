@@ -1,6 +1,35 @@
 // ABOUTME: Implements Jenks natural breaks classification algorithm
 // ABOUTME: Used for optimal choropleth map class breaks
 
+// Color palettes for Jenks classification (11 colors)
+export const PREVALENCE_COLORS = [
+  '#a50026',  // Dark red (low)
+  '#d73027',  // Red
+  '#f46d43',  // Orange-red
+  '#fdae61',  // Orange
+  '#fee08b',  // Light yellow
+  '#ffffbf',  // Pale yellow
+  '#d9ef8b',  // Light green-yellow
+  '#a6d96a',  // Green-yellow
+  '#66bd63',  // Green
+  '#1a9850',  // Dark green
+  '#006837'   // Very dark green (high)
+];
+
+export const UNCERTAINTY_COLORS = [
+  '#00441b',  // Very dark green (low - high confidence)
+  '#1b7837',  // Dark green
+  '#5aae61',  // Green
+  '#a6dba0',  // Light green
+  '#d9f0d3',  // Very light green
+  '#f7f7f7',  // White/neutral
+  '#e7d4e8',  // Very light purple
+  '#c2a5cf',  // Light purple
+  '#9970ab',  // Purple
+  '#762a83',  // Dark purple
+  '#40004b'   // Very dark purple (high - low confidence)
+];
+
 /**
  * Calculate Jenks natural breaks classification
  * This algorithm finds class breaks that minimize variance within classes
