@@ -110,6 +110,7 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
         """, (project_id,))
         indicators = cursor.fetchall()
 
+        print(f"Found {len(indicators)} indicators for project {project_id}")
         if not indicators:
             print(f"Info: No indicators found for project {project_id}, skipping coverage population")
             return
@@ -163,19 +164,20 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
                 # Insert new coverage entry
                 cursor.execute("""
                     INSERT INTO coverage (
-                        location_id, area_id, indicator_id, round_id,
+                        location_id, area_id, indicator_id,
                         version, n_trials, n_covered,
                         exceedance_probability, exceedance_uncertainty,
                         prevalence_bci_width, prevalence_prediction
                     )
-                    VALUES (%s, %s, %s, NULL, 0, 0, 0, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, 0, 0, 0, %s, %s, %s, %s)
                 """, (
                     location_id, area_id, indicator_id,
                     exceedance_probability, exceedance_uncertainty,
                     prevalence_bci_width, prevalence_prediction
                 ))
 
-        print(f"Populated coverage table for {len(new_location_ids)} locations × {len(indicators)} indicators")
+        expected_total = len(new_location_ids) * len(indicators)
+        print(f"Coverage population complete: processed {len(new_location_ids)} locations × {len(indicators)} indicators = {expected_total} total records")
 
     except Exception as e:
         print(f"Error populating coverage: {e}")
@@ -188,19 +190,30 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
 @require_auth
 def upload_locations(user, area_id):
     """Upload locations from GeoJSON or CSV file"""
+    print(f"===== LOCATION UPLOAD STARTED =====")
+    print(f"Area ID: {area_id}")
+    print(f"User ID: {user.get('id')}")
+
     conn = None
     try:
         # Check if user has access to this area
+        print(f"Checking area access...")
         if not check_area_access(user['id'], area_id):
+            print(f"ERROR: Access denied for user {user.get('id')} to area {area_id}")
             return jsonify({'error': 'Access denied'}), 403
+        print(f"Access check passed")
 
         # Check for file
         if 'file' not in request.files:
+            print(f"ERROR: No file in request.files")
             return jsonify({'error': 'No file provided'}), 400
 
         file = request.files['file']
         if file.filename == '':
+            print(f"ERROR: Empty filename")
             return jsonify({'error': 'No file selected'}), 400
+
+        print(f"File received: {file.filename}")
 
         # Get configuration from form data
         config = {}
@@ -211,32 +224,41 @@ def upload_locations(user, area_id):
         if request.form.get('externalIdColumn'):
             config['externalIdColumn'] = request.form.get('externalIdColumn')
 
-        print(f"DEBUG: Upload config received: {config}")
+        print(f"Upload config: {config}")
 
         filename = file.filename.lower()
+        print(f"Processing file type: {filename}")
 
         # Process file based on type
         features = []
         if filename.endswith('.geojson') or filename.endswith('.json'):
+            print(f"Parsing as GeoJSON...")
             # Parse GeoJSON
             content = file.read().decode('utf-8')
+            print(f"File content length: {len(content)} chars")
             data = json.loads(content)
 
             if data.get('type') == 'FeatureCollection':
                 features = data.get('features', [])
+                print(f"FeatureCollection with {len(features)} features")
             elif data.get('type') == 'Feature':
                 features = [data]
+                print(f"Single Feature")
             else:
+                print(f"ERROR: Invalid GeoJSON type: {data.get('type')}")
                 return jsonify({'error': 'Invalid GeoJSON format'}), 400
 
             # For GeoJSON, extract external_id from properties if externalIdColumn is specified
             ext_id_col = config.get('externalIdColumn')
             if ext_id_col:
+                print(f"Extracting external_id from column: {ext_id_col}")
                 for feature in features:
                     properties = feature.get('properties', {})
                     if ext_id_col in properties:
                         # Move the specified field to external_id
                         feature['properties']['external_id'] = properties[ext_id_col]
+            else:
+                print(f"WARNING: No externalIdColumn specified in config")
 
         elif filename.endswith('.csv'):
             # Parse CSV
@@ -279,11 +301,14 @@ def upload_locations(user, area_id):
                     print(f"Skipping row due to error: {e}")
                     continue
         else:
+            print(f"ERROR: Unsupported file format")
             return jsonify({'error': 'Unsupported file format. Use .geojson or .csv'}), 400
 
+        print(f"Starting database operations for {len(features)} features...")
         # Process features
         conn = get_db_connection()
         cursor = conn.cursor()
+        print(f"Database connection established")
 
         inserted_count = 0
         updated_count = 0
@@ -291,6 +316,8 @@ def upload_locations(user, area_id):
         new_location_ids = []  # Track newly inserted location IDs for coverage population
 
         for idx, feature in enumerate(features):
+            if idx % 10 == 0:
+                print(f"Processing feature {idx + 1}/{len(features)}...")
             try:
                 geometry = feature.get('geometry', {})
                 properties = feature.get('properties', {})
@@ -358,12 +385,20 @@ def upload_locations(user, area_id):
                 print(f"Error processing feature {idx + 1}: {e}")
                 continue
 
+        print(f"Feature processing complete. Inserted: {inserted_count}, Updated: {updated_count}, Errors: {len(errors)}")
+
         # Populate coverage table for new locations
         if new_location_ids:
+            print(f"Populating coverage for {len(new_location_ids)} new locations...")
             populate_coverage_for_locations(cursor, area_id, new_location_ids)
+            print(f"Coverage population complete")
+        else:
+            print(f"No new locations to populate coverage for")
 
+        print(f"Committing transaction...")
         conn.commit()
         cursor.close()
+        print(f"===== LOCATION UPLOAD COMPLETED SUCCESSFULLY =====")
 
         return jsonify({
             'success': True,
@@ -375,7 +410,10 @@ def upload_locations(user, area_id):
     except Exception as e:
         if conn:
             conn.rollback()
+        print(f"===== LOCATION UPLOAD FAILED =====")
         print(f"Error uploading locations: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Failed to upload locations', 'details': str(e)}), 500
     finally:
         if conn:

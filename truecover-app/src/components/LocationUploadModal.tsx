@@ -98,6 +98,12 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
       return;
     }
 
+    // Validate external ID column is provided
+    if (!externalIdColumn.trim()) {
+      setError('ID column is required');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -252,17 +258,17 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
           <div>
             <TacticalSelect
               id="externalIdColumn"
-              label="ID Column (Optional)"
+              label="ID Column *"
               value={externalIdColumn}
               onChange={setExternalIdColumn}
               options={[
-                { value: '', label: 'Select a field...' },
+                { value: '', label: '-- Select ID field (required) --' },
                 ...availableFields.map(field => ({ value: field, label: field }))
               ]}
               disabled={isLoading || availableFields.length === 0}
             />
             <p className="text-xs text-tactical-text-dim mt-1 font-mono">
-              Used for duplicate detection and updates
+              <span className="text-tactical-accent-orange">Required:</span> Used for duplicate detection and updates
             </p>
           </div>
         )}
@@ -279,7 +285,7 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
           <TacticalButton
             type="submit"
             variant="primary"
-            disabled={isLoading || !file || !area || (isCsv && (!latColumn.trim() || !lngColumn.trim()))}
+            disabled={isLoading || !file || !area || (isCsv && (!latColumn.trim() || !lngColumn.trim())) || !externalIdColumn.trim()}
           >
             {isLoading ? (
               <span className="tactical-loading-dots">

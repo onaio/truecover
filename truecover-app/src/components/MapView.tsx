@@ -11,6 +11,7 @@ interface MapViewProps {
   mode?: 'sampling' | 'prediction' | 'locations';
   highlightRounds?: number[];
   showVisitLocations?: boolean;
+  interpolationMode?: 'none' | 'coverage' | 'uncertainty';
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -45,7 +46,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none' }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -156,6 +157,52 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     return { min, max };
   }, [displayData]);
 
+  // Calculate coverage range for interpolation
+  const coverageRange = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return { min: 0, max: 1 };
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    dataSource.features.forEach(feature => {
+      const coverage = feature.properties?.prevalence_prediction;
+      if (typeof coverage === 'number' && !isNaN(coverage)) {
+        min = Math.min(min, coverage);
+        max = Math.max(max, coverage);
+      }
+    });
+
+    if (min === Infinity || max === -Infinity) {
+      return { min: 0, max: 1 };
+    }
+
+    return { min, max };
+  }, [data, locations, mode]);
+
+  // Calculate uncertainty range for interpolation
+  const uncertaintyRange = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return { min: 0, max: 1 };
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    dataSource.features.forEach(feature => {
+      const uncertainty = feature.properties?.prevalence_bci_width;
+      if (typeof uncertainty === 'number' && !isNaN(uncertainty)) {
+        min = Math.min(min, uncertainty);
+        max = Math.max(max, uncertainty);
+      }
+    });
+
+    if (min === Infinity || max === -Infinity) {
+      return { min: 0, max: 1 };
+    }
+
+    return { min, max };
+  }, [data, locations, mode]);
+
   // Early return AFTER all hooks
   if (!mapboxToken) {
     return (
@@ -188,7 +235,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     features: selectedFeatures
   };
 
-  // Heatmap layer for smooth interpolation
+  // Heatmap layer for smooth interpolation (used in prediction mode)
   const heatmapLayer: LayerProps = {
     id: 'prediction-heatmap',
     type: 'heatmap',
@@ -332,8 +379,30 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     type: 'fill',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'fill-color': '#999',
-      'fill-opacity': 0
+      'fill-color': interpolationMode === 'coverage' ? [
+        'interpolate',
+        ['linear'],
+        ['number', ['coalesce', ['get', 'prevalence_prediction'], (coverageRange.min + coverageRange.max) / 2]],
+        coverageRange.min, '#2166ac',
+        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.2, '#4393c3',
+        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.35, '#92c5de',
+        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.5, '#fddbc7',
+        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.65, '#f4a582',
+        coverageRange.min + (coverageRange.max - coverageRange.min) * 0.8, '#d6604d',
+        coverageRange.max, '#b2182b'
+      ] : interpolationMode === 'uncertainty' ? [
+        'interpolate',
+        ['linear'],
+        ['number', ['coalesce', ['get', 'prevalence_bci_width'], (uncertaintyRange.min + uncertaintyRange.max) / 2]],
+        uncertaintyRange.min, '#ffffcc',
+        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.2, '#ffeda0',
+        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.4, '#fed976',
+        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.6, '#feb24c',
+        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.7, '#fd8d3c',
+        uncertaintyRange.min + (uncertaintyRange.max - uncertaintyRange.min) * 0.8, '#fc4e2a',
+        uncertaintyRange.max, '#e31a1c'
+      ] : '#999',
+      'fill-opacity': interpolationMode !== 'none' ? 0.8 : 0
     }
   };
 
@@ -353,8 +422,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     type: 'fill',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'fill-color': '#28a745',
-      'fill-opacity': 0.95
+      // When both visit locations AND interpolation are active, make fill transparent
+      'fill-color': (showVisitLocations && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
+      'fill-opacity': (showVisitLocations && interpolationMode !== 'none') ? 0 : 0.95
     }
   };
 
@@ -376,10 +446,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': 3,
-      'circle-color': '#999',
-      'circle-opacity': 0.2,
-      'circle-stroke-width': 1,
-      'circle-stroke-color': '#666'
+      // When interpolation is active, make fill transparent to see heatmap underneath
+      'circle-color': interpolationMode !== 'none' ? 'rgba(153, 153, 153, 0)' : '#999',
+      'circle-opacity': interpolationMode !== 'none' ? 1 : 0.2,
+      'circle-stroke-width': interpolationMode !== 'none' ? 1 : 1,
+      'circle-stroke-color': interpolationMode !== 'none' ? 'rgba(255, 255, 255, 0.5)' : '#666'
     }
   };
 
@@ -389,7 +460,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': 3,
-      'circle-color': '#28a745',
+      // When both visit locations AND interpolation are active, make fill transparent
+      'circle-color': (showVisitLocations && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
       'circle-opacity': 1,
       'circle-stroke-width': 2,
       'circle-stroke-color': '#28a745'
@@ -436,7 +508,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </Source>
           ) : (
             <>
-              {/* All features layer */}
+              {/* All features layer - colored by coverage or uncertainty when active */}
               <Source id="all-source" type="geojson" data={primaryData as any}>
                 <Layer {...allPolygonsFillLayer} />
                 <Layer {...allPolygonsOutlineLayer} />
@@ -465,13 +537,28 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               closeOnClick={false}
               className="tactical-popup"
             >
-              <div className="bg-tactical-bg-primary border border-tactical-border-medium p-3" style={{ maxWidth: '300px' }}>
-                <div className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-                  Properties
+              <div className="bg-tactical-bg-primary border border-tactical-border-medium p-4" style={{ minWidth: '400px', maxWidth: '500px' }}>
+                <div className="text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                  Location Properties
                 </div>
-                <pre className="text-xs font-mono text-tactical-text-secondary bg-tactical-bg-tertiary border border-tactical-border-light p-2 overflow-auto tactical-scrollbar" style={{ maxHeight: '200px' }}>
-                  {JSON.stringify(popupInfo.properties, null, 2)}
-                </pre>
+                <div className="overflow-auto tactical-scrollbar" style={{ maxHeight: '400px' }}>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {Object.entries(popupInfo.properties || {})
+                        .filter(([key]) => key !== 'bbox')
+                        .map(([key, value]) => (
+                          <tr key={key} className="border-b border-tactical-border-medium">
+                            <td className="py-2 pr-4 font-mono font-bold text-tactical-text-muted align-top" style={{ minWidth: '150px' }}>
+                              {key}
+                            </td>
+                            <td className="py-2 font-mono text-tactical-text-secondary break-all">
+                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </Popup>
           )}
@@ -506,17 +593,81 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               <div className="mb-2 font-mono text-xs text-tactical-text-muted">
                 Predicted Prevalence
               </div>
-              <div className="h-24 w-5 mb-2 border border-tactical-border-dark"
-                style={{
-                  background: 'linear-gradient(to top, #2166ac, #4393c3, #92c5de, #fddbc7, #f4a582, #d6604d, #b2182b)'
-                }}
-              ></div>
-              <div className="flex justify-between font-mono text-xs text-tactical-text-dim">
-                <span>Low</span>
-                <span>High</span>
+              <div className="flex flex-col mb-2">
+                <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
+                <div className="h-24 w-5 border border-tactical-border-dark"
+                  style={{
+                    background: 'linear-gradient(to bottom, #b2182b, #d6604d, #f4a582, #fddbc7, #92c5de, #4393c3, #2166ac)'
+                  }}
+                ></div>
+                <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
               </div>
               <div className="mt-2 font-mono text-xs text-tactical-text-muted">
                 {displayData.features.length} prediction points
+              </div>
+            </div>
+          ) : interpolationMode === 'coverage' ? (
+            /* Coverage interpolation legend */
+            <div>
+              <div className="mb-2 font-mono text-xs text-tactical-text-muted">
+                Coverage (Prevalence)
+              </div>
+              <div className="flex flex-col mb-2">
+                <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
+                <div className="h-24 w-5 border border-tactical-border-dark"
+                  style={{
+                    background: 'linear-gradient(to bottom, #b2182b, #d6604d, #f4a582, #fddbc7, #92c5de, #4393c3, #2166ac)'
+                  }}
+                ></div>
+                <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-tactical-border-medium">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                  <span className="font-mono text-xs text-tactical-text-muted">
+                    Locations ({primaryData.features.length})
+                  </span>
+                </div>
+                {selectedFeatures.length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
+                    <span className="font-mono text-xs text-tactical-text-muted">
+                      To visit ({selectedFeatures.length})
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : interpolationMode === 'uncertainty' ? (
+            /* Uncertainty interpolation legend */
+            <div>
+              <div className="mb-2 font-mono text-xs text-tactical-text-muted">
+                Uncertainty (BCI Width)
+              </div>
+              <div className="flex flex-col mb-2">
+                <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
+                <div className="h-24 w-5 border border-tactical-border-dark"
+                  style={{
+                    background: 'linear-gradient(to bottom, #e31a1c, #fc4e2a, #fd8d3c, #feb24c, #fed976, #ffeda0, #ffffcc)'
+                  }}
+                ></div>
+                <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-tactical-border-medium">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                  <span className="font-mono text-xs text-tactical-text-muted">
+                    Locations ({primaryData.features.length})
+                  </span>
+                </div>
+                {selectedFeatures.length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
+                    <span className="font-mono text-xs text-tactical-text-muted">
+                      To visit ({selectedFeatures.length})
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

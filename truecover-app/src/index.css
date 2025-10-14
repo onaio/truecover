@@ -25,22 +25,29 @@ code {
   padding: 0 !important;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+  position: relative !important;
 }
 
 .tactical-popup .mapboxgl-popup-close-button {
-  color: #00ff00 !important;
-  font-size: 18px !important;
+  color: #ffffff !important;
+  font-size: 20px !important;
   font-weight: bold !important;
-  padding: 4px 8px !important;
-  right: 4px !important;
-  top: 4px !important;
+  padding: 8px 12px !important;
+  position: absolute !important;
+  right: 8px !important;
+  top: 8px !important;
   background-color: transparent !important;
   border: none !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  line-height: 1 !important;
+  width: auto !important;
+  height: auto !important;
 }
 
 .tactical-popup .mapboxgl-popup-close-button:hover {
-  background-color: rgba(0, 255, 0, 0.1) !important;
-  color: #00ff00 !important;
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
 }
 
 .tactical-popup .mapboxgl-popup-tip {

@@ -54,10 +54,14 @@ const LocationsPage: React.FC = () => {
   const [coverageData, setCoverageData] = useState<any[]>([]);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
 
+  // Refresh key to trigger data reload after mutations
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // Indicator and Round filters
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>(['all']);
   const [showVisitLocations, setShowVisitLocations] = useState<boolean>(true);
+  const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty'>('none');
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
 
@@ -68,12 +72,12 @@ const LocationsPage: React.FC = () => {
     }
   }, [indicators]);
 
-  // Load locations when entering the page
+  // Load locations when entering the page or after data mutations
   useEffect(() => {
     if (selectedArea?.id) {
       loadLocations(selectedArea.id, setLocations);
     }
-  }, [selectedArea?.id]);
+  }, [selectedArea?.id, refreshKey]);
 
   // Load coverage GeoJSON for map visualization and coverage data for metrics
   useEffect(() => {
@@ -119,7 +123,7 @@ const LocationsPage: React.FC = () => {
     };
 
     loadCoverage();
-  }, [selectedArea?.id, selectedIndicatorId, selectedRoundIds]);
+  }, [selectedArea?.id, selectedIndicatorId, selectedRoundIds, refreshKey]);
 
   // Update mapHighlightRounds based on toggle and selected rounds
   useEffect(() => {
@@ -180,7 +184,7 @@ const LocationsPage: React.FC = () => {
         {/* Location Summary */}
         {locations && locations.features && (
           <>
-            <div className="mb-4 grid grid-cols-3 gap-4">
+            <div className="mb-4 grid grid-cols-4 gap-4">
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
@@ -224,6 +228,46 @@ const LocationsPage: React.FC = () => {
                     return (
                       <>
                         {locationsToVisit}
+                        <span className="text-lg text-tactical-text-dim ml-2">
+                          ({percentage}%)
+                        </span>
+                      </>
+                    );
+                  })()}
+                </p>
+              </div>
+              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Locations Visited</p>
+                <p className="text-3xl font-bold text-tactical-text-primary font-mono">
+                  {(() => {
+                    const totalLocations = locations.features.length;
+
+                    // Count coverage table rows where n_trials AND n_covered are both not 0
+                    let locationsVisited = 0;
+                    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+                      // Count all records with n_trials and n_covered both not 0
+                      locationsVisited = coverageData.filter(record =>
+                        record.n_trials !== 0 && record.n_covered !== 0
+                      ).length;
+                    } else {
+                      // Count records matching selected rounds with n_trials and n_covered both not 0
+                      const selectedRoundNumbers = selectedRoundIds
+                        .map(id => rounds?.find(r => r.id === id)?.round_number)
+                        .filter((num): num is number => num !== undefined);
+
+                      locationsVisited = coverageData.filter(record =>
+                        record.n_trials !== 0 &&
+                        record.n_covered !== 0 &&
+                        record.rounds &&
+                        record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
+                      ).length;
+                    }
+
+                    const percentage = totalLocations > 0 ? Math.round((locationsVisited / totalLocations) * 100) : 0;
+
+                    return (
+                      <>
+                        {locationsVisited}
                         <span className="text-lg text-tactical-text-dim ml-2">
                           ({percentage}%)
                         </span>
@@ -284,6 +328,26 @@ const LocationsPage: React.FC = () => {
               >
                 Visit Locations
               </TacticalButton>
+
+              {/* Coverage Toggle */}
+              <TacticalButton
+                variant={interpolationMode === 'coverage' ? "primary" : "secondary"}
+                size="md"
+                isActive={interpolationMode === 'coverage'}
+                onClick={() => setInterpolationMode(interpolationMode === 'coverage' ? 'none' : 'coverage')}
+              >
+                Coverage
+              </TacticalButton>
+
+              {/* Uncertainty Toggle */}
+              <TacticalButton
+                variant={interpolationMode === 'uncertainty' ? "primary" : "secondary"}
+                size="md"
+                isActive={interpolationMode === 'uncertainty'}
+                onClick={() => setInterpolationMode(interpolationMode === 'uncertainty' ? 'none' : 'uncertainty')}
+              >
+                Uncertainty
+              </TacticalButton>
             </div>
 
             {/* Map View */}
@@ -295,6 +359,7 @@ const LocationsPage: React.FC = () => {
                   mode="locations"
                   highlightRounds={mapHighlightRounds}
                   showVisitLocations={showVisitLocations}
+                  interpolationMode={interpolationMode}
                 />
               ) : (
                 <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
@@ -373,7 +438,10 @@ const LocationsPage: React.FC = () => {
         isOpen={isLocationUploadModalOpen}
         onClose={() => setIsLocationUploadModalOpen(false)}
         area={selectedArea}
-        onLocationsUploaded={() => handleLocationsUploaded(selectedArea.id, setLocations)}
+        onLocationsUploaded={() => {
+          handleLocationsUploaded(selectedArea.id, setLocations);
+          setRefreshKey(prev => prev + 1);
+        }}
       />
 
       {/* Location Edit Modal */}
@@ -384,8 +452,14 @@ const LocationsPage: React.FC = () => {
         }}
         location={selectedLocationForEdit}
         areaId={selectedArea?.id || ''}
-        onLocationUpdated={() => handleLocationUpdated(selectedArea.id, setLocations)}
-        onLocationDeleted={() => handleLocationDeleted(selectedArea.id, setLocations)}
+        onLocationUpdated={() => {
+          handleLocationUpdated(selectedArea.id, setLocations);
+          setRefreshKey(prev => prev + 1);
+        }}
+        onLocationDeleted={() => {
+          handleLocationDeleted(selectedArea.id, setLocations);
+          setRefreshKey(prev => prev + 1);
+        }}
       />
     </div>
   );
