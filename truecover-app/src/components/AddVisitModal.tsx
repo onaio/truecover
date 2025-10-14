@@ -31,8 +31,10 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
   const { getToken } = useAuth();
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewSummary, setPreviewSummary] = useState<any>(null);
   const [uploadSummary, setUploadSummary] = useState<any>(null);
 
   // Field mapping state
@@ -83,6 +85,122 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
   const handleContinueToStep2 = () => {
     console.log('Moving to step 2');
     setStep(2);
+  };
+
+  const handlePreviewValidation = async () => {
+    setError(null);
+    setPreviewSummary(null);
+
+    if (!fileData) {
+      setError('Please upload a file first');
+      return;
+    }
+
+    // Validate field mapping
+    if (!locationIdField) {
+      setError('Please select a Location ID field');
+      return;
+    }
+
+    if (!indicatorId) {
+      setError('Please select an indicator');
+      return;
+    }
+
+    if (!nTrialsField) {
+      setError('Please select the n_trials field');
+      return;
+    }
+
+    if (!nCoveredField) {
+      setError('Please select the n_covered field');
+      return;
+    }
+
+    setIsLoadingPreview(true);
+
+    try {
+      // Process each feature and build visits array
+      const features = fileData.data.features;
+      const visits = [];
+
+      for (const feature of features) {
+        const props = feature.properties || {};
+
+        // Extract coordinates - handle both Point and Polygon geometries
+        let longitude: number;
+        let latitude: number;
+
+        if (feature.geometry.type === 'Point') {
+          longitude = feature.geometry.coordinates[0];
+          latitude = feature.geometry.coordinates[1];
+        } else if (feature.geometry.type === 'Polygon') {
+          longitude = feature.geometry.coordinates[0][0][0];
+          latitude = feature.geometry.coordinates[0][0][1];
+        } else if (feature.geometry.type === 'MultiPolygon') {
+          longitude = feature.geometry.coordinates[0][0][0][0];
+          latitude = feature.geometry.coordinates[0][0][0][1];
+        } else {
+          console.warn(`Skipping feature: unsupported geometry type "${feature.geometry.type}"`);
+          continue;
+        }
+
+        // Extract values from mapped fields
+        const mappedLocationId = props[locationIdField];
+        const nTrials = parseInt(props[nTrialsField]);
+        const nCovered = parseInt(props[nCoveredField]);
+
+        // Validate extracted values
+        if (isNaN(nTrials) || isNaN(nCovered)) {
+          console.warn(`Skipping feature: invalid n_trials or n_covered`);
+          continue;
+        }
+
+        if (nCovered > nTrials) {
+          console.warn(`Skipping feature: n_covered (${nCovered}) > n_trials (${nTrials})`);
+          continue;
+        }
+
+        visits.push({
+          area_id: areaId,
+          round_id: selectedRoundId || roundId,
+          indicator_id: indicatorId,
+          location_id: mappedLocationId || null,
+          latitude,
+          longitude,
+          n_trials: nTrials,
+          n_covered: nCovered,
+          geometry: feature.geometry
+        });
+      }
+
+      // Call preview endpoint
+      const token = await getToken();
+      const response = await axios.post(
+        `${API_URL}/api/visits/bulk?preview=true`,
+        { visits },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const summary = response.data.summary;
+      setPreviewSummary(summary);
+      setStep(3);
+
+    } catch (err: any) {
+      console.error('Error generating preview:', err);
+      setError(
+        err.response?.data?.error ||
+        err.message ||
+        'Failed to generate preview'
+      );
+    } finally {
+      setIsLoadingPreview(false);
+    }
   };
 
   const resetFieldMapping = () => {
@@ -223,10 +341,11 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
 
   const handleClose = () => {
     console.log('handleClose called');
-    if (!isSubmitting) {
+    if (!isSubmitting && !isLoadingPreview) {
       setError(null);
       setFileData(null);
       setStep(1);
+      setPreviewSummary(null);
       setUploadSummary(null);
       resetFieldMapping();
       onClose();
@@ -236,8 +355,14 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
   const handleBackToStep1 = () => {
     setFileData(null);
     setStep(1);
+    setPreviewSummary(null);
     setUploadSummary(null);
     resetFieldMapping();
+  };
+
+  const handleBackToStep2 = () => {
+    setStep(2);
+    setPreviewSummary(null);
   };
 
   return (
@@ -261,6 +386,11 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
           <div className={`flex items-center gap-2 ${step === 2 ? 'opacity-100' : 'opacity-50'}`}>
             <TacticalBadge variant={step === 2 ? "primary" : "secondary"}>STEP 2</TacticalBadge>
             <span className="text-sm font-mono text-tactical-text-primary">Map Fields</span>
+          </div>
+          <div className="flex-1 h-px bg-tactical-border-medium"></div>
+          <div className={`flex items-center gap-2 ${step === 3 ? 'opacity-100' : 'opacity-50'}`}>
+            <TacticalBadge variant={step === 3 ? "primary" : "secondary"}>STEP 3</TacticalBadge>
+            <span className="text-sm font-mono text-tactical-text-primary">Review & Confirm</span>
           </div>
         </div>
 
@@ -436,31 +566,150 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
           </>
         )}
 
+        {/* Step 3: Preview Validation Results */}
+        {step === 3 && previewSummary && (
+          <>
+            <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+              <div className="flex items-center gap-2 mb-2">
+                <TacticalBadge variant="info">VALIDATION PREVIEW</TacticalBadge>
+              </div>
+              <div className="text-sm font-mono space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-tactical-text-dim">Total locations to process:</span>
+                  <span className="text-tactical-text-primary font-bold">{previewSummary.total_processed}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-tactical-text-dim">Matched by location ID:</span>
+                  <span className="text-tactical-accent-green font-bold">{previewSummary.matched_by_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-tactical-text-dim">Matched by proximity (within 50m):</span>
+                  <span className="text-tactical-accent-orange font-bold">{previewSummary.matched_by_proximity}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-tactical-text-dim">New locations to create:</span>
+                  <span className="text-tactical-accent-blue font-bold">{previewSummary.new_locations}</span>
+                </div>
+                {previewSummary.errors && previewSummary.errors.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-tactical-border-medium">
+                    <div className="text-tactical-accent-red font-bold mb-1">Validation Errors:</div>
+                    <div className="max-h-32 overflow-y-auto tactical-scrollbar">
+                      {previewSummary.errors.map((err: string, idx: number) => (
+                        <div key={idx} className="text-xs text-tactical-accent-red">{err}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 border border-tactical-accent-green bg-tactical-accent-green/10">
+              <p className="text-sm text-tactical-text-primary">
+                Review the validation results above. Click <strong>Confirm & Save</strong> to proceed with adding this visit data to the coverage table.
+              </p>
+            </div>
+
+            {/* Upload Summary (after final save) */}
+            {uploadSummary && (
+              <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+                <div className="flex items-center gap-2 mb-2">
+                  <TacticalBadge variant="success">UPLOAD COMPLETE</TacticalBadge>
+                </div>
+                <div className="text-sm font-mono space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-tactical-text-dim">Total processed:</span>
+                    <span className="text-tactical-text-primary font-bold">{uploadSummary.total_processed}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-tactical-text-dim">Matched by ID:</span>
+                    <span className="text-tactical-text-primary font-bold">{uploadSummary.matched_by_id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-tactical-text-dim">Matched by proximity:</span>
+                    <span className="text-tactical-text-primary font-bold">{uploadSummary.matched_by_proximity}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-tactical-text-dim">New locations created:</span>
+                    <span className="text-tactical-text-primary font-bold">{uploadSummary.new_locations}</span>
+                  </div>
+                  {uploadSummary.errors && uploadSummary.errors.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-tactical-border-medium">
+                      <div className="text-tactical-accent-red font-bold mb-1">Errors:</div>
+                      <div className="max-h-32 overflow-y-auto tactical-scrollbar">
+                        {uploadSummary.errors.map((err: string, idx: number) => (
+                          <div key={idx} className="text-xs text-tactical-accent-red">{err}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         {/* Footer buttons */}
         <div className="flex gap-3 justify-end pt-4 border-t border-tactical-border-medium">
           <TacticalButton
             type="button"
             variant="secondary"
             onClick={handleClose}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoadingPreview}
           >
             Cancel
           </TacticalButton>
 
           {step === 2 && (
-            <TacticalButton
-              type="submit"
-              variant="primary"
-              disabled={isSubmitting || !fileData}
-            >
-              {isSubmitting ? (
-                <span className="tactical-loading-dots">
-                  SAVING<span>.</span><span>.</span><span>.</span>
-                </span>
-              ) : (
-                'Save Visits'
-              )}
-            </TacticalButton>
+            <>
+              <TacticalButton
+                type="button"
+                variant="secondary"
+                onClick={handleBackToStep1}
+                disabled={isLoadingPreview}
+              >
+                ← Back
+              </TacticalButton>
+              <TacticalButton
+                type="button"
+                variant="primary"
+                onClick={handlePreviewValidation}
+                disabled={isLoadingPreview || !fileData}
+              >
+                {isLoadingPreview ? (
+                  <span className="tactical-loading-dots">
+                    VALIDATING<span>.</span><span>.</span><span>.</span>
+                  </span>
+                ) : (
+                  'Preview Validation →'
+                )}
+              </TacticalButton>
+            </>
+          )}
+
+          {step === 3 && !uploadSummary && (
+            <>
+              <TacticalButton
+                type="button"
+                variant="secondary"
+                onClick={handleBackToStep2}
+                disabled={isSubmitting}
+              >
+                ← Back
+              </TacticalButton>
+              <TacticalButton
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <span className="tactical-loading-dots">
+                    SAVING<span>.</span><span>.</span><span>.</span>
+                  </span>
+                ) : (
+                  'Confirm & Save'
+                )}
+              </TacticalButton>
+            </>
           )}
         </div>
       </form>

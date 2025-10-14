@@ -63,19 +63,37 @@ def create_round(user, area_id):
         round_id = str(round_data[0])
 
         # Fetch coverage data for this area and indicator
-        cursor.execute("""
-            SELECT
-                c.id as coverage_id,
-                c.location_id,
-                ST_AsGeoJSON(l.geometry) as geometry,
-                l.latitude, l.longitude,
-                c.exceedance_probability, c.exceedance_uncertainty,
-                c.prevalence_bci_width, c.prevalence_prediction,
-                l.properties, l.external_id
-            FROM coverage c
-            LEFT JOIN locations l ON c.location_id = l.id
-            WHERE c.area_id = %s AND c.indicator_id = %s
-        """, (area_id, indicator_id))
+        # If allow_revisit is False, exclude locations that already have rounds assigned
+        if allow_revisit:
+            cursor.execute("""
+                SELECT
+                    c.id as coverage_id,
+                    c.location_id,
+                    ST_AsGeoJSON(l.geometry) as geometry,
+                    l.latitude, l.longitude,
+                    c.exceedance_probability, c.exceedance_uncertainty,
+                    c.prevalence_bci_width, c.prevalence_prediction,
+                    l.properties, l.external_id
+                FROM coverage c
+                LEFT JOIN locations l ON c.location_id = l.id
+                WHERE c.area_id = %s AND c.indicator_id = %s
+            """, (area_id, indicator_id))
+        else:
+            # Only include locations that have NOT been visited in any round
+            cursor.execute("""
+                SELECT
+                    c.id as coverage_id,
+                    c.location_id,
+                    ST_AsGeoJSON(l.geometry) as geometry,
+                    l.latitude, l.longitude,
+                    c.exceedance_probability, c.exceedance_uncertainty,
+                    c.prevalence_bci_width, c.prevalence_prediction,
+                    l.properties, l.external_id
+                FROM coverage c
+                LEFT JOIN locations l ON c.location_id = l.id
+                WHERE c.area_id = %s AND c.indicator_id = %s
+                  AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
+            """, (area_id, indicator_id))
 
         locations = cursor.fetchall()
 

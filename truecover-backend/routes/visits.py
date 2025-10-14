@@ -34,10 +34,14 @@ def create_visits_bulk(user):
         if not check_area_access(user['id'], area_id):
             return jsonify({'error': 'Access denied'}), 403
 
+        # Check if this is a preview request
+        preview_mode = request.args.get('preview', '').lower() == 'true'
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        matched_locations = 0
+        matched_by_id = 0
+        matched_by_proximity = 0
         new_locations = 0
         total_processed = 0
         errors = []
@@ -64,8 +68,9 @@ def create_visits_bulk(user):
                     continue
 
                 actual_location_id = None
+                match_type = None
 
-                # Check if uploaded_location_id matches existing location
+                # Step 1: Check if uploaded_location_id matches existing location by ID
                 if uploaded_location_id:
                     cursor.execute("""
                         SELECT id FROM locations
@@ -75,62 +80,97 @@ def create_visits_bulk(user):
                     location_result = cursor.fetchone()
                     if location_result:
                         actual_location_id = str(location_result[0])
-                        matched_locations += 1
+                        matched_by_id += 1
+                        match_type = 'id'
 
-                # If no match or empty, create new location
+                # Step 2: If no ID match, try proximity match (within 50 meters)
                 if not actual_location_id:
-                    # Create geometry Point from coordinates
                     cursor.execute("""
-                        INSERT INTO locations (area_id, external_id, latitude, longitude, geometry)
-                        VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
-                        RETURNING id
-                    """, (area_id, uploaded_location_id, latitude, longitude, longitude, latitude))
+                        SELECT id, ST_Distance(
+                            geometry::geography,
+                            ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
+                        ) as distance
+                        FROM locations
+                        WHERE area_id = %s
+                          AND ST_DWithin(
+                              geometry::geography,
+                              ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
+                              50
+                          )
+                        ORDER BY distance
+                        LIMIT 1
+                    """, (longitude, latitude, area_id, longitude, latitude))
 
                     location_result = cursor.fetchone()
-                    actual_location_id = str(location_result[0])
-                    new_locations += 1
+                    if location_result:
+                        actual_location_id = str(location_result[0])
+                        matched_by_proximity += 1
+                        match_type = 'proximity'
 
-                # Update coverage entry for this location + indicator
-                # Check if coverage entry exists for this location_id and indicator_id
-                cursor.execute("""
-                    SELECT id, rounds FROM coverage
-                    WHERE location_id = %s AND indicator_id = %s
-                    LIMIT 1
-                """, (actual_location_id, indicator_id))
+                # Step 3: If no match, create new location
+                if not actual_location_id:
+                    # In preview mode, just count without creating
+                    if preview_mode:
+                        new_locations += 1
+                        match_type = 'new'
+                        total_processed += 1
+                        continue
+                    else:
+                        # Create geometry Point from coordinates
+                        cursor.execute("""
+                            INSERT INTO locations (area_id, external_id, latitude, longitude, geometry)
+                            VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+                            RETURNING id
+                        """, (area_id, uploaded_location_id, latitude, longitude, longitude, latitude))
 
-                coverage_result = cursor.fetchone()
+                        location_result = cursor.fetchone()
+                        actual_location_id = str(location_result[0])
+                        new_locations += 1
+                        match_type = 'new'
 
-                # Get the round number from round_id
-                cursor.execute("""
-                    SELECT round_number FROM rounds WHERE id = %s
-                """, (round_id,))
-                round_result = cursor.fetchone()
-                round_number = round_result[0] if round_result else None
-
-                if coverage_result:
-                    # Update existing coverage entry with new visit data
-                    # Add round_number to rounds array if not already present
-                    existing_rounds = coverage_result[1] if coverage_result[1] else []
-                    updated_rounds = list(set(existing_rounds + [round_number])) if round_number else existing_rounds
-
+                # In preview mode, skip database updates
+                if not preview_mode:
+                    # Update coverage entry for this location + indicator
+                    # Check if coverage entry exists for this location_id and indicator_id
                     cursor.execute("""
-                        UPDATE coverage
-                        SET n_trials = %s,
-                            n_covered = %s,
-                            rounds = %s,
-                            updated_at = NOW()
-                        WHERE id = %s
-                    """, (n_trials, n_covered, updated_rounds, coverage_result[0]))
-                else:
-                    # Only create new coverage entry if this is a new location_id
-                    initial_rounds = [round_number] if round_number else []
+                        SELECT id, rounds FROM coverage
+                        WHERE location_id = %s AND indicator_id = %s
+                        LIMIT 1
+                    """, (actual_location_id, indicator_id))
+
+                    coverage_result = cursor.fetchone()
+
+                    # Get the round number from round_id
                     cursor.execute("""
-                        INSERT INTO coverage (
-                            location_id, area_id, indicator_id,
-                            version, n_trials, n_covered, rounds
-                        )
-                        VALUES (%s, %s, %s, 0, %s, %s, %s)
-                    """, (actual_location_id, area_id, indicator_id, n_trials, n_covered, initial_rounds))
+                        SELECT round_number FROM rounds WHERE id = %s
+                    """, (round_id,))
+                    round_result = cursor.fetchone()
+                    round_number = round_result[0] if round_result else None
+
+                    if coverage_result:
+                        # Update existing coverage entry with new visit data
+                        # Add round_number to rounds array if not already present
+                        existing_rounds = coverage_result[1] if coverage_result[1] else []
+                        updated_rounds = list(set(existing_rounds + [round_number])) if round_number else existing_rounds
+
+                        cursor.execute("""
+                            UPDATE coverage
+                            SET n_trials = %s,
+                                n_covered = %s,
+                                rounds = %s,
+                                updated_at = NOW()
+                            WHERE id = %s
+                        """, (n_trials, n_covered, updated_rounds, coverage_result[0]))
+                    else:
+                        # Only create new coverage entry if this is a new location_id
+                        initial_rounds = [round_number] if round_number else []
+                        cursor.execute("""
+                            INSERT INTO coverage (
+                                location_id, area_id, indicator_id,
+                                version, n_trials, n_covered, rounds
+                            )
+                            VALUES (%s, %s, %s, 0, %s, %s, %s)
+                        """, (actual_location_id, area_id, indicator_id, n_trials, n_covered, initial_rounds))
 
                 total_processed += 1
 
@@ -138,14 +178,19 @@ def create_visits_bulk(user):
                 errors.append(f"Error processing location {uploaded_location_id or 'unknown'}: {str(e)}")
                 continue
 
-        conn.commit()
+        # Only commit if not in preview mode
+        if not preview_mode:
+            conn.commit()
+
         cursor.close()
 
         return jsonify({
             'success': True,
+            'preview': preview_mode,
             'summary': {
                 'total_processed': total_processed,
-                'matched_locations': matched_locations,
+                'matched_by_id': matched_by_id,
+                'matched_by_proximity': matched_by_proximity,
                 'new_locations': new_locations,
                 'errors': errors
             }

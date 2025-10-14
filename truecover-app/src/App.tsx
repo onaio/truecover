@@ -13,7 +13,6 @@ import { LocationsWrapper } from './components/RouteWrappers';
 import CreateOrganizationModal from './components/CreateOrganizationModal';
 import CreateProjectModal from './components/CreateProjectModal';
 import AddVisitModal from './components/AddVisitModal';
-import GenerateMockVisitDataModal from './components/GenerateMockVisitDataModal';
 import { TacticalButton } from './tactical-ui';
 
 const AppContent: React.FC = () => {
@@ -38,7 +37,6 @@ const AppContent: React.FC = () => {
 
   // Visit modal state - kept in App for global access
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = React.useState(false);
-  const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = React.useState(false);
   const [selectedRoundForVisit, setSelectedRoundForVisit] = React.useState<string>('');
 
   return (
@@ -151,12 +149,6 @@ const AppContent: React.FC = () => {
           }}
         />
       )}
-
-      {/* Generate Mock Visit Data Modal - Global */}
-      <GenerateMockVisitDataModal
-        isOpen={isGenerateMockDataModalOpen}
-        onClose={() => setIsGenerateMockDataModalOpen(false)}
-      />
     </div>
   );
 };

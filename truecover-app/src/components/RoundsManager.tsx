@@ -113,7 +113,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                 size="sm"
                 onClick={() => setIsExportModalOpen(true)}
               >
-                Export Locations
+                Export Locations to Visit
               </TacticalButton>
               <TacticalButton
                 variant="primary"
@@ -237,6 +237,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
         onClose={() => setIsExportModalOpen(false)}
         areaId={areaId}
         areaName={areaName}
+        projectId={projectId}
         locations={locations}
       />
     </>

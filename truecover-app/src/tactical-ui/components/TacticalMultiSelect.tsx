@@ -78,10 +78,22 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
 
   const getSelectedLabels = () => {
     if (value.length === 0) return placeholder;
-    return options
-      .filter(opt => value.includes(opt.value))
-      .map(opt => opt.label)
-      .join(', ');
+
+    const selectedOptions = options.filter(opt => value.includes(opt.value));
+
+    // If "all" is selected, just show that option's label
+    if (value.includes('all')) {
+      const allOption = selectedOptions.find(opt => opt.value === 'all');
+      return allOption?.label || placeholder;
+    }
+
+    // If only one option is selected, show its full label
+    if (selectedOptions.length === 1) {
+      return selectedOptions[0].label;
+    }
+
+    // If multiple options are selected, show count
+    return `${selectedOptions.length} Rounds Selected`;
   };
 
   return (

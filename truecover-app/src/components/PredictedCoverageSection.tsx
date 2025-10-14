@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { TacticalCard, TacticalButton, TacticalCollapsible } from '../tactical-ui';
 import PredictCoverageModal from './PredictCoverageModal';
+import GenerateMockVisitDataModal from './GenerateMockVisitDataModal';
+import AddVisitModal from './AddVisitModal';
 import { useCoverage, CoverageRecord } from '../hooks/useCoverage';
 
 interface PredictedCoverageSectionProps {
   areaId: string;
+  areaName: string;
   projectId: string;
   selectedIndicatorId: string;
   selectedRoundId: string;
@@ -12,11 +15,14 @@ interface PredictedCoverageSectionProps {
 
 const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   areaId,
+  areaName,
   projectId,
   selectedIndicatorId,
   selectedRoundId,
 }) => {
   const [isPredictCoverageModalOpen, setIsPredictCoverageModalOpen] = useState(false);
+  const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = useState(false);
+  const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
   const [coverageData, setCoverageData] = useState<CoverageRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -63,13 +69,29 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
           defaultCollapsed={false}
           collapsedSummary={`(${coverageData.length} ${coverageData.length === 1 ? 'Location' : 'Locations'})`}
           actionButton={
-            <TacticalButton
-              variant="primary"
-              size="sm"
-              onClick={() => setIsPredictCoverageModalOpen(true)}
-            >
-              Predict Coverage
-            </TacticalButton>
+            <div className="flex gap-2">
+              <TacticalButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsGenerateMockDataModalOpen(true)}
+              >
+                Generate Mock Data
+              </TacticalButton>
+              <TacticalButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsAddVisitModalOpen(true)}
+              >
+                Add Visit Data
+              </TacticalButton>
+              <TacticalButton
+                variant="primary"
+                size="sm"
+                onClick={() => setIsPredictCoverageModalOpen(true)}
+              >
+                Predict Coverage
+              </TacticalButton>
+            </div>
           }
         >
 
@@ -100,7 +122,6 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                     <th className="bg-tactical-bg-secondary">Exceedance Unc</th>
                     <th className="bg-tactical-bg-secondary">Prevalence BCI</th>
                     <th className="bg-tactical-bg-secondary">Prevalence Pred</th>
-                    <th className="bg-tactical-bg-secondary">Created At</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,11 +173,6 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                           ? record.prevalence_prediction.toFixed(3)
                           : '-'}
                       </td>
-                      <td className={rowTextColor}>
-                        {record.created_at
-                          ? new Date(record.created_at).toLocaleString()
-                          : '-'}
-                      </td>
                     </tr>
                     );
                   })}
@@ -172,6 +188,21 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
         onClose={handleModalClose}
         areaId={areaId}
         projectId={projectId}
+      />
+
+      <GenerateMockVisitDataModal
+        isOpen={isGenerateMockDataModalOpen}
+        onClose={() => setIsGenerateMockDataModalOpen(false)}
+      />
+
+      <AddVisitModal
+        isOpen={isAddVisitModalOpen}
+        onClose={() => setIsAddVisitModalOpen(false)}
+        areaId={areaId}
+        areaName={areaName}
+        roundId={selectedRoundId}
+        projectId={projectId}
+        onSuccess={loadCoverageData}
       />
     </>
   );

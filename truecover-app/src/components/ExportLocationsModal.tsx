@@ -1,12 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TacticalModal, TacticalButton, TacticalBadge, TacticalSelect } from '../tactical-ui';
 import { useRounds } from '../hooks/useRounds';
+import { useIndicators } from '../hooks/useIndicators';
+import { useCoverage } from '../hooks/useCoverage';
 
 interface ExportLocationsModalProps {
   isOpen: boolean;
   onClose: () => void;
   areaId: string;
   areaName: string;
+  projectId: string;
   locations: any; // GeoJSON FeatureCollection
 }
 
@@ -15,19 +18,61 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   onClose,
   areaId,
   areaName,
+  projectId,
   locations,
 }) => {
   const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
+  const { data: indicators = [] } = useIndicators(projectId);
+  const { listCoverage } = useCoverage();
+
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<string[]>([]);
+  const [coverageData, setCoverageData] = useState<any[]>([]);
+  const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [includeAllPoints, setIncludeAllPoints] = useState(true);
   const [exportFormat, setExportFormat] = useState<'geojson' | 'csv'>('geojson');
 
+  // Set default indicator when indicators load
+  useEffect(() => {
+    if (indicators && indicators.length > 0 && !selectedIndicatorId) {
+      setSelectedIndicatorId(indicators[0].id);
+    }
+  }, [indicators]);
+
+  // Load coverage data when indicator or rounds change
+  useEffect(() => {
+    const loadCoverageData = async () => {
+      if (!areaId || !selectedIndicatorId) {
+        setCoverageData([]);
+        return;
+      }
+
+      setIsLoadingCoverage(true);
+      try {
+        // Load all coverage data for the indicator
+        const data = await listCoverage({
+          area_id: areaId,
+          indicator_id: selectedIndicatorId,
+        });
+        setCoverageData(data);
+      } catch (error) {
+        console.error('Error loading coverage data:', error);
+        setCoverageData([]);
+      } finally {
+        setIsLoadingCoverage(false);
+      }
+    };
+
+    loadCoverageData();
+  }, [areaId, selectedIndicatorId]);
+
   // Calculate how many locations would be exported
   const exportCount = useMemo(() => {
-    if (!locations || !locations.features) return 0;
+    if (!coverageData || coverageData.length === 0) return 0;
 
     if (includeAllPoints) {
-      return locations.features.length;
+      // Count all coverage records with rounds data
+      return coverageData.filter(record => record.rounds && record.rounds.length > 0).length;
     }
 
     // Get the round numbers from selected round IDs
@@ -35,23 +80,23 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
       .filter(r => selectedRoundIds.includes(r.id))
       .map(r => r.round_number);
 
-    // Count locations that have data in selected rounds
-    return locations.features.filter((feature: any) => {
-      const locationRounds = feature.properties?.rounds || [];
+    // Count coverage records that have data in selected rounds
+    return coverageData.filter((record: any) => {
+      const recordRounds = record.rounds || [];
       return selectedRoundNumbers.some((roundNum: number) =>
-        locationRounds.includes(roundNum)
+        recordRounds.includes(roundNum)
       );
     }).length;
-  }, [locations, includeAllPoints, selectedRoundIds, rounds]);
+  }, [coverageData, includeAllPoints, selectedRoundIds, rounds]);
 
   const handleExport = () => {
-    if (!locations || !locations.features) {
-      alert('No location data available to export');
+    if (!coverageData || coverageData.length === 0) {
+      alert('No coverage data available to export');
       return;
     }
 
-    // Filter locations based on settings
-    let filteredFeatures = locations.features;
+    // Filter coverage data based on settings
+    let filteredData = coverageData.filter(record => record.rounds && record.rounds.length > 0);
 
     if (!includeAllPoints && selectedRoundIds.length > 0) {
       // Get the round numbers from selected round IDs
@@ -59,20 +104,25 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
         .filter(r => selectedRoundIds.includes(r.id))
         .map(r => r.round_number);
 
-      filteredFeatures = locations.features.filter((feature: any) => {
-        const locationRounds = feature.properties?.rounds || [];
+      filteredData = filteredData.filter((record: any) => {
+        const recordRounds = record.rounds || [];
         return selectedRoundNumbers.some((roundNum: number) =>
-          locationRounds.includes(roundNum)
+          recordRounds.includes(roundNum)
         );
       });
     }
 
-    // Create filename with area name, rounds (if selected), and timestamp
+    // Get indicator name
+    const indicator = indicators.find(ind => ind.id === selectedIndicatorId);
+    const indicatorName = indicator?.name || 'unknown';
+    const sanitizedIndicatorName = indicatorName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+    // Create filename with area name, indicator, rounds (if selected), and timestamp
     const timestamp = new Date().toISOString().split('T')[0];
     const sanitizedAreaName = areaName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
     // Build filename parts
-    let filename = `locations-export-${sanitizedAreaName}`;
+    let filename = `locations-to-visit-${sanitizedAreaName}-${sanitizedIndicatorName}`;
 
     // Include round numbers in filename if specific rounds are selected
     if (selectedRoundIds.length > 0) {
@@ -87,7 +137,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 
     if (exportFormat === 'csv') {
       // Export as CSV
-      const csvContent = convertToCSV(filteredFeatures);
+      const csvContent = convertCoverageToCSV(filteredData);
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -96,20 +146,43 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
       link.click();
       URL.revokeObjectURL(url);
     } else {
-      // Export as GeoJSON
+      // Export as GeoJSON - join with locations to get geometry
       const exportData = {
         type: 'FeatureCollection',
-        features: filteredFeatures.map((feature: any) => ({
-          type: 'Feature',
-          id: feature.id,
-          geometry: feature.geometry,
-          properties: {
-            location_id: feature.properties?.id || feature.id,
-            latitude: feature.properties?.latitude,
-            longitude: feature.properties?.longitude,
-            rounds: feature.properties?.rounds || []
-          }
-        }))
+        features: filteredData
+          .map((record: any) => {
+            // Find the matching location by location_id
+            const matchingLocation = locations?.features?.find((feature: any) =>
+              feature.properties?.id === record.location_id
+            );
+
+            // Skip if no matching location found (shouldn't happen but just in case)
+            if (!matchingLocation?.geometry) {
+              console.warn(`No geometry found for location ${record.location_id}`);
+              return null;
+            }
+
+            return {
+              type: 'Feature',
+              id: record.id,
+              geometry: matchingLocation.geometry,
+              properties: {
+                location_id: record.location_id,
+                external_id: record.external_id,
+                latitude: record.latitude,
+                longitude: record.longitude,
+                rounds: record.rounds,
+                indicator_name: record.indicator_name,
+                n_trials: record.n_trials,
+                n_covered: record.n_covered,
+                exceedance_probability: record.exceedance_probability,
+                exceedance_uncertainty: record.exceedance_uncertainty,
+                prevalence_bci_width: record.prevalence_bci_width,
+                prevalence_prediction: record.prevalence_prediction
+              }
+            };
+          })
+          .filter(feature => feature !== null) // Remove any features without geometry
       };
 
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -127,28 +200,43 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     onClose();
   };
 
-  const convertToCSV = (features: any[]): string => {
+  const convertCoverageToCSV = (records: any[]): string => {
     // CSV Headers
-    const headers = ['location_id', 'latitude', 'longitude', 'rounds'];
+    const headers = [
+      'location_id',
+      'external_id',
+      'latitude',
+      'longitude',
+      'rounds',
+      'indicator_name',
+      'n_trials',
+      'n_covered',
+      'exceedance_probability',
+      'exceedance_uncertainty',
+      'prevalence_bci_width',
+      'prevalence_prediction'
+    ];
     const csvRows = [headers.join(',')];
 
-    // Convert each feature to CSV row
-    features.forEach((feature: any) => {
-      const props = feature.properties || {};
-      const locationId = props.id || feature.id || '';
-      const latitude = props.latitude || '';
-      const longitude = props.longitude || '';
-
+    // Convert each record to CSV row
+    records.forEach((record: any) => {
       // Handle rounds array - format as quoted comma-separated string
-      const rounds = props.rounds || [];
-      const roundsStr = rounds.join(',');
+      const roundsStr = (record.rounds || []).join(',');
 
       // Escape values that might contain commas or quotes
       const row = [
-        escapeCSVValue(locationId),
-        escapeCSVValue(latitude),
-        escapeCSVValue(longitude),
-        `"${roundsStr}"` // Always quote the rounds field
+        escapeCSVValue(record.location_id || ''),
+        escapeCSVValue(record.external_id || ''),
+        escapeCSVValue(record.latitude || ''),
+        escapeCSVValue(record.longitude || ''),
+        `"${roundsStr}"`, // Always quote the rounds field
+        escapeCSVValue(record.indicator_name || ''),
+        escapeCSVValue(record.n_trials || ''),
+        escapeCSVValue(record.n_covered || ''),
+        escapeCSVValue(record.exceedance_probability || ''),
+        escapeCSVValue(record.exceedance_uncertainty || ''),
+        escapeCSVValue(record.prevalence_bci_width || ''),
+        escapeCSVValue(record.prevalence_prediction || '')
       ];
 
       csvRows.push(row.join(','));
@@ -177,10 +265,19 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   };
 
   const handleSelectAll = () => {
-    if (selectedRoundIds.length === rounds.length) {
+    // Filter to only rounds with coverage data
+    const roundsWithCoverage = rounds.filter((round) => {
+      const locationsInRound = coverageData.filter((record: any) => {
+        const recordRounds = record.rounds || [];
+        return recordRounds.includes(round.round_number);
+      }).length;
+      return locationsInRound > 0;
+    });
+
+    if (selectedRoundIds.length === roundsWithCoverage.length) {
       setSelectedRoundIds([]);
     } else {
-      setSelectedRoundIds(rounds.map(r => r.id));
+      setSelectedRoundIds(roundsWithCoverage.map(r => r.id));
     }
   };
 
@@ -188,10 +285,26 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     <TacticalModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Export Locations"
+      title="Export Locations to Visit"
       size="md"
     >
       <div className="space-y-4">
+        {/* Indicator Selection */}
+        <div>
+          <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+            Indicator
+          </label>
+          <TacticalSelect
+            value={selectedIndicatorId}
+            onChange={setSelectedIndicatorId}
+            options={indicators.map(ind => ({
+              value: ind.id,
+              label: ind.name
+            }))}
+            placeholder="Select Indicator"
+          />
+        </div>
+
         {/* Rounds Selection */}
         <div>
           <div className="flex justify-between items-center mb-2">
@@ -201,10 +314,19 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
             <button
               type="button"
               onClick={handleSelectAll}
-              className="text-xs text-tactical-accent-orange hover:underline font-mono"
-              disabled={loadingRounds || rounds.length === 0}
+              className="text-xs text-tactical-accent-orange hover:underline font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loadingRounds || rounds.length === 0 || isLoadingCoverage}
             >
-              {selectedRoundIds.length === rounds.length ? 'Deselect All' : 'Select All'}
+              {(() => {
+                const roundsWithCoverage = rounds.filter((round) => {
+                  const locationsInRound = coverageData.filter((record: any) => {
+                    const recordRounds = record.rounds || [];
+                    return recordRounds.includes(round.round_number);
+                  }).length;
+                  return locationsInRound > 0;
+                });
+                return selectedRoundIds.length === roundsWithCoverage.length && roundsWithCoverage.length > 0 ? 'Deselect All' : 'Select All';
+              })()}
             </button>
           </div>
 
@@ -218,40 +340,65 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
             </div>
           ) : (
             <div className="border border-tactical-border-medium bg-tactical-bg-secondary max-h-48 overflow-y-auto tactical-scrollbar">
-              {rounds.map((round) => {
-                // Count locations in this round
-                const locationsInRound = locations?.features?.filter((feature: any) => {
-                  const featureRounds = feature.properties?.rounds || [];
-                  return featureRounds.includes(round.round_number);
-                }).length || 0;
+              {isLoadingCoverage ? (
+                <div className="p-3 text-center">
+                  <p className="text-sm text-tactical-text-dim">Loading coverage data...</p>
+                </div>
+              ) : (
+                (() => {
+                  // Filter rounds to only show those with coverage data for the selected indicator
+                  const roundsWithCoverage = rounds.filter((round) => {
+                    const locationsInRound = coverageData.filter((record: any) => {
+                      const recordRounds = record.rounds || [];
+                      return recordRounds.includes(round.round_number);
+                    }).length;
+                    return locationsInRound > 0;
+                  });
 
-                return (
-                  <label
-                    key={round.id}
-                    className="flex items-center gap-3 p-3 border-b border-tactical-border-medium last:border-b-0 hover:bg-tactical-bg-tertiary cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedRoundIds.includes(round.id)}
-                      onChange={() => handleRoundToggle(round.id)}
-                      className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
-                    />
-                    <div className="flex-1 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <TacticalBadge variant="success">
-                          Round {round.round_number}
-                        </TacticalBadge>
-                        <span className="text-sm text-tactical-text-primary font-mono">
-                          {round.name}
-                        </span>
+                  if (roundsWithCoverage.length === 0) {
+                    return (
+                      <div className="p-3 text-center">
+                        <p className="text-sm text-tactical-text-dim">No rounds with coverage data for this indicator</p>
                       </div>
-                      <span className="text-xs text-tactical-text-dim font-mono">
-                        {locationsInRound} {locationsInRound === 1 ? 'location' : 'locations'}
-                      </span>
-                    </div>
-                  </label>
-                );
-              })}
+                    );
+                  }
+
+                  return roundsWithCoverage.map((round) => {
+                    // Count coverage records in this round
+                    const locationsInRound = coverageData.filter((record: any) => {
+                      const recordRounds = record.rounds || [];
+                      return recordRounds.includes(round.round_number);
+                    }).length;
+
+                    return (
+                      <label
+                        key={round.id}
+                        className="flex items-center gap-3 p-3 border-b border-tactical-border-medium last:border-b-0 hover:bg-tactical-bg-tertiary cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedRoundIds.includes(round.id)}
+                          onChange={() => handleRoundToggle(round.id)}
+                          className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                        />
+                        <div className="flex-1 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <TacticalBadge variant="success">
+                              Round {round.round_number}
+                            </TacticalBadge>
+                            <span className="text-sm text-tactical-text-primary font-mono">
+                              {round.name}
+                            </span>
+                          </div>
+                          <span className="text-xs text-tactical-text-dim font-mono">
+                            {locationsInRound} {locationsInRound === 1 ? 'location' : 'locations'}
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  });
+                })()
+              )}
             </div>
           )}
         </div>

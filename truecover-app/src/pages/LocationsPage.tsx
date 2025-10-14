@@ -190,14 +190,7 @@ const LocationsPage: React.FC = () => {
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Rounds</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {(() => {
-                    const uniqueRounds = new Set();
-                    locations.features.forEach((f: any) => {
-                      const rounds = f.properties?.rounds || [];
-                      rounds.forEach((r: number) => uniqueRounds.add(r));
-                    });
-                    return uniqueRounds.size;
-                  })()}
+                  {rounds?.length || 0}
                 </p>
               </div>
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
@@ -315,6 +308,7 @@ const LocationsPage: React.FC = () => {
             {/* Predicted Coverage Section */}
             <PredictedCoverageSection
               areaId={selectedArea?.id || ''}
+              areaName={selectedArea?.name || ''}
               projectId={selectedProject?.id || ''}
               selectedIndicatorId={selectedIndicatorId}
               selectedRoundId={
@@ -339,50 +333,13 @@ const LocationsPage: React.FC = () => {
             {/* Locations Table */}
             <TacticalCard padding="lg">
               <TacticalCollapsible
-                title={
-                  <>
-                    Locations
-                    {(selectedRoundFilter !== null || mapHighlightRounds.length > 0) && (
-                      <span className="ml-3 px-2 py-1 border border-tactical-accent-orange text-tactical-accent-orange text-sm font-normal inline-flex items-center gap-2">
-                        <span>
-                          Filtering by Round{mapHighlightRounds.length > 1 || selectedRoundFilter !== null ? 's' : ''}: {
-                            selectedRoundFilter !== null
-                              ? selectedRoundFilter
-                              : [...mapHighlightRounds].sort((a, b) => a - b).join(', ')
-                          }
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMapHighlightRounds([]);
-                            setSelectedRoundFilter(null);
-                          }}
-                          className="hover:text-tactical-accent-orange/70 transition-colors"
-                          aria-label="Clear filter"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    )}
-                  </>
-                }
+                title="Locations"
                 defaultCollapsed={true}
                 collapsedSummary={(() => {
                   if (!locations || !locations.features) {
                     return '(Loading...)';
                   }
-                  let count = locations.features.length;
-                  if (selectedRoundFilter !== null) {
-                    count = locations.features.filter((f: any) => {
-                      const rounds = f.properties?.rounds || [];
-                      return rounds.includes(selectedRoundFilter);
-                    }).length;
-                  } else if (mapHighlightRounds.length > 0) {
-                    count = locations.features.filter((f: any) => {
-                      const rounds = f.properties?.rounds || [];
-                      return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
-                    }).length;
-                  }
+                  const count = locations.features.length;
                   return `(${count} ${count === 1 ? 'Location' : 'Locations'})`;
                 })()}
                 actionButton={
@@ -400,22 +357,6 @@ const LocationsPage: React.FC = () => {
                     locations={
                       !locations || !locations.features
                         ? { type: 'FeatureCollection', features: [] }
-                        : selectedRoundFilter !== null
-                        ? {
-                            type: 'FeatureCollection',
-                            features: locations.features.filter((f: any) => {
-                              const rounds = f.properties?.rounds || [];
-                              return rounds.includes(selectedRoundFilter);
-                            }),
-                          }
-                        : mapHighlightRounds.length > 0
-                        ? {
-                            type: 'FeatureCollection',
-                            features: locations.features.filter((f: any) => {
-                              const rounds = f.properties?.rounds || [];
-                              return Array.isArray(rounds) && rounds.some((r: number) => mapHighlightRounds.includes(r));
-                            }),
-                          }
                         : locations
                     }
                     onEditLocation={handleEditLocation}
