@@ -4,6 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Plot from '@observablehq/plot';
 import { calculateJenksBreaks, PREVALENCE_COLORS, UNCERTAINTY_COLORS } from '../utils/jenksBreaks';
+import BCIExplanationModal from './BCIExplanationModal';
 
 interface DistributionHistogramProps {
   data: any[];
@@ -19,6 +20,9 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
   const [numBins, setNumBins] = useState<number>(12);
   const [showColors, setShowColors] = useState<boolean>(true);
   const [selectedRanges, setSelectedRanges] = useState<[number, number][]>([]);
+  const [meanBCI, setMeanBCI] = useState<number | null>(null);
+  const [confidenceLevel, setConfidenceLevel] = useState<string | null>(null);
+  const [isBCIModalOpen, setIsBCIModalOpen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || !visible || !data || data.length === 0) {
@@ -38,6 +42,25 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
 
     if (values.length === 0) {
       return;
+    }
+
+    // Calculate mean BCI and confidence level (for uncertainty mode)
+    if (mode === 'uncertainty') {
+      const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+      setMeanBCI(mean);
+
+      if (mean <= 0.05) {
+        setConfidenceLevel('Very High');
+      } else if (mean <= 0.10) {
+        setConfidenceLevel('High');
+      } else if (mean <= 0.20) {
+        setConfidenceLevel('Moderate');
+      } else {
+        setConfidenceLevel('Low');
+      }
+    } else {
+      setMeanBCI(null);
+      setConfidenceLevel(null);
     }
 
     // Calculate equal-width bins
@@ -88,6 +111,9 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       bins.push({ x0, x1, count, color });
     }
 
+    // Calculate max count for positioning labels at top
+    const maxCount = Math.max(...bins.map(b => b.count));
+
     // Create the plot
     const plot = Plot.plot({
       width: containerRef.current.clientWidth,
@@ -126,7 +152,36 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           stroke: '#333333',
           strokeWidth: 1
         }),
-        Plot.ruleY([0])
+        Plot.ruleY([0]),
+        // Add reference lines for uncertainty mode
+        ...(mode === 'uncertainty' ? [
+          // Reference lines at key BCI width thresholds
+          Plot.ruleX([0.05, 0.10, 0.20, 0.30], {
+            stroke: '#ffffff',
+            strokeWidth: 1,
+            strokeDasharray: '4,4',
+            opacity: 0.5
+          }),
+          // Text labels for reference lines (confidence levels)
+          // Only show labels for lines that are in the right portion of the chart
+          Plot.text([
+            { x: 0.05, label: 'Very High', y: maxCount },
+            { x: 0.10, label: 'High', y: maxCount },
+            { x: 0.20, label: 'Moderate', y: maxCount },
+            { x: 0.30, label: 'Low', y: maxCount }
+          ].filter(d => d.x > min + (max - min) * 0.3), {
+            x: 'x',
+            y: 'y',
+            text: 'label',
+            dx: 3,
+            dy: -5,
+            fill: '#ffffff',
+            fontSize: 10,
+            textAnchor: 'start',
+            lineAnchor: 'top',
+            fontWeight: 'bold'
+          })
+        ] : [])
       ]
     });
 
@@ -222,6 +277,20 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           </h3>
         </div>
         <div className="flex items-center gap-2">
+          {mode === 'uncertainty' && meanBCI !== null && confidenceLevel && (
+            <div className="flex items-center gap-1 text-xs font-mono text-tactical-text-primary">
+              <span>
+                Mean BCI: <span className="font-bold">{meanBCI.toFixed(3)}</span> ({confidenceLevel})
+              </span>
+              <button
+                onClick={() => setIsBCIModalOpen(true)}
+                className="w-4 h-4 rounded-full border border-tactical-text-dim text-tactical-text-dim hover:border-tactical-text-primary hover:text-tactical-text-primary transition-colors flex items-center justify-center cursor-pointer"
+                title="Explain BCI Width"
+              >
+                <span className="text-[10px] font-bold">i</span>
+              </button>
+            </div>
+          )}
           {selectedRanges.length > 0 && (
             <button
               onClick={() => {
@@ -269,6 +338,14 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.5)'
         }}
       ></div>
+
+      <BCIExplanationModal
+        isOpen={isBCIModalOpen}
+        onClose={() => setIsBCIModalOpen(false)}
+        data={data}
+        indicatorName={indicatorName}
+        numBins={numBins}
+      />
     </div>
   );
 };
