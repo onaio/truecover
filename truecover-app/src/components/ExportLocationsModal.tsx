@@ -71,8 +71,8 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     if (!coverageData || coverageData.length === 0) return 0;
 
     if (includeAllPoints) {
-      // Count all coverage records with rounds data
-      return coverageData.filter(record => record.rounds && record.rounds.length > 0).length;
+      // Count ALL coverage records for the indicator
+      return coverageData.length;
     }
 
     // Get the round numbers from selected round IDs
@@ -83,7 +83,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     // Count coverage records that have data in selected rounds
     return coverageData.filter((record: any) => {
       const recordRounds = record.rounds || [];
-      return selectedRoundNumbers.some((roundNum: number) =>
+      return recordRounds.length > 0 && selectedRoundNumbers.some((roundNum: number) =>
         recordRounds.includes(roundNum)
       );
     }).length;
@@ -96,20 +96,28 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     }
 
     // Filter coverage data based on settings
-    let filteredData = coverageData.filter(record => record.rounds && record.rounds.length > 0);
+    let filteredData: any[];
 
-    if (!includeAllPoints && selectedRoundIds.length > 0) {
+    if (includeAllPoints) {
+      // Export ALL coverage records for the indicator
+      filteredData = coverageData;
+    } else if (selectedRoundIds.length > 0) {
       // Get the round numbers from selected round IDs
       const selectedRoundNumbers = rounds
         .filter(r => selectedRoundIds.includes(r.id))
         .map(r => r.round_number);
 
-      filteredData = filteredData.filter((record: any) => {
+      // Only export locations with data in selected rounds
+      filteredData = coverageData.filter((record: any) => {
         const recordRounds = record.rounds || [];
-        return selectedRoundNumbers.some((roundNum: number) =>
+        return recordRounds.length > 0 && selectedRoundNumbers.some((roundNum: number) =>
           recordRounds.includes(roundNum)
         );
       });
+    } else {
+      // No rounds selected and includeAllPoints is false - export nothing
+      alert('Please select at least one round or enable "Include all locations"');
+      return;
     }
 
     // Get indicator name
