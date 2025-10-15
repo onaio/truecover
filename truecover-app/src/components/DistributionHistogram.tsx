@@ -163,13 +163,13 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
             opacity: 0.5
           }),
           // Text labels for reference lines (confidence levels)
-          // Only show labels for lines that are in the right portion of the chart
+          // Only show labels for lines that are within the data range and not overlapping Y-axis
           Plot.text([
             { x: 0.05, label: 'Very High', y: maxCount },
             { x: 0.10, label: 'High', y: maxCount },
             { x: 0.20, label: 'Moderate', y: maxCount },
             { x: 0.30, label: 'Low', y: maxCount }
-          ].filter(d => d.x > min + (max - min) * 0.3), {
+          ].filter(d => d.x >= min && d.x <= max), {
             x: 'x',
             y: 'y',
             text: 'label',

@@ -85,7 +85,7 @@ const BCIExplanationModal: React.FC<BCIExplanationModalProps> = ({ isOpen, onClo
       const upper = Math.min(1, prediction + bciWidth / 2);
 
       return {
-        location: `${(d.x0 * 100).toFixed(1)}% - ${(d.x1 * 100).toFixed(1)}% (n=${d.count})`,
+        location: `${(d.x0 * 100).toFixed(1)}-${(d.x1 * 100).toFixed(1)}% (n=${d.count})`,
         prediction,
         lower,
         upper,
@@ -96,7 +96,7 @@ const BCIExplanationModal: React.FC<BCIExplanationModalProps> = ({ isOpen, onClo
     const plot = Plot.plot({
       width: containerRef.current.clientWidth,
       height: 400,
-      marginLeft: 100,
+      marginLeft: 120,
       marginRight: 40,
       marginTop: 30,
       marginBottom: 60,
