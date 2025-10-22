@@ -64,6 +64,7 @@ const LocationsPage: React.FC = () => {
   const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>(['all']);
   const [showVisitLocations, setShowVisitLocations] = useState<boolean>(true);
   const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty'>('none');
+  const [showPixels, setShowPixels] = useState<boolean>(false);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
 
@@ -389,6 +390,8 @@ const LocationsPage: React.FC = () => {
                   highlightRounds={mapHighlightRounds}
                   showVisitLocations={showVisitLocations}
                   interpolationMode={interpolationMode}
+                  showPixels={showPixels}
+                  onTogglePixels={() => setShowPixels(!showPixels)}
                 />
               ) : (
                 <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">

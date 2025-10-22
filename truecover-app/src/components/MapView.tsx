@@ -13,6 +13,8 @@ interface MapViewProps {
   highlightRounds?: number[];
   showVisitLocations?: boolean;
   interpolationMode?: 'none' | 'coverage' | 'uncertainty';
+  showPixels?: boolean;
+  onTogglePixels?: () => void;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -47,7 +49,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none' }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -545,6 +547,26 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </>
           )}
 
+          {/* Pixels layer from PMTiles */}
+          {showPixels && (
+            <Source
+              id="pixels-source"
+              type="vector"
+              url="http://localhost:3051/16"
+            >
+              <Layer
+                id="pixels-layer"
+                type="line"
+                source-layer="geojson"
+                paint={{
+                  'line-color': '#28a745',
+                  'line-width': 1,
+                  'line-opacity': 0.5
+                }}
+              />
+            </Source>
+          )}
+
           {/* Popup */}
           {popupInfo && (
             <Popup
@@ -582,6 +604,22 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </Popup>
           )}
         </Map>
+
+        {/* Pixels Toggle Button */}
+        {mode === 'locations' && onTogglePixels && (
+          <div className="absolute top-3 left-3 z-10">
+            <button
+              onClick={onTogglePixels}
+              className={`px-3 py-2 font-mono text-xs uppercase tracking-wider border transition-colors ${
+                showPixels
+                  ? 'bg-tactical-accent-green border-tactical-accent-green text-black'
+                  : 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-primary hover:border-tactical-accent-green'
+              }`}
+            >
+              Pixels
+            </button>
+          </div>
+        )}
 
         {/* Map Style Selector */}
         <div className="absolute top-3 right-3 bg-tactical-bg-tertiary border border-tactical-border-medium p-2 z-10">
