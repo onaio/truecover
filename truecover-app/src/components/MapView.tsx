@@ -726,13 +726,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
   const getPolygonLineColor = () => {
     if (interpolationMode !== 'none') {
-      return '#cccccc';
+      return '#ffffff';
     }
     return [
       'case',
       shouldShowLocation(),
       '#28a745',
-      '#cccccc'
+      '#ffffff'
     ];
   };
 
@@ -784,7 +784,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           'case',
           shouldShowLocation(),
           coverageExpression,
-          '#999'
+          '#ffffff'
         ];
       }
       return coverageExpression;
@@ -809,7 +809,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           'case',
           shouldShowLocation(),
           uncertaintyExpression,
-          '#999'
+          '#ffffff'
         ];
       }
       return uncertaintyExpression;
@@ -819,10 +819,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         'case',
         shouldShowLocation(),
         '#28a745',
-        '#999'
+        '#ffffff'
       ];
     }
-    return '#999';
+    return '#ffffff';
   };
 
   const getPointStrokeWidth = () => {
@@ -852,7 +852,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         'rgba(0, 0, 0, 0)'
       ];
     }
-    return '#666';
+    return '#ffffff';
   };
 
   const getPointOpacity = () => {
@@ -867,7 +867,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         0
       ];
     }
-    return 0.2;
+    return 0.8;
   };
 
   return (
