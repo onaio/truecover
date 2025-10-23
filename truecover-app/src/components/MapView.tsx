@@ -995,7 +995,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 type="fill"
                 source-layer="pixels"
                 paint={{
-                  'fill-color': 'rgba(40, 167, 69, 0.1)',
+                  'fill-color': mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
+                    ? 'rgba(255, 255, 255, 0.1)'
+                    : 'rgba(40, 167, 69, 0.1)',
                   'fill-opacity': 0.5
                 }}
               />
@@ -1004,7 +1006,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 type="line"
                 source-layer="pixels"
                 paint={{
-                  'line-color': '#28a745',
+                  'line-color': mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
+                    ? '#ffffff'
+                    : '#28a745',
                   'line-width': 1,
                   'line-opacity': 0.6
                 }}
