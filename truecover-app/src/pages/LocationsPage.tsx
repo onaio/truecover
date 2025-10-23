@@ -81,6 +81,13 @@ const LocationsPage: React.FC = () => {
     }
   }, [indicators]);
 
+  // Auto-enable pixels when they exist for the area
+  useEffect(() => {
+    if (pixelStats && pixelStats.count > 0) {
+      setShowPixels(true);
+    }
+  }, [pixelStats?.count]);
+
   // Load locations when entering the page or after data mutations
   useEffect(() => {
     if (selectedArea?.id) {

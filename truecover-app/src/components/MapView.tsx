@@ -68,16 +68,32 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Use ref to store initial bounds so map doesn't recalculate on every render
   const initialBoundsRef = useRef<[[number, number], [number, number]] | undefined>(undefined);
 
+  // Reset bounds when area changes or pixel bounds/count changes to trigger recalculation
+  React.useEffect(() => {
+    initialBoundsRef.current = undefined;
+  }, [areaId, pixelsBounds, pixelCount]);
+
   const bounds = useMemo(() => {
-    // If we already have initial bounds, return them (prevents map refresh)
+    // Check if we already calculated bounds (prevents unnecessary recalculations)
     if (initialBoundsRef.current) {
       return initialBoundsRef.current;
     }
 
-    // Try to calculate bounds from locations
     let calculatedBounds: [[number, number], [number, number]] | undefined = undefined;
 
-    if (primaryData && primaryData.features && primaryData.features.length > 0) {
+    // Prioritize pixels bounds when pixels exist
+    if (pixelsBounds && pixelsBounds.length === 4 && pixelCount && pixelCount > 0) {
+      const [minLng, minLat, maxLng, maxLat] = pixelsBounds;
+      const lngPadding = (maxLng - minLng) * 0.1;
+      const latPadding = (maxLat - minLat) * 0.1;
+
+      calculatedBounds = [
+        [minLng - lngPadding, minLat - latPadding],
+        [maxLng + lngPadding, maxLat + latPadding]
+      ] as [[number, number], [number, number]];
+    }
+    // Fall back to calculating bounds from locations
+    else if (primaryData && primaryData.features && primaryData.features.length > 0) {
       let minLng = Infinity;
       let minLat = Infinity;
       let maxLng = -Infinity;
@@ -103,25 +119,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       ] as [[number, number], [number, number]];
     }
 
-    // If no locations but we have pixels bounds, use that
-    if (!calculatedBounds && pixelsBounds && pixelsBounds.length === 4) {
-      const [minLng, minLat, maxLng, maxLat] = pixelsBounds;
-      const lngPadding = (maxLng - minLng) * 0.1;
-      const latPadding = (maxLat - minLat) * 0.1;
-
-      calculatedBounds = [
-        [minLng - lngPadding, minLat - latPadding],
-        [maxLng + lngPadding, maxLat + latPadding]
-      ] as [[number, number], [number, number]];
-    }
-
-    // Store the initial bounds
+    // Store the initial bounds for caching
     if (calculatedBounds) {
       initialBoundsRef.current = calculatedBounds;
     }
 
     return calculatedBounds;
-  }, [primaryData, pixelsBounds]);
+  }, [primaryData, pixelsBounds, pixelCount]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
@@ -531,10 +535,15 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     }
   };
 
+  // Create a stable key that changes when bounds significantly change
+  // This forces map remount to apply new initialViewState
+  const mapKey = bounds ? `map-${bounds[0][0]}-${bounds[0][1]}-${bounds[1][0]}-${bounds[1][1]}` : 'map-globe';
+
   return (
     <div>
       <div className="relative h-[500px] w-full border-t-0 border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
         <Map
+          key={mapKey}
           mapboxAccessToken={mapboxToken}
           initialViewState={bounds ? {
             bounds: bounds,
