@@ -19,6 +19,8 @@ interface MapViewProps {
   onBoundsChange?: (bounds: [number, number, number, number]) => void;
   areaId?: string;
   pixelVersion?: string | null;
+  pixelCount?: number;
+  onGeneratePixels?: () => void;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -53,7 +55,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, pixelVersion }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, pixelVersion, pixelCount = 0, onGeneratePixels }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -272,19 +274,6 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           <span className="text-xs font-mono font-bold text-tactical-accent-red uppercase">Error:</span>
           <span className="text-xs font-mono text-tactical-accent-red">
             Mapbox token not found. Please create a .env file with VITE_MAPBOX_TOKEN
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data || !data.features) {
-    return (
-      <div className="p-4 mb-5 border border-tactical-accent-red bg-tactical-bg-secondary">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold text-tactical-accent-red uppercase">Error:</span>
-          <span className="text-xs font-mono text-tactical-accent-red">
-            No data provided to MapView component
           </span>
         </div>
       </div>
@@ -551,12 +540,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             bounds: bounds,
             fitBoundsOptions: { padding: 40 }
           } : {
-            longitude: 0,
-            latitude: 0,
-            zoom: 1
+            longitude: 20,
+            latitude: 20,
+            zoom: 1.5
           }}
           style={{ width: '100%', height: '100%' }}
           mapStyle={mapStyle}
+          projection="globe"
           interactiveLayerIds={isPredictionData
             ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline']
             : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
@@ -565,7 +555,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         >
           <NavigationControl position="bottom-right" showCompass={false} style={{ marginBottom: '32px' }} />
 
-          {isPredictionData ? (
+          {isPredictionData && displayData?.features?.length > 0 ? (
             /* Prediction visualization with heatmap interpolation */
             <Source id="prediction-source" type="geojson" data={displayData as any}>
               <Layer {...heatmapLayer} />
@@ -573,7 +563,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               <Layer {...predictionPolygonOutlineLayer} />
               <Layer {...predictionLayer} />
             </Source>
-          ) : (
+          ) : !isPredictionData && primaryData?.features?.length > 0 ? (
             <>
               {/* All features layer - colored by coverage or uncertainty when active */}
               <Source id="all-source" type="geojson" data={primaryData as any}>
@@ -591,7 +581,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 </Source>
               )}
             </>
-          )}
+          ) : null}
 
           {/* Pixels layer from Martin */}
           {showPixels && areaId && (
@@ -662,18 +652,18 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           )}
         </Map>
 
-        {/* Pixels Toggle Button */}
-        {mode === 'locations' && onTogglePixels && (
+        {/* Pixels Toggle/Generate Button */}
+        {mode === 'locations' && (onTogglePixels || onGeneratePixels) && (
           <div className="absolute top-3 left-3 z-10">
             <button
-              onClick={onTogglePixels}
+              onClick={pixelCount > 0 ? onTogglePixels : onGeneratePixels}
               className={`px-3 py-2 font-mono text-xs uppercase tracking-wider border transition-colors ${
-                showPixels
+                showPixels && pixelCount > 0
                   ? 'bg-tactical-accent-green border-tactical-accent-green text-black'
                   : 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-primary hover:border-tactical-accent-green'
               }`}
             >
-              Pixels
+              {pixelCount > 0 ? 'Pixels' : 'Generate Pixels'}
             </button>
           </div>
         )}
@@ -717,7 +707,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
               </div>
               <div className="mt-2 font-mono text-xs text-tactical-text-muted">
-                {displayData.features.length} prediction points
+                {displayData?.features?.length || 0} prediction points
               </div>
             </div>
           ) : interpolationMode === 'coverage' ? (
@@ -743,7 +733,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 <div className="flex items-center mb-2">
                   <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    Locations ({primaryData.features.length})
+                    Locations ({primaryData?.features?.length || 0})
                   </span>
                 </div>
                 {selectedFeatures.length > 0 && (
@@ -779,7 +769,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 <div className="flex items-center mb-2">
                   <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    Locations ({primaryData.features.length})
+                    Locations ({primaryData?.features?.length || 0})
                   </span>
                 </div>
                 {selectedFeatures.length > 0 && (
@@ -798,7 +788,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               <div className="flex items-center mb-2">
                 <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
                 <span className="font-mono text-xs text-tactical-text-muted">
-                  {mode === 'locations' ? 'Locations' : 'All Points'} ({primaryData.features.length})
+                  {mode === 'locations' ? 'Locations' : 'All Points'} ({primaryData?.features?.length || 0})
                 </span>
               </div>
               {selectedFeatures.length > 0 && (

@@ -388,28 +388,22 @@ const LocationsPage: React.FC = () => {
 
             {/* Map View */}
             <TacticalCard padding="none" className="mb-6">
-              {(filteredCoverageGeoJSON?.features?.length > 0 || (locations?.features?.length > 0)) ? (
-                <MapView
-                  data={{ type: 'FeatureCollection', features: [] }}
-                  locations={filteredCoverageGeoJSON?.features?.length > 0 ? filteredCoverageGeoJSON : locations}
-                  mode="locations"
-                  highlightRounds={mapHighlightRounds}
-                  showVisitLocations={showVisitLocations}
-                  interpolationMode={interpolationMode}
-                  showPixels={showPixels}
-                  onTogglePixels={() => setShowPixels(!showPixels)}
-                  pixelsBounds={pixelStats?.bounds || null}
-                  onBoundsChange={setCurrentMapBounds}
-                  areaId={selectedArea?.id}
-                  pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
-                />
-              ) : (
-                <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
-                  <p className="text-tactical-text-dim">
-                    {isLoadingCoverage ? 'Loading coverage data...' : histogramBrushRanges && histogramBrushRanges.length > 0 ? 'No locations in selected ranges' : 'No data to display'}
-                  </p>
-                </div>
-              )}
+              <MapView
+                data={{ type: 'FeatureCollection', features: [] }}
+                locations={filteredCoverageGeoJSON?.features?.length > 0 ? filteredCoverageGeoJSON : locations}
+                mode="locations"
+                highlightRounds={mapHighlightRounds}
+                showVisitLocations={showVisitLocations}
+                interpolationMode={interpolationMode}
+                showPixels={showPixels}
+                onTogglePixels={() => setShowPixels(!showPixels)}
+                pixelsBounds={pixelStats?.bounds || null}
+                onBoundsChange={setCurrentMapBounds}
+                areaId={selectedArea?.id}
+                pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
+                pixelCount={pixelStats?.count || 0}
+                onGeneratePixels={() => setIsGeneratePixelsModalOpen(true)}
+              />
             </TacticalCard>
 
             {/* Distribution Histogram */}
