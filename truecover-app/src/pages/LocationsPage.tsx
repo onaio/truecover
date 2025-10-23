@@ -52,8 +52,7 @@ const LocationsPage: React.FC = () => {
     handleLocationDeleted,
   } = useLocationsData();
 
-  const { getCoverageGeoJSON, listCoverage } = useCoverage();
-  const [coverageGeoJSON, setCoverageGeoJSON] = useState<any>(null);
+  const { listCoverage } = useCoverage();
   const [coverageData, setCoverageData] = useState<any[]>([]);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [histogramBrushRanges, setHistogramBrushRanges] = useState<[number, number][] | null>(null);
@@ -95,11 +94,10 @@ const LocationsPage: React.FC = () => {
     }
   }, [selectedArea?.id, refreshKey]);
 
-  // Load coverage GeoJSON for map visualization and coverage data for metrics
+  // Load coverage data for metrics and histogram
   useEffect(() => {
     const loadCoverage = async () => {
       if (!selectedArea?.id || !selectedIndicatorId) {
-        setCoverageGeoJSON(null);
         setCoverageData([]);
         return;
       }
@@ -113,25 +111,16 @@ const LocationsPage: React.FC = () => {
             ? String(selectedRoundIds[0])
             : undefined;
 
-        // Load both GeoJSON for map and coverage data for metrics
-        const [geojson, data] = await Promise.all([
-          getCoverageGeoJSON({
-            area_id: selectedArea.id,
-            indicator_id: selectedIndicatorId,
-            round_id: roundId,
-          }),
-          listCoverage({
-            area_id: selectedArea.id,
-            indicator_id: selectedIndicatorId,
-            round_id: roundId,
-          }),
-        ]);
+        // Load coverage data for metrics (GeoJSON is now served via Martin vector tiles)
+        const data = await listCoverage({
+          area_id: selectedArea.id,
+          indicator_id: selectedIndicatorId,
+          round_id: roundId,
+        });
 
-        setCoverageGeoJSON(geojson);
         setCoverageData(data);
       } catch (error) {
         console.error('Error loading coverage data:', error);
-        setCoverageGeoJSON(null);
         setCoverageData([]);
       } finally {
         setIsLoadingCoverage(false);
@@ -169,28 +158,6 @@ const LocationsPage: React.FC = () => {
   if (!selectedArea) {
     return null;
   }
-
-  // Filter coverage GeoJSON based on histogram brush selection
-  const getFilteredCoverageGeoJSON = () => {
-    if (!coverageGeoJSON || !histogramBrushRanges || histogramBrushRanges.length === 0) {
-      return coverageGeoJSON;
-    }
-
-    const property = interpolationMode === 'coverage' ? 'prevalence_prediction' : 'prevalence_bci_width';
-
-    return {
-      ...coverageGeoJSON,
-      features: coverageGeoJSON.features.filter((feature: any) => {
-        const value = feature.properties[property];
-        if (typeof value !== 'number') return false;
-
-        // Check if value is in any of the selected ranges
-        return histogramBrushRanges.some(([min, max]) => value >= min && value <= max);
-      })
-    };
-  };
-
-  const filteredCoverageGeoJSON = getFilteredCoverageGeoJSON();
 
   return (
     <div className="min-h-screen bg-tactical-bg-primary">
@@ -397,7 +364,7 @@ const LocationsPage: React.FC = () => {
             <TacticalCard padding="none" className="mb-6">
               <MapView
                 data={{ type: 'FeatureCollection', features: [] }}
-                locations={filteredCoverageGeoJSON?.features?.length > 0 ? filteredCoverageGeoJSON : locations}
+                locations={locations}
                 mode="locations"
                 highlightRounds={mapHighlightRounds}
                 showVisitLocations={showVisitLocations}
@@ -407,9 +374,11 @@ const LocationsPage: React.FC = () => {
                 pixelsBounds={pixelStats?.bounds || null}
                 onBoundsChange={setCurrentMapBounds}
                 areaId={selectedArea?.id}
+                indicatorId={selectedIndicatorId}
                 pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
                 pixelCount={pixelStats?.count || 0}
                 onGeneratePixels={() => setIsGeneratePixelsModalOpen(true)}
+                histogramBrushRanges={histogramBrushRanges}
               />
             </TacticalCard>
 

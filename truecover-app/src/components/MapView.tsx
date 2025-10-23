@@ -20,9 +20,11 @@ interface MapViewProps {
   pixelsBounds?: [number, number, number, number] | null;
   onBoundsChange?: (bounds: [number, number, number, number]) => void;
   areaId?: string;
+  indicatorId?: string;
   pixelVersion?: string | null;
   pixelCount?: number;
   onGeneratePixels?: () => void;
+  histogramBrushRanges?: [number, number][] | null;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -57,14 +59,20 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, pixelVersion, pixelCount = 0, onGeneratePixels }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [showGeocoderModal, setShowGeocoderModal] = useState<boolean>(false);
+  const [tileVersion, setTileVersion] = useState<number>(Date.now());
   const geocoderInputRef = useRef<HTMLDivElement>(null);
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  // Update tile version when filter states change to bust cache
+  React.useEffect(() => {
+    setTileVersion(Date.now());
+  }, [showVisitLocations, interpolationMode, highlightRounds]);
 
   // Use locations data if in locations mode, otherwise use regular data
   const primaryData = mode === 'locations' && locations ? locations : data;
@@ -160,6 +168,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
     return calculatedBounds;
   }, [primaryData, pixelsBounds, pixelCount]);
+
+  // Update map viewport when bounds change (e.g., new area selected or pixels generated)
+  React.useEffect(() => {
+    if (mapInstance && bounds) {
+      mapInstance.fitBounds(bounds, { padding: 40, duration: 1000 });
+    }
+  }, [mapInstance, bounds, areaId]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
@@ -569,9 +584,291 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     }
   };
 
-  // Create a stable key that changes when bounds significantly change
-  // This forces map remount to apply new initialViewState
-  const mapKey = bounds ? `map-${bounds[0][0]}-${bounds[0][1]}-${bounds[1][0]}-${bounds[1][1]}` : 'map-globe';
+  // Use stable map key - let the map update bounds naturally via onMove
+  const mapKey = 'main-map';
+
+  // Build histogram filter expression for vector tiles
+  const buildHistogramFilter = (geometryFilter: any): any => {
+    if (!histogramBrushRanges || histogramBrushRanges.length === 0) {
+      return geometryFilter;
+    }
+
+    const property = interpolationMode === 'coverage' ? 'prevalence_prediction' : 'prevalence_bci_width';
+
+    // Convert string values to numbers for comparison
+    const rangeFilter = ['any', ...histogramBrushRanges.map(([min, max]) =>
+      ['all',
+        ['>=', ['to-number', ['get', property]], min],
+        ['<=', ['to-number', ['get', property]], max]
+      ]
+    )];
+
+    return ['all', geometryFilter, rangeFilter];
+  };
+
+  // Helper to check if a location should be shown based on rounds filter
+  // highlightRounds: [] = show all with any rounds, [1,2] = show only locations with round 1 or 2
+  const shouldShowLocation = () => {
+    if (!showVisitLocations) {
+      return true; // Not filtering by rounds
+    }
+
+    // No rounds = empty string "{}"
+    const hasAnyRounds = ['!=', ['get', 'rounds'], '{}'];
+
+    // If no specific rounds selected, show all locations with any rounds
+    if (!highlightRounds || highlightRounds.length === 0) {
+      return hasAnyRounds;
+    }
+
+    // Check if rounds string contains any of the selected round numbers
+    // rounds comes as "{1}" or "{1,2}" string from MVT
+    // We need to check if the string contains the round number
+    const roundChecks = highlightRounds.map(roundNum =>
+      ['in', String(roundNum), ['get', 'rounds']]
+    );
+
+    // Return true if rounds contains any of the selected numbers
+    if (roundChecks.length === 1) {
+      return roundChecks[0];
+    }
+
+    return ['any', ...roundChecks];
+  };
+
+  // Compute vector tile paint properties
+  const getPolygonFillColor = () => {
+    if (interpolationMode === 'coverage') {
+      const coverageExpression = [
+        'interpolate',
+        ['linear'],
+        ['to-number', ['coalesce', ['get', 'prevalence_prediction'], 0]],
+        0, PREVALENCE_COLORS[0],
+        0.2, PREVALENCE_COLORS[1],
+        0.35, PREVALENCE_COLORS[2],
+        0.5, PREVALENCE_COLORS[3],
+        0.65, PREVALENCE_COLORS[4],
+        0.8, PREVALENCE_COLORS[5],
+        1, PREVALENCE_COLORS[6]
+      ];
+
+      // When visit locations is toggled, only show coverage for locations with rounds
+      // NOTE: rounds comes from MVT as a string like "{}" or "{1,2}", not an array
+      if (showVisitLocations) {
+        return [
+          'case',
+          shouldShowLocation(),
+          coverageExpression,
+          'rgba(153, 153, 153, 0)'
+        ];
+      }
+      return coverageExpression;
+    }
+    if (interpolationMode === 'uncertainty') {
+      const uncertaintyExpression = [
+        'interpolate',
+        ['linear'],
+        ['to-number', ['coalesce', ['get', 'prevalence_bci_width'], 0]],
+        0, UNCERTAINTY_COLORS[0],
+        0.2, UNCERTAINTY_COLORS[1],
+        0.35, UNCERTAINTY_COLORS[2],
+        0.5, UNCERTAINTY_COLORS[3],
+        0.65, UNCERTAINTY_COLORS[4],
+        0.8, UNCERTAINTY_COLORS[5],
+        1, UNCERTAINTY_COLORS[6]
+      ];
+
+      // When visit locations is toggled, only show uncertainty for locations with rounds
+      if (showVisitLocations) {
+        return [
+          'case',
+          shouldShowLocation(),
+          uncertaintyExpression,
+          'rgba(153, 153, 153, 0)'
+        ];
+      }
+      return uncertaintyExpression;
+    }
+    if (showVisitLocations) {
+      return [
+        'case',
+        shouldShowLocation(),
+        '#28a745',
+        'rgba(153, 153, 153, 0)'
+      ];
+    }
+    return 'rgba(153, 153, 153, 0)';
+  };
+
+  const getPolygonFillOpacity = () => {
+    if (interpolationMode !== 'none') {
+      // When visit locations is toggled, only show opacity for locations with rounds
+      if (showVisitLocations) {
+        return [
+          'case',
+          shouldShowLocation(),
+          0.9,
+          0
+        ];
+      }
+      return 0.9;
+    }
+    if (showVisitLocations) {
+      return [
+        'case',
+        shouldShowLocation(),
+        0.95,
+        0
+      ];
+    }
+    return 0;
+  };
+
+  const getPolygonLineColor = () => {
+    if (interpolationMode !== 'none') {
+      return '#cccccc';
+    }
+    return [
+      'case',
+      shouldShowLocation(),
+      '#28a745',
+      '#cccccc'
+    ];
+  };
+
+  const getPolygonLineWidth = () => {
+    if (interpolationMode !== 'none') {
+      return 1;
+    }
+    return [
+      'case',
+      shouldShowLocation(),
+      2,
+      1
+    ];
+  };
+
+  const getPolygonLineOpacity = () => {
+    if (interpolationMode !== 'none') {
+      return 0.3;
+    }
+    if (showVisitLocations) {
+      return [
+        'case',
+        shouldShowLocation(),
+        1,
+        0.8
+      ];
+    }
+    return 0.8;
+  };
+
+  const getPointColor = () => {
+    if (interpolationMode === 'coverage') {
+      const coverageExpression = [
+        'interpolate',
+        ['linear'],
+        ['to-number', ['coalesce', ['get', 'prevalence_prediction'], 0]],
+        0, PREVALENCE_COLORS[0],
+        0.2, PREVALENCE_COLORS[1],
+        0.35, PREVALENCE_COLORS[2],
+        0.5, PREVALENCE_COLORS[3],
+        0.65, PREVALENCE_COLORS[4],
+        0.8, PREVALENCE_COLORS[5],
+        1, PREVALENCE_COLORS[6]
+      ];
+
+      // When visit locations is toggled, only show coverage for locations with rounds
+      if (showVisitLocations) {
+        return [
+          'case',
+          shouldShowLocation(),
+          coverageExpression,
+          '#999'
+        ];
+      }
+      return coverageExpression;
+    }
+    if (interpolationMode === 'uncertainty') {
+      const uncertaintyExpression = [
+        'interpolate',
+        ['linear'],
+        ['to-number', ['coalesce', ['get', 'prevalence_bci_width'], 0]],
+        0, UNCERTAINTY_COLORS[0],
+        0.2, UNCERTAINTY_COLORS[1],
+        0.35, UNCERTAINTY_COLORS[2],
+        0.5, UNCERTAINTY_COLORS[3],
+        0.65, UNCERTAINTY_COLORS[4],
+        0.8, UNCERTAINTY_COLORS[5],
+        1, UNCERTAINTY_COLORS[6]
+      ];
+
+      // When visit locations is toggled, only show uncertainty for locations with rounds
+      if (showVisitLocations) {
+        return [
+          'case',
+          shouldShowLocation(),
+          uncertaintyExpression,
+          '#999'
+        ];
+      }
+      return uncertaintyExpression;
+    }
+    if (showVisitLocations) {
+      return [
+        'case',
+        shouldShowLocation(),
+        '#28a745',
+        '#999'
+      ];
+    }
+    return '#999';
+  };
+
+  const getPointStrokeWidth = () => {
+    if (interpolationMode !== 'none') {
+      return 1;
+    }
+    if (showVisitLocations) {
+      return [
+        'case',
+        shouldShowLocation(),
+        2,
+        0
+      ];
+    }
+    return 1;
+  };
+
+  const getPointStrokeColor = () => {
+    if (interpolationMode !== 'none') {
+      return 'rgba(255, 255, 255, 0.5)';
+    }
+    if (showVisitLocations) {
+      return [
+        'case',
+        shouldShowLocation(),
+        '#28a745',
+        'rgba(0, 0, 0, 0)'
+      ];
+    }
+    return '#666';
+  };
+
+  const getPointOpacity = () => {
+    if (interpolationMode !== 'none') {
+      return 0.8;
+    }
+    if (showVisitLocations) {
+      return [
+        'case',
+        shouldShowLocation(),
+        1,
+        0
+      ];
+    }
+    return 0.2;
+  };
 
   return (
     <div>
@@ -592,7 +889,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           projection="globe"
           interactiveLayerIds={isPredictionData
             ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline']
-            : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
+            : mode === 'locations' && areaId && indicatorId
+              ? ['locations-points', 'locations-polygons-fill', 'locations-polygons-outline']
+              : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
           onClick={handleMapClick}
           onMove={handleMapMove}
           onLoad={(e) => setMapInstance(e.target)}
@@ -607,9 +906,64 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               <Layer {...predictionPolygonOutlineLayer} />
               <Layer {...predictionLayer} />
             </Source>
+          ) : !isPredictionData && mode === 'locations' && areaId && indicatorId ? (
+            <>
+              {/* Vector tiles for locations - use when we have IDs and no GeoJSON override */}
+              <Source
+                key={`locations-source-${tileVersion}`}
+                id="locations-source"
+                type="vector"
+                tiles={[`http://localhost:3051/locations_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId}`]}
+                minzoom={0}
+                maxzoom={24}
+              >
+                {/* Polygon fill layer with conditional styling */}
+                <Layer
+                  key={`locations-polygons-fill-${tileVersion}`}
+                  id="locations-polygons-fill"
+                  type="fill"
+                  source-layer="locations"
+                  filter={buildHistogramFilter(['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]])}
+                  paint={{
+                    'fill-color': getPolygonFillColor(),
+                    'fill-opacity': getPolygonFillOpacity()
+                  }}
+                />
+
+                {/* Polygon outline layer */}
+                <Layer
+                  key={`locations-polygons-outline-${tileVersion}`}
+                  id="locations-polygons-outline"
+                  type="line"
+                  source-layer="locations"
+                  filter={buildHistogramFilter(['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]])}
+                  paint={{
+                    'line-color': getPolygonLineColor(),
+                    'line-width': getPolygonLineWidth(),
+                    'line-opacity': getPolygonLineOpacity()
+                  }}
+                />
+
+                {/* Point layer with conditional styling */}
+                <Layer
+                  key={`locations-points-${tileVersion}`}
+                  id="locations-points"
+                  type="circle"
+                  source-layer="locations"
+                  filter={buildHistogramFilter(['==', ['geometry-type'], 'Point'])}
+                  paint={{
+                    'circle-radius': 3,
+                    'circle-color': getPointColor(),
+                    'circle-opacity': getPointOpacity(),
+                    'circle-stroke-width': getPointStrokeWidth(),
+                    'circle-stroke-color': getPointStrokeColor()
+                  }}
+                />
+              </Source>
+            </>
           ) : !isPredictionData && primaryData?.features?.length > 0 ? (
             <>
-              {/* All features layer - colored by coverage or uncertainty when active */}
+              {/* GeoJSON fallback - used for histogram filtering or when vector tiles not available */}
               <Source id="all-source" type="geojson" data={primaryData as any}>
                 <Layer {...allPolygonsFillLayer} />
                 <Layer {...allPolygonsOutlineLayer} />
