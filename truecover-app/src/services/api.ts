@@ -383,3 +383,55 @@ export const locationsApi = {
     );
   }
 };
+
+// Pixels API
+export const pixelsApi = {
+  async generate(
+    areaId: string,
+    bbox: [number, number, number, number],
+    level: number,
+    token: string
+  ): Promise<{ count: number; level: number }> {
+    const response = await axios.post(
+      `${API_URL}/api/areas/${areaId}/pixels/generate`,
+      { bbox, level },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getStats(
+    areaId: string,
+    token: string
+  ): Promise<{ count: number; level: number | null; bounds: [number, number, number, number] | null }> {
+    const response = await axios.get(
+      `${API_URL}/api/areas/${areaId}/pixels/stats`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async delete(
+    areaId: string,
+    token: string
+  ): Promise<{ deleted_count: number }> {
+    const response = await axios.delete(
+      `${API_URL}/api/areas/${areaId}/pixels`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  }
+};

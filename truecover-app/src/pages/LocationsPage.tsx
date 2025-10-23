@@ -6,8 +6,10 @@ import { useLocationsData } from '../hooks/useLocationsData';
 import { useCoverage } from '../hooks/useCoverage';
 import { useIndicators } from '../hooks/useIndicators';
 import { useRounds } from '../hooks/useRounds';
+import { usePixelStats, useDeletePixels } from '../hooks/usePixels';
 import LocationUploadModal from '../components/LocationUploadModal';
 import LocationEditModal from '../components/LocationEditModal';
+import GeneratePixelsModal from '../components/GeneratePixelsModal';
 import LocationsTable from '../components/LocationsTable';
 import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
@@ -65,8 +67,12 @@ const LocationsPage: React.FC = () => {
   const [showVisitLocations, setShowVisitLocations] = useState<boolean>(true);
   const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty'>('none');
   const [showPixels, setShowPixels] = useState<boolean>(false);
+  const [isGeneratePixelsModalOpen, setIsGeneratePixelsModalOpen] = useState<boolean>(false);
+  const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
+  const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedArea?.id);
+  const deletePixels = useDeletePixels();
 
   // Set default indicator to first one when indicators load
   useEffect(() => {
@@ -392,6 +398,10 @@ const LocationsPage: React.FC = () => {
                   interpolationMode={interpolationMode}
                   showPixels={showPixels}
                   onTogglePixels={() => setShowPixels(!showPixels)}
+                  pixelsBounds={pixelStats?.bounds || null}
+                  onBoundsChange={setCurrentMapBounds}
+                  areaId={selectedArea?.id}
+                  pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
                 />
               ) : (
                 <div className="h-[500px] flex items-center justify-center bg-tactical-bg-secondary border border-tactical-border-medium">
@@ -471,6 +481,79 @@ const LocationsPage: React.FC = () => {
                 </div>
               </TacticalCollapsible>
             </TacticalCard>
+
+            {/* Pixels Section */}
+            <TacticalCard padding="lg" className="mt-6">
+              <TacticalCollapsible
+                title="Pixels"
+                defaultCollapsed={true}
+                collapsedSummary={
+                  pixelStats?.count
+                    ? `(${pixelStats.count.toLocaleString()} pixels at level ${pixelStats.level})`
+                    : '(No pixels)'
+                }
+              >
+                <div className="space-y-4">
+                  {pixelStats?.count && pixelStats.count > 0 ? (
+                    <>
+                      <div className="flex justify-between items-center p-4 bg-tactical-bg-secondary border border-tactical-border-medium">
+                        <div className="space-y-1">
+                          <div className="font-mono text-xs text-tactical-text-muted">Zoom Level</div>
+                          <div className="font-mono text-lg text-tactical-text-primary">{pixelStats.level}</div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="font-mono text-xs text-tactical-text-muted">Pixel Count</div>
+                          <div className="font-mono text-lg text-tactical-text-primary">
+                            {pixelStats.count.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <TacticalButton
+                          variant="primary"
+                          size="md"
+                          onClick={() => setIsGeneratePixelsModalOpen(true)}
+                        >
+                          Regenerate Pixels
+                        </TacticalButton>
+                        <TacticalButton
+                          variant="danger"
+                          size="md"
+                          onClick={async () => {
+                            if (window.confirm('Are you sure you want to delete all pixels? This cannot be undone.')) {
+                              try {
+                                await deletePixels.mutateAsync({ areaId: selectedArea?.id || '' });
+                                await refetchPixelStats();
+                                setRefreshKey(prev => prev + 1);
+                              } catch (error: any) {
+                                alert(`Error deleting pixels: ${error.message || 'Unknown error'}`);
+                              }
+                            }
+                          }}
+                          disabled={deletePixels.isPending}
+                        >
+                          {deletePixels.isPending ? 'Deleting...' : 'Delete All Pixels'}
+                        </TacticalButton>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-tactical-text-muted mb-4 font-mono text-sm">
+                        No pixels generated yet. Generate pixels to visualize quadkey grids on the map.
+                      </p>
+                      <TacticalButton
+                        variant="primary"
+                        size="md"
+                        onClick={() => setIsGeneratePixelsModalOpen(true)}
+                      >
+                        Generate Pixels
+                      </TacticalButton>
+                    </div>
+                  )}
+                </div>
+              </TacticalCollapsible>
+            </TacticalCard>
           </>
         )}
       </div>
@@ -500,6 +583,18 @@ const LocationsPage: React.FC = () => {
         }}
         onLocationDeleted={() => {
           handleLocationDeleted(selectedArea.id, setLocations);
+          setRefreshKey(prev => prev + 1);
+        }}
+      />
+
+      {/* Generate Pixels Modal */}
+      <GeneratePixelsModal
+        isOpen={isGeneratePixelsModalOpen}
+        onClose={() => setIsGeneratePixelsModalOpen(false)}
+        areaId={selectedArea?.id || ''}
+        currentBounds={currentMapBounds}
+        onGenerated={() => {
+          refetchPixelStats();
           setRefreshKey(prev => prev + 1);
         }}
       />

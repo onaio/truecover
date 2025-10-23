@@ -152,6 +152,81 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_locations_external_id ON locations(external_id) WHERE external_id IS NOT NULL;
         """)
 
+        # Create pixels table for quadkey pixel grids
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pixels (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                quadkey TEXT NOT NULL,
+                area_id UUID NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+                geometry GEOMETRY(Polygon, 4326),
+                latitude DECIMAL(10, 8),
+                longitude DECIMAL(11, 8),
+                level INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Create spatial index on pixel geometry column
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixels_geometry ON pixels USING GIST(geometry);
+        """)
+
+        # Create index on area_id for faster pixel lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixels_area_id ON pixels(area_id);
+        """)
+
+        # Create unique index on quadkey to prevent duplicates
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_pixels_quadkey_unique ON pixels(quadkey);
+        """)
+
+        # Create index on level for zoom-based queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixels_level ON pixels(level);
+        """)
+
+        # Create Martin tile server function for pixels filtered by area_id
+        cursor.execute("""
+            CREATE OR REPLACE FUNCTION pixels_by_area(z integer, x integer, y integer, query_params json)
+            RETURNS bytea AS $$
+            DECLARE
+                mvt bytea;
+                target_area_id uuid;
+            BEGIN
+                -- Extract area_id from query params
+                target_area_id := (query_params->>'area_id')::uuid;
+
+                -- If no area_id provided, return empty tile
+                IF target_area_id IS NULL THEN
+                    RETURN NULL;
+                END IF;
+
+                -- Generate MVT tile for pixels in the specified area
+                SELECT INTO mvt ST_AsMVT(tile, 'pixels', 4096, 'geom')
+                FROM (
+                    SELECT
+                        ST_AsMVTGeom(
+                            ST_Transform(geometry, 3857),
+                            ST_TileEnvelope(z, x, y),
+                            4096, 64, true
+                        ) AS geom,
+                        quadkey,
+                        level,
+                        latitude,
+                        longitude
+                    FROM pixels
+                    WHERE area_id = target_area_id
+                      AND geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
+                ) as tile
+                WHERE geom IS NOT NULL;
+
+                RETURN mvt;
+            END
+            $$ LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
+        """)
+
         # Create rounds table for tracking data collection rounds
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS rounds (

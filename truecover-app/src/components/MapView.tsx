@@ -15,6 +15,10 @@ interface MapViewProps {
   interpolationMode?: 'none' | 'coverage' | 'uncertainty';
   showPixels?: boolean;
   onTogglePixels?: () => void;
+  pixelsBounds?: [number, number, number, number] | null;
+  onBoundsChange?: (bounds: [number, number, number, number]) => void;
+  areaId?: string;
+  pixelVersion?: string | null;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -49,9 +53,10 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, pixelVersion }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
+  const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
   // Use locations data if in locations mode, otherwise use regular data
@@ -62,42 +67,59 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const initialBoundsRef = useRef<[[number, number], [number, number]] | undefined>(undefined);
 
   const bounds = useMemo(() => {
-    if (!primaryData || !primaryData.features || !primaryData.features.length) return undefined;
-
     // If we already have initial bounds, return them (prevents map refresh)
     if (initialBoundsRef.current) {
       return initialBoundsRef.current;
     }
 
-    let minLng = Infinity;
-    let minLat = Infinity;
-    let maxLng = -Infinity;
-    let maxLat = -Infinity;
+    // Try to calculate bounds from locations
+    let calculatedBounds: [[number, number], [number, number]] | undefined = undefined;
 
-    primaryData.features.forEach((feature: any) => {
-      const coords = extractCoordinates(feature.geometry);
-      coords.forEach(([lng, lat]) => {
-        minLng = Math.min(minLng, lng);
-        minLat = Math.min(minLat, lat);
-        maxLng = Math.max(maxLng, lng);
-        maxLat = Math.max(maxLat, lat);
+    if (primaryData && primaryData.features && primaryData.features.length > 0) {
+      let minLng = Infinity;
+      let minLat = Infinity;
+      let maxLng = -Infinity;
+      let maxLat = -Infinity;
+
+      primaryData.features.forEach((feature: any) => {
+        const coords = extractCoordinates(feature.geometry);
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        });
       });
-    });
 
-    // Add padding
-    const lngPadding = (maxLng - minLng) * 0.1;
-    const latPadding = (maxLat - minLat) * 0.1;
+      // Add padding
+      const lngPadding = (maxLng - minLng) * 0.1;
+      const latPadding = (maxLat - minLat) * 0.1;
 
-    const calculatedBounds = [
-      [minLng - lngPadding, minLat - latPadding],
-      [maxLng + lngPadding, maxLat + latPadding]
-    ] as [[number, number], [number, number]];
+      calculatedBounds = [
+        [minLng - lngPadding, minLat - latPadding],
+        [maxLng + lngPadding, maxLat + latPadding]
+      ] as [[number, number], [number, number]];
+    }
+
+    // If no locations but we have pixels bounds, use that
+    if (!calculatedBounds && pixelsBounds && pixelsBounds.length === 4) {
+      const [minLng, minLat, maxLng, maxLat] = pixelsBounds;
+      const lngPadding = (maxLng - minLng) * 0.1;
+      const latPadding = (maxLat - minLat) * 0.1;
+
+      calculatedBounds = [
+        [minLng - lngPadding, minLat - latPadding],
+        [maxLng + lngPadding, maxLat + latPadding]
+      ] as [[number, number], [number, number]];
+    }
 
     // Store the initial bounds
-    initialBoundsRef.current = calculatedBounds;
+    if (calculatedBounds) {
+      initialBoundsRef.current = calculatedBounds;
+    }
 
     return calculatedBounds;
-  }, [primaryData]);
+  }, [primaryData, pixelsBounds]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
@@ -501,14 +523,37 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     }
   };
 
+  const handleMapMove = (event: any) => {
+    const map = event.target;
+    const bounds = map.getBounds();
+    if (bounds) {
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const boundsArray: [[number, number], [number, number]] = [
+        [sw.lng, sw.lat],
+        [ne.lng, ne.lat]
+      ];
+      setViewportBounds(boundsArray);
+
+      // Call onBoundsChange if provided (for parent component to track bounds)
+      if (onBoundsChange) {
+        onBoundsChange([sw.lng, sw.lat, ne.lng, ne.lat]);
+      }
+    }
+  };
+
   return (
     <div>
       <div className="relative h-[500px] w-full border-t-0 border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
         <Map
           mapboxAccessToken={mapboxToken}
-          initialViewState={{
+          initialViewState={bounds ? {
             bounds: bounds,
             fitBoundsOptions: { padding: 40 }
+          } : {
+            longitude: 0,
+            latitude: 0,
+            zoom: 1
           }}
           style={{ width: '100%', height: '100%' }}
           mapStyle={mapStyle}
@@ -516,8 +561,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline']
             : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
           onClick={handleMapClick}
+          onMove={handleMapMove}
         >
-          <NavigationControl position="bottom-right" />
+          <NavigationControl position="bottom-right" showCompass={false} style={{ marginBottom: '32px' }} />
 
           {isPredictionData ? (
             /* Prediction visualization with heatmap interpolation */
@@ -547,21 +593,32 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </>
           )}
 
-          {/* Pixels layer from PMTiles */}
-          {showPixels && (
+          {/* Pixels layer from Martin */}
+          {showPixels && areaId && (
             <Source
               id="pixels-source"
               type="vector"
-              url="http://localhost:3051/16"
+              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&v=${pixelVersion || '0'}`]}
+              minzoom={0}
+              maxzoom={24}
             >
               <Layer
-                id="pixels-layer"
+                id="pixels-fill-layer"
+                type="fill"
+                source-layer="pixels"
+                paint={{
+                  'fill-color': 'rgba(40, 167, 69, 0.1)',
+                  'fill-opacity': 0.5
+                }}
+              />
+              <Layer
+                id="pixels-line-layer"
                 type="line"
-                source-layer="geojson"
+                source-layer="pixels"
                 paint={{
                   'line-color': '#28a745',
                   'line-width': 1,
-                  'line-opacity': 0.5
+                  'line-opacity': 0.6
                 }}
               />
             </Source>
@@ -755,6 +812,15 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </>
           )}
         </div>
+
+        {/* Bounding Box Display */}
+        {viewportBounds && (
+          <div className="absolute bottom-2 right-16 bg-tactical-bg-tertiary border border-tactical-border-medium px-2 py-0.5 z-10">
+            <div className="font-mono text-[9px] text-tactical-text-muted select-all cursor-text">
+              [{viewportBounds[0][0].toFixed(6)}, {viewportBounds[0][1].toFixed(6)}, {viewportBounds[1][0].toFixed(6)}, {viewportBounds[1][1].toFixed(6)}]
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

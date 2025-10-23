@@ -457,6 +457,18 @@ wheels = [
 ]
 
 [[package]]
+name = "mercantile"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d2/c6/87409bcb26fb68c393fa8cf58ba09363aa7298cfb438a0109b5cb14bc98b/mercantile-1.2.1.tar.gz", hash = "sha256:fa3c6db15daffd58454ac198b31887519a19caccee3f9d63d17ae7ff61b3b56b", size = 26352 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/d6/de0cc74f8d36976aeca0dd2e9cbf711882ff8e177495115fd82459afdc4d/mercantile-1.2.1-py3-none-any.whl", hash = "sha256:30f457a73ee88261aab787b7069d85961a5703bb09dc57a170190bc042cd023f", size = 14779 },
+]
+
+[[package]]
 name = "mypy-extensions"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -829,6 +841,7 @@ dependencies = [
     { name = "flask" },
     { name = "flask-cors" },
     { name = "gunicorn" },
+    { name = "mercantile" },
     { name = "psycopg2-binary" },
     { name = "python-dotenv" },
     { name = "requests" },
@@ -850,6 +863,7 @@ requires-dist = [
     { name = "flask", specifier = "==3.0.0" },
     { name = "flask-cors", specifier = "==4.0.0" },
     { name = "gunicorn", specifier = "==21.2.0" },
+    { name = "mercantile", specifier = ">=1.2.1" },
     { name = "psycopg2-binary", specifier = "==2.9.9" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "python-dotenv", specifier = "==1.0.0" },
