@@ -8,12 +8,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 interface Location {
   id: string;
-  properties: {
-    external_id?: string;
-    latitude?: number;
-    longitude?: number;
-    rounds?: number[];
-  };
+  external_id?: string;
+  latitude?: number;
+  longitude?: number;
+  properties?: Record<string, any>;
+  rounds?: number[];
 }
 
 interface Round {
@@ -49,8 +48,8 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
 
   useEffect(() => {
     if (location) {
-      setExternalId(location.properties.external_id || '');
-      setSelectedRounds(location.properties.rounds || []);
+      setExternalId(location.external_id || '');
+      setSelectedRounds(location.rounds || []);
     }
   }, [location]);
 
@@ -175,7 +174,7 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
               Location Coordinates (Read-Only)
             </span>
             <p className="text-sm text-tactical-text-primary font-mono mt-1">
-              Lat: {location.properties.latitude?.toFixed(6)}, Lng: {location.properties.longitude?.toFixed(6)}
+              Lat: {location.latitude?.toFixed(6)}, Lng: {location.longitude?.toFixed(6)}
             </p>
           </div>
         )}

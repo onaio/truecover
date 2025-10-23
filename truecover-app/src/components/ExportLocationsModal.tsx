@@ -154,26 +154,24 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
       link.click();
       URL.revokeObjectURL(url);
     } else {
-      // Export as GeoJSON - join with locations to get geometry
+      // Export as GeoJSON - create Point geometries from lat/lng
       const exportData = {
         type: 'FeatureCollection',
         features: filteredData
           .map((record: any) => {
-            // Find the matching location by location_id
-            const matchingLocation = locations?.features?.find((feature: any) =>
-              feature.properties?.id === record.location_id
-            );
-
-            // Skip if no matching location found (shouldn't happen but just in case)
-            if (!matchingLocation?.geometry) {
-              console.warn(`No geometry found for location ${record.location_id}`);
+            // Skip if no coordinates
+            if (!record.latitude || !record.longitude) {
+              console.warn(`No coordinates found for location ${record.location_id}`);
               return null;
             }
 
             return {
               type: 'Feature',
               id: record.id,
-              geometry: matchingLocation.geometry,
+              geometry: {
+                type: 'Point',
+                coordinates: [record.longitude, record.latitude]
+              },
               properties: {
                 location_id: record.location_id,
                 external_id: record.external_id,
@@ -190,7 +188,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
               }
             };
           })
-          .filter(feature => feature !== null) // Remove any features without geometry
+          .filter(feature => feature !== null) // Remove any features without coordinates
       };
 
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
