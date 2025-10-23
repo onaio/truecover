@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox';
-import type { LayerProps } from 'react-map-gl/mapbox';
+import type { LayerProps, MapRef } from 'react-map-gl/mapbox';
+import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import { GeoJSONFeatureCollection } from '../types';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 
 interface MapViewProps {
   data: GeoJSONFeatureCollection;
@@ -46,6 +48,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
+  const mapRef = useRef<MapRef>(null);
+  const geocoderRef = useRef<MapboxGeocoder | null>(null);
 
   // Calculate bounds from all features - BEFORE the early return
   const bounds = useMemo(() => {
@@ -119,6 +123,33 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
 
     return { min, max };
   }, [displayData]);
+
+  // Initialize geocoder - BEFORE early return
+  useEffect(() => {
+    if (!mapRef.current || !mapboxToken) return;
+
+    const map = mapRef.current.getMap();
+
+    // Create geocoder instance
+    const geocoder = new MapboxGeocoder({
+      accessToken: mapboxToken,
+      mapboxgl: map as any,
+      marker: false, // Don't add a marker on the map
+      placeholder: 'Search for a location...',
+    });
+
+    // Add geocoder to map
+    map.addControl(geocoder as any, 'top-left');
+    geocoderRef.current = geocoder;
+
+    // Cleanup on unmount
+    return () => {
+      if (geocoderRef.current) {
+        map.removeControl(geocoderRef.current as any);
+        geocoderRef.current = null;
+      }
+    };
+  }, [mapboxToken]);
 
   // Early return AFTER all hooks
   if (!mapboxToken) {
@@ -379,6 +410,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
       </h3>
       <div className="relative h-[500px] w-full border border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
         <Map
+          ref={mapRef}
           mapboxAccessToken={mapboxToken}
           initialViewState={{
             bounds: bounds,
