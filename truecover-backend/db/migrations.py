@@ -227,6 +227,73 @@ def run_migrations():
             $$ LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
         """)
 
+        # Create Martin tile server function for locations filtered by area_id
+        cursor.execute("""
+            CREATE OR REPLACE FUNCTION locations_by_area(z integer, x integer, y integer, query_params json)
+            RETURNS bytea AS $$
+            DECLARE
+                mvt bytea;
+                target_area_id uuid;
+                target_indicator_id uuid;
+            BEGIN
+                -- Extract area_id and indicator_id from query params
+                target_area_id := (query_params->>'area_id')::uuid;
+                target_indicator_id := (query_params->>'indicator_id')::uuid;
+
+                -- If no area_id provided, return empty tile
+                IF target_area_id IS NULL THEN
+                    RETURN NULL;
+                END IF;
+
+                -- Generate MVT tile for locations in the specified area
+                -- Join with coverage table to get prediction data if indicator_id provided
+                SELECT INTO mvt ST_AsMVT(tile, 'locations', 4096, 'geom')
+                FROM (
+                    SELECT
+                        ST_AsMVTGeom(
+                            ST_Transform(l.geometry, 3857),
+                            ST_TileEnvelope(z, x, y),
+                            4096, 64, true
+                        ) AS geom,
+                        l.id::text,
+                        l.external_id,
+                        l.latitude,
+                        l.longitude,
+                        l.properties,
+                        c.rounds,
+                        c.n_trials,
+                        c.n_covered,
+                        c.prevalence_prediction,
+                        c.prevalence_bci_width,
+                        c.exceedance_probability,
+                        c.exceedance_uncertainty
+                    FROM locations l
+                    LEFT JOIN LATERAL (
+                        SELECT
+                            rounds,
+                            n_trials,
+                            n_covered,
+                            prevalence_prediction,
+                            prevalence_bci_width,
+                            exceedance_probability,
+                            exceedance_uncertainty
+                        FROM coverage
+                        WHERE location_id = l.id
+                          AND area_id = target_area_id
+                          AND (target_indicator_id IS NULL OR indicator_id = target_indicator_id)
+                        ORDER BY version DESC
+                        LIMIT 1
+                    ) c ON true
+                    WHERE l.area_id = target_area_id
+                      AND l.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
+                ) as tile
+                WHERE geom IS NOT NULL;
+
+                RETURN mvt;
+            END
+            $$ LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
+        """)
+
         # Create rounds table for tracking data collection rounds
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS rounds (

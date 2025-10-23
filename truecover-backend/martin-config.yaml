@@ -1,5 +1,5 @@
 # Martin configuration for serving PostGIS vector tiles
-# Serves pixels table as vector tiles for map visualization
+# Serves pixels and locations tables as vector tiles for map visualization
 
 postgres:
   connection_string: "postgresql://truecover:truecover@postgres:5432/truecover"
@@ -10,5 +10,12 @@ postgres:
     pixels_by_area:
       schema: public
       function: pixels_by_area
+      minzoom: 0
+      maxzoom: 24
+
+    # Function to serve locations filtered by area_id
+    locations_by_area:
+      schema: public
+      function: locations_by_area
       minzoom: 0
       maxzoom: 24
