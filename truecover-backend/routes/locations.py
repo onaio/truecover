@@ -423,7 +423,7 @@ def upload_locations(user, area_id):
 @locations_bp.route('/api/areas/<area_id>/locations', methods=['GET'])
 @require_auth
 def list_locations(user, area_id):
-    """Get all locations for an area as GeoJSON"""
+    """Get all locations for an area as a lightweight list (no geometry for bandwidth reduction)"""
     conn = None
     try:
         # Check if user has access to this area
@@ -433,10 +433,10 @@ def list_locations(user, area_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Return lightweight list without geometry - map uses vector tiles now
         cursor.execute("""
             SELECT
                 id, external_id,
-                ST_AsGeoJSON(geometry) as geometry,
                 latitude, longitude,
                 properties,
                 created_at, updated_at
@@ -445,42 +445,28 @@ def list_locations(user, area_id):
             ORDER BY created_at DESC
         """, (area_id,))
 
-        features = []
+        locations = []
         for row in cursor.fetchall():
-            # Parse geometry
-            geometry = json.loads(row[2]) if row[2] else {
-                'type': 'Point',
-                'coordinates': [float(row[4]), float(row[3])]  # lng, lat
-            }
-
-            # Combine all properties
             # Handle both dict and JSON string from database
-            if row[5]:
-                properties = row[5] if isinstance(row[5], dict) else json.loads(row[5])
+            if row[4]:
+                properties = row[4] if isinstance(row[4], dict) else json.loads(row[4])
             else:
                 properties = {}
-            properties.update({
+
+            location = {
                 'id': str(row[0]),
                 'external_id': row[1],
-                'latitude': float(row[3]) if row[3] else None,
-                'longitude': float(row[4]) if row[4] else None,
-            })
-
-            features.append({
-                'type': 'Feature',
-                'id': str(row[0]),
-                'geometry': geometry,
-                'properties': properties
-            })
+                'latitude': float(row[2]) if row[2] else None,
+                'longitude': float(row[3]) if row[3] else None,
+                'properties': properties,
+                'created_at': row[5].isoformat() if row[5] else None,
+                'updated_at': row[6].isoformat() if row[6] else None,
+            }
+            locations.append(location)
 
         cursor.close()
 
-        geojson = {
-            'type': 'FeatureCollection',
-            'features': features
-        }
-
-        return jsonify(geojson), 200
+        return jsonify({'locations': locations}), 200
 
     except Exception as e:
         import traceback

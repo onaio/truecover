@@ -192,13 +192,13 @@ const LocationsPage: React.FC = () => {
         </h1>
 
         {/* Location Summary */}
-        {locations && locations.features && (
+        {locations && locations.locations && (
           <>
             <div className="mb-4 grid grid-cols-4 gap-4">
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {locations.features.length}
+                  {locations.locations.length}
                 </p>
               </div>
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
@@ -211,7 +211,7 @@ const LocationsPage: React.FC = () => {
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Locations to Visit</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
                   {(() => {
-                    const totalLocations = locations.features.length;
+                    const totalLocations = locations.locations.length;
 
                     // Count coverage table rows with rounds data matching selected filters
                     let locationsToVisit = 0;
@@ -250,7 +250,7 @@ const LocationsPage: React.FC = () => {
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Locations Visited</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
                   {(() => {
-                    const totalLocations = locations.features.length;
+                    const totalLocations = locations.locations.length;
 
                     // Count coverage table rows where n_trials AND n_covered are both not 0
                     let locationsVisited = 0;
@@ -423,10 +423,10 @@ const LocationsPage: React.FC = () => {
                 title="Locations"
                 defaultCollapsed={true}
                 collapsedSummary={(() => {
-                  if (!locations || !locations.features) {
+                  if (!locations || !locations.locations) {
                     return '(Loading...)';
                   }
-                  const count = locations.features.length;
+                  const count = locations.locations.length;
                   return `(${count} ${count === 1 ? 'Location' : 'Locations'})`;
                 })()}
                 actionButton={
@@ -442,8 +442,8 @@ const LocationsPage: React.FC = () => {
                 <div className="border border-tactical-border-medium -mx-6 -mb-6">
                   <LocationsTable
                     locations={
-                      !locations || !locations.features
-                        ? { type: 'FeatureCollection', features: [] }
+                      !locations || !locations.locations
+                        ? { locations: [] }
                         : locations
                     }
                     onEditLocation={handleEditLocation}

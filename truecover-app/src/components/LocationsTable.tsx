@@ -7,9 +7,9 @@ interface LocationsTableProps {
 }
 
 const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocation }) => {
-  const features = locations?.features || [];
+  const locationList = locations?.locations || [];
 
-  if (features.length === 0) {
+  if (locationList.length === 0) {
     return (
       <div className="w-full h-[400px] flex items-center justify-center border border-tactical-border-medium bg-tactical-bg-secondary">
         <div className="text-center">
@@ -47,13 +47,11 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
           </tr>
         </thead>
         <tbody>
-          {features.map((feature: any, index: number) => {
-            const props = feature.properties || {};
-
+          {locationList.map((location: any, index: number) => {
             return (
-              <tr key={feature.id || index}>
+              <tr key={location.id || index}>
                 {headers.map(header => {
-                  const value = props[header.key];
+                  const value = location[header.key];
 
                   // Special formatting for different field types
                   let displayValue = '';
@@ -89,7 +87,7 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
                     <TacticalButton
                       variant="secondary"
                       size="sm"
-                      onClick={() => onEditLocation(feature)}
+                      onClick={() => onEditLocation(location)}
                     >
                       Edit
                     </TacticalButton>
