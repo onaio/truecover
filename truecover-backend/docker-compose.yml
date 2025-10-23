@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: truecover-postgres
+    environment:
+      POSTGRES_USER: truecover
+      POSTGRES_PASSWORD: truecover
+      POSTGRES_DB: truecover
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U truecover"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  martin:
+    image: ghcr.io/maplibre/martin:latest
+    container_name: truecover-martin
+    ports:
+      - "3051:3000"
+    environment:
+      - DATABASE_URL=postgresql://truecover:truecover@postgres:5432/truecover
+    volumes:
+      - ./martin-config.yaml:/config/config.yaml
+    command: --config /config/config.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

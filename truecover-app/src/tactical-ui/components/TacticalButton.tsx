@@ -21,6 +21,11 @@ export interface TacticalButtonProps {
    */
   disabled?: boolean;
   /**
+   * Active state - shows accent border/text with transparent background
+   * @default false
+   */
+  isActive?: boolean;
+  /**
    * Full width
    * @default false
    */
@@ -53,6 +58,7 @@ export const TacticalButton: React.FC<TacticalButtonProps> = ({
   variant = 'primary',
   size = 'md',
   disabled = false,
+  isActive = false,
   fullWidth = false,
   className = '',
   onClick,
@@ -69,11 +75,45 @@ export const TacticalButton: React.FC<TacticalButtonProps> = ({
     ${fullWidth ? 'w-full' : ''}
   `;
 
+  // Active state classes - transparent background with accent color
+  const activeVariantClasses = {
+    primary: `
+      bg-transparent
+      border-tactical-text-primary
+      text-tactical-text-primary
+      hover:bg-tactical-text-primary/10
+    `,
+    secondary: `
+      bg-transparent
+      border-tactical-border-light
+      text-tactical-text-primary
+      hover:bg-tactical-bg-tertiary/50
+    `,
+    ghost: `
+      bg-transparent
+      border-transparent
+      text-tactical-text-primary
+      hover:bg-tactical-bg-tertiary/50
+    `,
+    danger: `
+      bg-transparent
+      border-tactical-accent-red
+      text-tactical-accent-red
+      hover:bg-tactical-accent-red/10
+    `,
+    success: `
+      bg-transparent
+      border-tactical-accent-green
+      text-tactical-accent-green
+      hover:bg-tactical-accent-green/10
+    `,
+  };
+
   const variantClasses = {
     primary: `
       bg-transparent
       border-tactical-text-primary
-      border-2
+      border-1.5
       text-tactical-text-primary
       hover:bg-tactical-text-primary
       hover:text-tactical-bg-primary
@@ -83,6 +123,7 @@ export const TacticalButton: React.FC<TacticalButtonProps> = ({
     secondary: `
       bg-transparent
       border-tactical-border-light
+      border-1.5
       text-tactical-text-primary
       hover:bg-tactical-bg-tertiary
       hover:border-tactical-text-primary
@@ -99,7 +140,7 @@ export const TacticalButton: React.FC<TacticalButtonProps> = ({
     danger: `
       bg-transparent
       border-tactical-accent-red
-      border-2
+      border-1.5
       text-tactical-accent-red
       hover:bg-tactical-accent-red
       hover:text-tactical-text-primary
@@ -108,11 +149,12 @@ export const TacticalButton: React.FC<TacticalButtonProps> = ({
     success: `
       bg-transparent
       border-tactical-accent-green
-      border-2
+      border-1.5
       text-tactical-accent-green
       hover:bg-tactical-accent-green
       hover:text-tactical-text-primary
-      active:bg-tactical-accent-green-dim
+      active:bg-tactical-bg-tertiary
+      active:text-tactical-accent-green
     `,
   };
 
@@ -129,7 +171,7 @@ export const TacticalButton: React.FC<TacticalButtonProps> = ({
       onClick={onClick}
       className={`
         ${baseClasses}
-        ${variantClasses[variant]}
+        ${isActive ? activeVariantClasses[variant] : variantClasses[variant]}
         ${sizeClasses[size]}
         ${className}
       `}

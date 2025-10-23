@@ -1,0 +1,14 @@
+# Martin configuration for serving PostGIS vector tiles
+# Serves pixels table as vector tiles for map visualization
+
+postgres:
+  connection_string: "postgresql://truecover:truecover@postgres:5432/truecover"
+
+  # Define function-based sources for dynamic filtering
+  functions:
+    # Function to serve pixels filtered by area_id
+    pixels_by_area:
+      schema: public
+      function: pixels_by_area
+      minzoom: 0
+      maxzoom: 24

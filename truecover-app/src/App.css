@@ -1,5 +1,114 @@
 /* App.css - Now using tactical-ui styling */
 
+/* Clerk Modal Styling - Make modals more visible */
+.cl-modalContent,
+.cl-card {
+  background-color: #1a1a1a !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.2) !important;
+}
+
+.cl-rootBox,
+.cl-userButtonPopoverCard,
+.cl-userButtonPopoverMain {
+  background-color: #000000 !important;
+  border: 1px solid #666666 !important;
+}
+
+.cl-internal-b3fm6y {
+  background-color: #000000 !important;
+}
+
+/* Remove white border around avatar images */
+.cl-userButtonAvatarBox,
+.cl-avatarBox,
+.cl-userButtonAvatarImage,
+.cl-avatarImage,
+.cl-userButtonTrigger,
+.cl-userButton,
+img[alt="User avatar"] {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.cl-userButtonTrigger:focus,
+.cl-userButtonTrigger:hover {
+  box-shadow: none !important;
+}
+
+/* Force remove any border/ring on the actual image */
+.cl-userButtonAvatarBox img,
+.cl-avatarBox img,
+.cl-userButton img,
+button[aria-label*="user"] img {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  ring: none !important;
+}
+
+/* User button dropdown menu items */
+.cl-userButtonPopoverActionButton,
+.cl-userButtonPopoverActionButtonText,
+.cl-userButtonPopoverFooter,
+.cl-userButtonPopoverActionButtonIcon,
+.cl-menuItem,
+.cl-menuList,
+.cl-profileSectionPrimaryButton,
+.cl-profileSectionItem__button {
+  color: #ffffff !important;
+  background-color: transparent !important;
+}
+
+.cl-userButtonPopoverActionButton:hover,
+.cl-menuItem:hover,
+.cl-profileSectionPrimaryButton:hover {
+  background-color: #333333 !important;
+}
+
+.cl-formFieldInput,
+.cl-formFieldInput:focus,
+.cl-formFieldInput:hover,
+input[type="text"].cl-formFieldInput,
+input[type="email"].cl-formFieldInput,
+input[type="password"].cl-formFieldInput {
+  border: 1px solid #666666 !important;
+  background-color: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+.cl-formFieldInput:focus {
+  border: 1px solid #00ff00 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px #00ff00 !important;
+}
+
+.cl-footerActionLink,
+.cl-footerActionText,
+.cl-headerTitle,
+.cl-headerSubtitle,
+.cl-formFieldLabel,
+.cl-identityPreviewText,
+.cl-formFieldInputShowPasswordButton,
+.cl-formFieldLabelRow,
+.cl-selectButton__countryCode,
+.cl-selectButton__countryCode__countryCodeText {
+  color: #ffffff !important;
+}
+
+.cl-dividerRow,
+.cl-dividerLine {
+  border-color: #666666 !important;
+}
+
+/* Make sure all buttons are visible with white text */
+.cl-formButtonPrimary,
+.cl-button,
+.cl-footerActionButton {
+  color: #ffffff !important;
+}
+
 /* Mapbox GL styles */
 .mapboxgl-popup-content {
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;

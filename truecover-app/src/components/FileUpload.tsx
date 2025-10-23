@@ -40,25 +40,31 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, label = 'Upload F
 
       // If neither format matches, throw error to try CSV parsing
       throw new Error('Not a valid GeoJSON FeatureCollection');
-    } catch {
+    } catch (jsonError) {
       // Try parsing as CSV
       Papa.parse(content, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          const csvData = results.data as Record<string, any>[];
-          const fields = results.meta.fields || [];
-          
-          // Convert CSV to GeoJSON
-          const geojson = csvToGeoJSON(csvData, fields);
-          
-          onFileLoaded({
-            type: 'csv',
-            data: geojson,
-            fields
-          });
+          try {
+            const csvData = results.data as Record<string, any>[];
+            const fields = results.meta.fields || [];
+
+            // Convert CSV to GeoJSON
+            const geojson = csvToGeoJSON(csvData, fields);
+
+            onFileLoaded({
+              type: 'csv',
+              data: geojson,
+              fields
+            });
+          } catch (csvError: any) {
+            console.error('FileUpload: CSV conversion error:', csvError);
+            alert(`Failed to process CSV: ${csvError.message}`);
+          }
         },
         error: (error: any) => {
+          console.error('FileUpload: Papa parse error:', error);
           alert(`Failed to parse file: ${error.message}`);
         }
       });

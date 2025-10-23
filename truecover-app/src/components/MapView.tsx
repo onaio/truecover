@@ -1,13 +1,26 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox';
 import type { LayerProps } from 'react-map-gl/mapbox';
 import { GeoJSONFeatureCollection } from '../types';
+import { createJenksColorExpression, PREVALENCE_COLORS, UNCERTAINTY_COLORS } from '../utils/jenksBreaks';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapViewProps {
   data: GeoJSONFeatureCollection;
   selectedData?: GeoJSONFeatureCollection | null;
-  mode?: 'sampling' | 'prediction';
+  locations?: any | null;
+  mode?: 'sampling' | 'prediction' | 'locations';
+  highlightRounds?: number[];
+  showVisitLocations?: boolean;
+  interpolationMode?: 'none' | 'coverage' | 'uncertainty';
+  showPixels?: boolean;
+  onTogglePixels?: () => void;
+  pixelsBounds?: [number, number, number, number] | null;
+  onBoundsChange?: (bounds: [number, number, number, number]) => void;
+  areaId?: string;
+  pixelVersion?: string | null;
+  pixelCount?: number;
+  onGeneratePixels?: () => void;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -42,42 +55,93 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling' }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, pixelVersion, pixelCount = 0, onGeneratePixels }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
-  const mapboxToken = process.env.REACT_APP_MAPBOX_TOKEN;
+  const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
+  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  // Use locations data if in locations mode, otherwise use regular data
+  const primaryData = mode === 'locations' && locations ? locations : data;
 
   // Calculate bounds from all features - BEFORE the early return
+  // Use ref to store initial bounds so map doesn't recalculate on every render
+  const initialBoundsRef = useRef<[[number, number], [number, number]] | undefined>(undefined);
+
   const bounds = useMemo(() => {
-    if (!data || !data.features || !data.features.length) return undefined;
+    // If we already have initial bounds, return them (prevents map refresh)
+    if (initialBoundsRef.current) {
+      return initialBoundsRef.current;
+    }
 
-    let minLng = Infinity;
-    let minLat = Infinity;
-    let maxLng = -Infinity;
-    let maxLat = -Infinity;
+    // Try to calculate bounds from locations
+    let calculatedBounds: [[number, number], [number, number]] | undefined = undefined;
 
-    data.features.forEach(feature => {
-      const coords = extractCoordinates(feature.geometry);
-      coords.forEach(([lng, lat]) => {
-        minLng = Math.min(minLng, lng);
-        minLat = Math.min(minLat, lat);
-        maxLng = Math.max(maxLng, lng);
-        maxLat = Math.max(maxLat, lat);
+    if (primaryData && primaryData.features && primaryData.features.length > 0) {
+      let minLng = Infinity;
+      let minLat = Infinity;
+      let maxLng = -Infinity;
+      let maxLat = -Infinity;
+
+      primaryData.features.forEach((feature: any) => {
+        const coords = extractCoordinates(feature.geometry);
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        });
       });
-    });
 
-    // Add padding
-    const lngPadding = (maxLng - minLng) * 0.1;
-    const latPadding = (maxLat - minLat) * 0.1;
+      // Add padding
+      const lngPadding = (maxLng - minLng) * 0.1;
+      const latPadding = (maxLat - minLat) * 0.1;
 
-    return [
-      [minLng - lngPadding, minLat - latPadding],
-      [maxLng + lngPadding, maxLat + latPadding]
-    ] as [[number, number], [number, number]];
-  }, [data]);
+      calculatedBounds = [
+        [minLng - lngPadding, minLat - latPadding],
+        [maxLng + lngPadding, maxLat + latPadding]
+      ] as [[number, number], [number, number]];
+    }
+
+    // If no locations but we have pixels bounds, use that
+    if (!calculatedBounds && pixelsBounds && pixelsBounds.length === 4) {
+      const [minLng, minLat, maxLng, maxLat] = pixelsBounds;
+      const lngPadding = (maxLng - minLng) * 0.1;
+      const latPadding = (maxLat - minLat) * 0.1;
+
+      calculatedBounds = [
+        [minLng - lngPadding, minLat - latPadding],
+        [maxLng + lngPadding, maxLat + latPadding]
+      ] as [[number, number], [number, number]];
+    }
+
+    // Store the initial bounds
+    if (calculatedBounds) {
+      initialBoundsRef.current = calculatedBounds;
+    }
+
+    return calculatedBounds;
+  }, [primaryData, pixelsBounds]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
+    if (mode === 'locations' && locations && locations.features) {
+      // If toggle is off, don't show any selected features
+      if (!showVisitLocations) {
+        return [];
+      }
+      // If highlightRounds is specified and has values, only highlight those rounds
+      if (highlightRounds && highlightRounds.length > 0) {
+        return locations.features.filter(f => {
+          const rounds = f.properties?.rounds || [];
+          return Array.isArray(rounds) && rounds.some((r: number) => highlightRounds.includes(r));
+        });
+      }
+      // Otherwise, show all points with rounds as selected (green)
+      return locations.features.filter(
+        f => f.properties?.rounds && Array.isArray(f.properties.rounds) && f.properties.rounds.length > 0
+      );
+    }
     if (selectedData && selectedData.features) {
       return selectedData.features.filter(
         f => f.properties?.adaptively_selected === 1 || f.properties?.adaptively_selected === true
@@ -89,7 +153,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
       );
     }
     return [];
-  }, [data, selectedData]);
+  }, [data, selectedData, mode, locations, highlightRounds, showVisitLocations]);
 
   // Use mode prop to determine visualization type
   const isPredictionData = mode === 'prediction';
@@ -120,6 +184,88 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     return { min, max };
   }, [displayData]);
 
+  // Calculate coverage range for interpolation
+  const coverageRange = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return { min: 0, max: 1 };
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    dataSource.features.forEach(feature => {
+      const coverage = feature.properties?.prevalence_prediction;
+      if (typeof coverage === 'number' && !isNaN(coverage)) {
+        min = Math.min(min, coverage);
+        max = Math.max(max, coverage);
+      }
+    });
+
+    if (min === Infinity || max === -Infinity) {
+      return { min: 0, max: 1 };
+    }
+
+    return { min, max };
+  }, [data, locations, mode]);
+
+  // Calculate uncertainty range for interpolation
+  const uncertaintyRange = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return { min: 0, max: 1 };
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    dataSource.features.forEach(feature => {
+      const uncertainty = feature.properties?.prevalence_bci_width;
+      if (typeof uncertainty === 'number' && !isNaN(uncertainty)) {
+        min = Math.min(min, uncertainty);
+        max = Math.max(max, uncertainty);
+      }
+    });
+
+    if (min === Infinity || max === -Infinity) {
+      return { min: 0, max: 1 };
+    }
+
+    return { min, max };
+  }, [data, locations, mode]);
+
+  // Calculate Jenks breaks color expressions for coverage
+  const coverageJenksExpression = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return null;
+
+    const values: number[] = [];
+    dataSource.features.forEach(feature => {
+      const coverage = feature.properties?.prevalence_prediction;
+      if (typeof coverage === 'number' && !isNaN(coverage)) {
+        values.push(coverage);
+      }
+    });
+
+    if (values.length === 0) return null;
+
+    return createJenksColorExpression(values, PREVALENCE_COLORS.length, PREVALENCE_COLORS, 'prevalence_prediction');
+  }, [data, locations, mode]);
+
+  // Calculate Jenks breaks color expressions for uncertainty
+  const uncertaintyJenksExpression = useMemo(() => {
+    const dataSource = mode === 'locations' && locations ? locations : data;
+    if (!dataSource || !dataSource.features || !dataSource.features.length) return null;
+
+    const values: number[] = [];
+    dataSource.features.forEach(feature => {
+      const uncertainty = feature.properties?.prevalence_bci_width;
+      if (typeof uncertainty === 'number' && !isNaN(uncertainty)) {
+        values.push(uncertainty);
+      }
+    });
+
+    if (values.length === 0) return null;
+
+    return createJenksColorExpression(values, UNCERTAINTY_COLORS.length, UNCERTAINTY_COLORS, 'prevalence_bci_width');
+  }, [data, locations, mode]);
+
   // Early return AFTER all hooks
   if (!mapboxToken) {
     return (
@@ -127,20 +273,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono font-bold text-tactical-accent-red uppercase">Error:</span>
           <span className="text-xs font-mono text-tactical-accent-red">
-            Mapbox token not found. Please create a .env file with REACT_APP_MAPBOX_TOKEN
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data || !data.features) {
-    return (
-      <div className="p-4 mb-5 border border-tactical-accent-red bg-tactical-bg-secondary">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold text-tactical-accent-red uppercase">Error:</span>
-          <span className="text-xs font-mono text-tactical-accent-red">
-            No data provided to MapView component
+            Mapbox token not found. Please create a .env file with VITE_MAPBOX_TOKEN
           </span>
         </div>
       </div>
@@ -152,7 +285,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     features: selectedFeatures
   };
 
-  // Heatmap layer for smooth interpolation
+  // Heatmap layer for smooth interpolation (used in prediction mode)
   const heatmapLayer: LayerProps = {
     id: 'prediction-heatmap',
     type: 'heatmap',
@@ -296,8 +429,12 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     type: 'fill',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'fill-color': '#999',
-      'fill-opacity': 0.2
+      'fill-color': interpolationMode === 'coverage' && coverageJenksExpression
+        ? coverageJenksExpression
+        : interpolationMode === 'uncertainty' && uncertaintyJenksExpression
+          ? uncertaintyJenksExpression
+          : '#999',
+      'fill-opacity': interpolationMode !== 'none' ? 0.9 : 0
     }
   };
 
@@ -306,9 +443,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     type: 'line',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'line-color': '#666',
+      'line-color': '#cccccc',
       'line-width': 1,
-      'line-opacity': 0.4
+      'line-opacity': 0.8
     }
   };
 
@@ -317,8 +454,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     type: 'fill',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'fill-color': '#28a745',
-      'fill-opacity': 0.6
+      // When both visit locations AND interpolation are active, make fill transparent
+      'fill-color': (showVisitLocations && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
+      'fill-opacity': (showVisitLocations && interpolationMode !== 'none') ? 0 : 0.95
     }
   };
 
@@ -327,7 +465,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     type: 'line',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      'line-color': '#1e7e34',
+      'line-color': '#28a745',
       'line-width': 2,
       'line-opacity': 1
     }
@@ -340,10 +478,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': 3,
-      'circle-color': '#999',
-      'circle-opacity': 0.2,
-      'circle-stroke-width': 1,
-      'circle-stroke-color': '#666'
+      // When interpolation is active, make fill transparent to see heatmap underneath
+      'circle-color': interpolationMode !== 'none' ? 'rgba(153, 153, 153, 0)' : '#999',
+      'circle-opacity': interpolationMode !== 'none' ? 1 : 0.2,
+      'circle-stroke-width': interpolationMode !== 'none' ? 1 : 1,
+      'circle-stroke-color': interpolationMode !== 'none' ? 'rgba(255, 255, 255, 0.5)' : '#666'
     }
   };
 
@@ -353,10 +492,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': 3,
-      'circle-color': '#28a745',
+      // When both visit locations AND interpolation are active, make fill transparent
+      'circle-color': (showVisitLocations && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
       'circle-opacity': 1,
       'circle-stroke-width': 2,
-      'circle-stroke-color': '#1e7e34'
+      'circle-stroke-color': '#28a745'
     }
   };
 
@@ -372,28 +512,50 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
     }
   };
 
+  const handleMapMove = (event: any) => {
+    const map = event.target;
+    const bounds = map.getBounds();
+    if (bounds) {
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const boundsArray: [[number, number], [number, number]] = [
+        [sw.lng, sw.lat],
+        [ne.lng, ne.lat]
+      ];
+      setViewportBounds(boundsArray);
+
+      // Call onBoundsChange if provided (for parent component to track bounds)
+      if (onBoundsChange) {
+        onBoundsChange([sw.lng, sw.lat, ne.lng, ne.lat]);
+      }
+    }
+  };
+
   return (
-    <div className="mb-6">
-      <h3 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-        Map Visualization
-      </h3>
-      <div className="relative h-[500px] w-full border border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
+    <div>
+      <div className="relative h-[500px] w-full border-t-0 border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
         <Map
           mapboxAccessToken={mapboxToken}
-          initialViewState={{
+          initialViewState={bounds ? {
             bounds: bounds,
             fitBoundsOptions: { padding: 40 }
+          } : {
+            longitude: 20,
+            latitude: 20,
+            zoom: 1.5
           }}
           style={{ width: '100%', height: '100%' }}
           mapStyle={mapStyle}
+          projection="globe"
           interactiveLayerIds={isPredictionData
             ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline']
             : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
           onClick={handleMapClick}
+          onMove={handleMapMove}
         >
-          <NavigationControl position="bottom-right" />
+          <NavigationControl position="bottom-right" showCompass={false} style={{ marginBottom: '32px' }} />
 
-          {isPredictionData ? (
+          {isPredictionData && displayData?.features?.length > 0 ? (
             /* Prediction visualization with heatmap interpolation */
             <Source id="prediction-source" type="geojson" data={displayData as any}>
               <Layer {...heatmapLayer} />
@@ -401,10 +563,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
               <Layer {...predictionPolygonOutlineLayer} />
               <Layer {...predictionLayer} />
             </Source>
-          ) : (
+          ) : !isPredictionData && primaryData?.features?.length > 0 ? (
             <>
-              {/* All features layer */}
-              <Source id="all-source" type="geojson" data={data as any}>
+              {/* All features layer - colored by coverage or uncertainty when active */}
+              <Source id="all-source" type="geojson" data={primaryData as any}>
                 <Layer {...allPolygonsFillLayer} />
                 <Layer {...allPolygonsOutlineLayer} />
                 <Layer {...allPointsLayer} />
@@ -419,6 +581,37 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
                 </Source>
               )}
             </>
+          ) : null}
+
+          {/* Pixels layer from Martin */}
+          {showPixels && areaId && (
+            <Source
+              id="pixels-source"
+              type="vector"
+              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&v=${pixelVersion || '0'}`]}
+              minzoom={0}
+              maxzoom={24}
+            >
+              <Layer
+                id="pixels-fill-layer"
+                type="fill"
+                source-layer="pixels"
+                paint={{
+                  'fill-color': 'rgba(40, 167, 69, 0.1)',
+                  'fill-opacity': 0.5
+                }}
+              />
+              <Layer
+                id="pixels-line-layer"
+                type="line"
+                source-layer="pixels"
+                paint={{
+                  'line-color': '#28a745',
+                  'line-width': 1,
+                  'line-opacity': 0.6
+                }}
+              />
+            </Source>
           )}
 
           {/* Popup */}
@@ -430,24 +623,50 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
               onClose={() => setPopupInfo(null)}
               closeButton={true}
               closeOnClick={false}
+              className="tactical-popup"
             >
-              <div style={{ maxWidth: '200px', fontSize: '12px' }}>
-                <strong>Properties:</strong>
-                <pre style={{
-                  marginTop: '5px',
-                  fontSize: '11px',
-                  maxHeight: '150px',
-                  overflow: 'auto',
-                  backgroundColor: '#f5f5f5',
-                  padding: '5px',
-                  borderRadius: '3px'
-                }}>
-                  {JSON.stringify(popupInfo.properties, null, 2)}
-                </pre>
+              <div className="bg-tactical-bg-primary border border-tactical-border-medium p-4" style={{ minWidth: '400px', maxWidth: '500px' }}>
+                <div className="text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
+                  Location Properties
+                </div>
+                <div className="overflow-auto tactical-scrollbar" style={{ maxHeight: '400px' }}>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {Object.entries(popupInfo.properties || {})
+                        .filter(([key]) => key !== 'bbox')
+                        .map(([key, value]) => (
+                          <tr key={key} className="border-b border-tactical-border-medium">
+                            <td className="py-2 pr-4 font-mono font-bold text-tactical-text-muted align-top" style={{ minWidth: '150px' }}>
+                              {key}
+                            </td>
+                            <td className="py-2 font-mono text-tactical-text-secondary break-all">
+                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </Popup>
           )}
         </Map>
+
+        {/* Pixels Toggle/Generate Button */}
+        {mode === 'locations' && (onTogglePixels || onGeneratePixels) && (
+          <div className="absolute top-3 left-3 z-10">
+            <button
+              onClick={pixelCount > 0 ? onTogglePixels : onGeneratePixels}
+              className={`px-3 py-2 font-mono text-xs uppercase tracking-wider border transition-colors ${
+                showPixels && pixelCount > 0
+                  ? 'bg-tactical-accent-green border-tactical-accent-green text-black'
+                  : 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-primary hover:border-tactical-accent-green'
+              }`}
+            >
+              {pixelCount > 0 ? 'Pixels' : 'Generate Pixels'}
+            </button>
+          </div>
+        )}
 
         {/* Map Style Selector */}
         <div className="absolute top-3 right-3 bg-tactical-bg-tertiary border border-tactical-border-medium p-2 z-10">
@@ -478,17 +697,89 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
               <div className="mb-2 font-mono text-xs text-tactical-text-muted">
                 Predicted Prevalence
               </div>
-              <div className="h-24 w-5 mb-2 border border-tactical-border-dark"
-                style={{
-                  background: 'linear-gradient(to top, #2166ac, #4393c3, #92c5de, #fddbc7, #f4a582, #d6604d, #b2182b)'
-                }}
-              ></div>
-              <div className="flex justify-between font-mono text-xs text-tactical-text-dim">
-                <span>Low</span>
-                <span>High</span>
+              <div className="flex flex-col mb-2">
+                <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
+                <div className="h-24 w-5 border border-tactical-border-dark"
+                  style={{
+                    background: 'linear-gradient(to bottom, #b2182b, #d6604d, #f4a582, #fddbc7, #92c5de, #4393c3, #2166ac)'
+                  }}
+                ></div>
+                <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
               </div>
               <div className="mt-2 font-mono text-xs text-tactical-text-muted">
-                {displayData.features.length} prediction points
+                {displayData?.features?.length || 0} prediction points
+              </div>
+            </div>
+          ) : interpolationMode === 'coverage' ? (
+            /* Coverage interpolation legend */
+            <div>
+              <div className="mb-2 font-mono text-xs text-tactical-text-muted">
+                Coverage (Prevalence)
+              </div>
+              <div className="flex flex-col mb-2">
+                <span className="font-mono text-xs text-tactical-text-dim mb-1">High</span>
+                <div className="flex flex-col w-24 border border-tactical-border-dark">
+                  {[...PREVALENCE_COLORS].reverse().map((color, idx) => (
+                    <div
+                      key={idx}
+                      className="h-3"
+                      style={{ backgroundColor: color }}
+                    ></div>
+                  ))}
+                </div>
+                <span className="font-mono text-xs text-tactical-text-dim mt-1">Low</span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-tactical-border-medium">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                  <span className="font-mono text-xs text-tactical-text-muted">
+                    Locations ({primaryData?.features?.length || 0})
+                  </span>
+                </div>
+                {selectedFeatures.length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
+                    <span className="font-mono text-xs text-tactical-text-muted">
+                      To visit ({selectedFeatures.length})
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : interpolationMode === 'uncertainty' ? (
+            /* Uncertainty interpolation legend */
+            <div>
+              <div className="mb-2 font-mono text-xs text-tactical-text-muted">
+                Uncertainty (BCI Width)
+              </div>
+              <div className="flex flex-col mb-2">
+                <span className="font-mono text-xs text-tactical-text-dim mb-1">Low (High Confidence)</span>
+                <div className="flex flex-col w-24 border border-tactical-border-dark">
+                  {UNCERTAINTY_COLORS.map((color, idx) => (
+                    <div
+                      key={idx}
+                      className="h-3"
+                      style={{ backgroundColor: color }}
+                    ></div>
+                  ))}
+                </div>
+                <span className="font-mono text-xs text-tactical-text-dim mt-1">High (Low Confidence)</span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-tactical-border-medium">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                  <span className="font-mono text-xs text-tactical-text-muted">
+                    Locations ({primaryData?.features?.length || 0})
+                  </span>
+                </div>
+                {selectedFeatures.length > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
+                    <span className="font-mono text-xs text-tactical-text-muted">
+                      To visit ({selectedFeatures.length})
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -497,20 +788,29 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, mode = 'sampling'
               <div className="flex items-center mb-2">
                 <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
                 <span className="font-mono text-xs text-tactical-text-muted">
-                  All Points ({data.features.length})
+                  {mode === 'locations' ? 'Locations' : 'All Points'} ({primaryData?.features?.length || 0})
                 </span>
               </div>
               {selectedFeatures.length > 0 && (
                 <div className="flex items-center">
-                  <div className="w-4 h-4 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
+                  <div className="w-3 h-3 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    Adaptively Selected ({selectedFeatures.length})
+                    {mode === 'locations' ? 'Locations to visit' : 'Adaptively Selected'} ({selectedFeatures.length})
                   </span>
                 </div>
               )}
             </>
           )}
         </div>
+
+        {/* Bounding Box Display */}
+        {viewportBounds && (
+          <div className="absolute bottom-2 right-16 bg-tactical-bg-tertiary border border-tactical-border-medium px-2 py-0.5 z-10">
+            <div className="font-mono text-[9px] text-tactical-text-muted select-all cursor-text">
+              [{viewportBounds[0][0].toFixed(6)}, {viewportBounds[0][1].toFixed(6)}, {viewportBounds[1][0].toFixed(6)}, {viewportBounds[1][1].toFixed(6)}]
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

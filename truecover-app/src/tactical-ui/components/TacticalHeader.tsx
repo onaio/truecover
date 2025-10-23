@@ -47,7 +47,6 @@ export const TacticalHeader: React.FC<TacticalHeaderProps> = ({
       className={`
         relative
         bg-tactical-bg-secondary
-        border-b border-tactical-border-medium
         px-6 py-4
         ${className}
       `}
@@ -67,7 +66,7 @@ export const TacticalHeader: React.FC<TacticalHeaderProps> = ({
         </div>
 
         {actions && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-16">
             {actions}
           </div>
         )}

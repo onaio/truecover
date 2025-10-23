@@ -30,6 +30,8 @@ module.exports = {
             'green-dim': '#064e3b',
             blue: '#3b82f6',
             'blue-dim': '#1e3a8a',
+            orange: '#f97316',
+            'orange-dim': '#7c2d12',
           },
         },
       },
@@ -53,6 +55,7 @@ module.exports = {
       },
       borderWidth: {
         '1': '1px',
+        '1.5': '1.5px',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
