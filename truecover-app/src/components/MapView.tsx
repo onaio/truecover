@@ -25,6 +25,7 @@ interface MapViewProps {
   pixelCount?: number;
   onGeneratePixels?: () => void;
   histogramBrushRanges?: [number, number][] | null;
+  locationsToVisitCount?: number;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -59,7 +60,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, locationsToVisitCount = 0 }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -76,6 +77,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
   // Use locations data if in locations mode, otherwise use regular data
   const primaryData = mode === 'locations' && locations ? locations : data;
+
+  // Get location count - handle both lightweight and GeoJSON formats
+  const locationCount = useMemo(() => {
+    if (mode === 'locations' && locations) {
+      return locations.locations?.length || 0;
+    }
+    return primaryData?.features?.length || 0;
+  }, [mode, locations, primaryData]);
 
   // Calculate bounds from all features - BEFORE the early return
   // Use ref to store initial bounds so map doesn't recalculate on every render
@@ -1133,12 +1142,20 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               </div>
               <div className="mt-3 pt-3 border-t border-tactical-border-medium">
                 <div className="flex items-center mb-2">
-                  <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                  <div className="w-3 h-3 rounded-full bg-white border border-tactical-border-light mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    Locations ({primaryData?.features?.length || 0})
+                    Locations ({locationCount})
                   </span>
                 </div>
-                {selectedFeatures.length > 0 && (
+                {mode === 'locations' && locationsToVisitCount > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
+                    <span className="font-mono text-xs text-tactical-text-muted">
+                      To visit ({locationsToVisitCount})
+                    </span>
+                  </div>
+                )}
+                {mode !== 'locations' && selectedFeatures.length > 0 && (
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
                     <span className="font-mono text-xs text-tactical-text-muted">
@@ -1169,12 +1186,20 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               </div>
               <div className="mt-3 pt-3 border-t border-tactical-border-medium">
                 <div className="flex items-center mb-2">
-                  <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                  <div className="w-3 h-3 rounded-full bg-white border border-tactical-border-light mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    Locations ({primaryData?.features?.length || 0})
+                    Locations ({locationCount})
                   </span>
                 </div>
-                {selectedFeatures.length > 0 && (
+                {mode === 'locations' && locationsToVisitCount > 0 && (
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
+                    <span className="font-mono text-xs text-tactical-text-muted">
+                      To visit ({locationsToVisitCount})
+                    </span>
+                  </div>
+                )}
+                {mode !== 'locations' && selectedFeatures.length > 0 && (
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
                     <span className="font-mono text-xs text-tactical-text-muted">
@@ -1188,16 +1213,24 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             /* Sampling legend */
             <>
               <div className="flex items-center mb-2">
-                <div className="w-3 h-3 rounded-full bg-tactical-text-dim border border-tactical-border-light mr-2"></div>
+                <div className="w-3 h-3 rounded-full bg-white border border-tactical-border-light mr-2"></div>
                 <span className="font-mono text-xs text-tactical-text-muted">
-                  {mode === 'locations' ? 'Locations' : 'All Points'} ({primaryData?.features?.length || 0})
+                  {mode === 'locations' ? 'Locations' : 'All Points'} ({locationCount})
                 </span>
               </div>
-              {selectedFeatures.length > 0 && (
+              {mode === 'locations' && locationsToVisitCount > 0 && (
                 <div className="flex items-center">
                   <div className="w-3 h-3 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    {mode === 'locations' ? 'Locations to visit' : 'Adaptively Selected'} ({selectedFeatures.length})
+                    Locations to visit ({locationsToVisitCount})
+                  </span>
+                </div>
+              )}
+              {mode !== 'locations' && selectedFeatures.length > 0 && (
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
+                  <span className="font-mono text-xs text-tactical-text-muted">
+                    Adaptively Selected ({selectedFeatures.length})
                   </span>
                 </div>
               )}

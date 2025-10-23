@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../contexts/AppContext';
@@ -129,6 +129,31 @@ const LocationsPage: React.FC = () => {
 
     loadCoverage();
   }, [selectedArea?.id, selectedIndicatorId, selectedRoundIds, refreshKey]);
+
+  // Calculate locations to visit count for map legend
+  const locationsToVisitCount = useMemo(() => {
+    if (!coverageData || !selectedRoundIds) {
+      return 0;
+    }
+
+    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+      // Count all records with any rounds data
+      return coverageData.filter(record =>
+        record.rounds && record.rounds.length > 0
+      ).length;
+    }
+
+    // Count records with rounds matching selected round IDs
+    const selectedRoundNumbers = selectedRoundIds
+      .map(id => rounds?.find(r => r.id === id)?.round_number)
+      .filter((num): num is number => num !== undefined);
+
+    return coverageData.filter(record =>
+      record.rounds &&
+      record.rounds.length > 0 &&
+      record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
+    ).length;
+  }, [coverageData, selectedRoundIds, rounds]);
 
   // Update mapHighlightRounds based on toggle and selected rounds
   useEffect(() => {
@@ -379,6 +404,7 @@ const LocationsPage: React.FC = () => {
                 pixelCount={pixelStats?.count || 0}
                 onGeneratePixels={() => setIsGeneratePixelsModalOpen(true)}
                 histogramBrushRanges={histogramBrushRanges}
+                locationsToVisitCount={locationsToVisitCount}
               />
             </TacticalCard>
 
