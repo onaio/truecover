@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@clerk/clerk-react": "^5.51.0",
+    "@mapbox/search-js-react": "^1.5.0",
     "@observablehq/plot": "^0.6.17",
     "@tanstack/react-query": "^5.90.2",
     "@tanstack/react-query-devtools": "^5.90.2",

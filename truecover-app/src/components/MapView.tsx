@@ -3,6 +3,8 @@ import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbo
 import type { LayerProps } from 'react-map-gl/mapbox';
 import { GeoJSONFeatureCollection } from '../types';
 import { createJenksColorExpression, PREVALENCE_COLORS, UNCERTAINTY_COLORS } from '../utils/jenksBreaks';
+import { Geocoder } from '@mapbox/search-js-react';
+import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapViewProps {
@@ -59,6 +61,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
+  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [showGeocoderModal, setShowGeocoderModal] = useState<boolean>(false);
+  const geocoderInputRef = useRef<HTMLDivElement>(null);
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
   // Use locations data if in locations mode, otherwise use regular data
@@ -72,6 +77,35 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   React.useEffect(() => {
     initialBoundsRef.current = undefined;
   }, [areaId, pixelsBounds, pixelCount]);
+
+  // Keyboard shortcut for geocoder modal (Cmd+K or Ctrl+K)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowGeocoderModal(prev => !prev);
+      }
+      if (e.key === 'Escape') {
+        setShowGeocoderModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Auto-focus geocoder input when modal opens
+  React.useEffect(() => {
+    if (showGeocoderModal && geocoderInputRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        const input = geocoderInputRef.current?.querySelector('input');
+        if (input) {
+          input.focus();
+        }
+      }, 100);
+    }
+  }, [showGeocoderModal]);
 
   const bounds = useMemo(() => {
     // Check if we already calculated bounds (prevents unnecessary recalculations)
@@ -561,6 +595,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
           onClick={handleMapClick}
           onMove={handleMapMove}
+          onLoad={(e) => setMapInstance(e.target)}
         >
           <NavigationControl position="bottom-right" showCompass={false} style={{ marginBottom: '32px' }} />
 
@@ -820,6 +855,174 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </div>
           </div>
         )}
+
+        {/* Geocoder Modal */}
+        {showGeocoderModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center pt-32 bg-black bg-opacity-75"
+            onClick={() => setShowGeocoderModal(false)}
+          >
+            <div
+              className="bg-black border border-tactical-border-medium p-4 shadow-2xl"
+              style={{ width: '600px', maxWidth: '90vw' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-mono font-bold text-sm text-tactical-text-primary uppercase tracking-wider">
+                  Search Location
+                </div>
+                <div className="font-mono text-xs text-tactical-text-muted">
+                  Press ESC to close
+                </div>
+              </div>
+              <div className="geocoder-tactical-wrapper" ref={geocoderInputRef}>
+                <Geocoder
+                  accessToken={mapboxToken}
+                  map={mapInstance}
+                  mapboxgl={mapboxgl}
+                  marker={true}
+                  placeholder="Search for a place..."
+                  onRetrieve={() => setShowGeocoderModal(false)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Geocoder Custom Styling */}
+        <style>{`
+          /* Hide the search icon */
+          .geocoder-tactical-wrapper svg,
+          .geocoder-tactical-wrapper [class*="Icon"],
+          .geocoder-tactical-wrapper [class*="icon"] {
+            display: none !important;
+          }
+          .geocoder-tactical-wrapper input {
+            font-family: ui-monospace, monospace !important;
+            font-size: 16px !important;
+            padding: 12px 16px !important;
+            background-color: #000000 !important;
+            border: 1px solid #404040 !important;
+            color: #ffffff !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .geocoder-tactical-wrapper input:focus {
+            outline: none !important;
+            border-color: #ff6b35 !important;
+          }
+          .geocoder-tactical-wrapper input::placeholder {
+            color: #808080 !important;
+            font-family: ui-monospace, monospace !important;
+          }
+          /* Dropdown container */
+          .geocoder-tactical-wrapper [role="listbox"],
+          .geocoder-tactical-wrapper ul,
+          .geocoder-tactical-wrapper div[class*="Suggestion"],
+          .geocoder-tactical-wrapper div[class*="suggestion"] {
+            background-color: #000000 !important;
+            border: 1px solid #404040 !important;
+            font-family: ui-monospace, monospace !important;
+            font-size: 14px !important;
+            margin-top: 8px !important;
+            max-height: 400px !important;
+            overflow-y: auto !important;
+            padding: 8px !important;
+          }
+
+          /* Dropdown items */
+          .geocoder-tactical-wrapper [role="option"],
+          .geocoder-tactical-wrapper li,
+          .geocoder-tactical-wrapper div[class*="Result"],
+          .geocoder-tactical-wrapper div[class*="result"],
+          .geocoder-tactical-wrapper [role="listbox"] > div,
+          .geocoder-tactical-wrapper ul > li {
+            padding: 10px 12px !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-top: none !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-bottom: none !important;
+            font-family: ui-monospace, monospace !important;
+            background-color: #000000 !important;
+            box-shadow: none !important;
+            margin-bottom: 10px !important;
+            outline: none !important;
+          }
+
+          /* Force remove borders from ALL child elements within results */
+          .geocoder-tactical-wrapper [role="option"] > *,
+          .geocoder-tactical-wrapper li > * {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+          }
+
+          /* All text within dropdown items - default white */
+          .geocoder-tactical-wrapper [role="option"]:not(:hover):not([aria-selected="true"]) *,
+          .geocoder-tactical-wrapper li:not(:hover):not([aria-selected="true"]) *,
+          .geocoder-tactical-wrapper div[class*="Result"] *,
+          .geocoder-tactical-wrapper div[class*="result"] *,
+          .geocoder-tactical-wrapper [class*="name"],
+          .geocoder-tactical-wrapper [class*="address"],
+          .geocoder-tactical-wrapper strong,
+          .geocoder-tactical-wrapper span,
+          .geocoder-tactical-wrapper div {
+            color: #ffffff !important;
+            font-family: ui-monospace, monospace !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* Hover and keyboard selected states - orange text */
+          .geocoder-tactical-wrapper [role="option"]:hover,
+          .geocoder-tactical-wrapper [role="option"][aria-selected="true"],
+          .geocoder-tactical-wrapper li:hover,
+          .geocoder-tactical-wrapper li[aria-selected="true"] {
+            background-color: #000000 !important;
+            border: none !important;
+            color: #ff6b35 !important;
+          }
+
+          /* Make ALL child elements orange on hover/selected */
+          .geocoder-tactical-wrapper [role="option"]:hover *,
+          .geocoder-tactical-wrapper [role="option"][aria-selected="true"] *,
+          .geocoder-tactical-wrapper li:hover *,
+          .geocoder-tactical-wrapper li[aria-selected="true"] * {
+            color: #ff6b35 !important;
+          }
+
+          .geocoder-tactical-wrapper li:last-child,
+          .geocoder-tactical-wrapper [role="option"]:last-child {
+            margin-bottom: 0 !important;
+          }
+
+          /* Remove all default styling from nested elements */
+          .geocoder-tactical-wrapper * {
+            box-sizing: border-box !important;
+          }
+
+          .geocoder-tactical-wrapper [role="listbox"] > *,
+          .geocoder-tactical-wrapper ul > * {
+            list-style: none !important;
+          }
+
+          /* Footer attribution */
+          .geocoder-tactical-wrapper [class*="Attribution"],
+          .geocoder-tactical-wrapper [class*="attribution"],
+          .geocoder-tactical-wrapper [class*="powered"] {
+            background-color: #000000 !important;
+            color: #808080 !important;
+            border-top: 1px solid #404040 !important;
+            padding: 8px 16px !important;
+            font-family: ui-monospace, monospace !important;
+            font-size: 10px !important;
+          }
+        `}</style>
       </div>
     </div>
   );
