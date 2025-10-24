@@ -939,7 +939,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           interactiveLayerIds={isPredictionData
             ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline']
             : mode === 'locations' && areaId && indicatorId
-              ? ['locations-points', 'locations-polygons-fill', 'locations-polygons-outline']
+              ? showPixels
+                ? ['pixels-fill-layer', 'pixels-line-layer', 'locations-points', 'locations-polygons-fill', 'locations-polygons-outline']
+                : ['locations-points', 'locations-polygons-fill', 'locations-polygons-outline']
               : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill']}
           onClick={handleMapClick}
           onMove={handleMapMove}
@@ -1107,14 +1109,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               className="tactical-popup"
             >
               <div className="bg-tactical-bg-primary border border-tactical-border-medium p-4" style={{ minWidth: '400px', maxWidth: '500px' }}>
-                <div className="text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
-                  Location Properties
+                <div className="text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-3 pr-8">
+                  {popupInfo.properties?.quadkey ? 'Pixel Properties' : 'Location Properties'}
                 </div>
                 <div className="overflow-auto tactical-scrollbar" style={{ maxHeight: '400px' }}>
                   <table className="w-full text-sm">
                     <tbody>
                       {Object.entries(popupInfo.properties || {})
-                        .filter(([key]) => key !== 'bbox')
+                        .filter(([key]) => !['bbox', 'external_id', 'version', 'has_parts', 'is_underground'].includes(key))
                         .map(([key, value]) => (
                           <tr key={key} className="border-b border-tactical-border-medium">
                             <td className="py-2 pr-4 font-mono font-bold text-tactical-text-muted align-top" style={{ minWidth: '150px' }}>
