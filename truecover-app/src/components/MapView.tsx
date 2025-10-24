@@ -25,6 +25,7 @@ interface MapViewProps {
   pixelCount?: number;
   onGeneratePixels?: () => void;
   histogramBrushRanges?: [number, number][] | null;
+  histogramDataType?: 'locations' | 'pixels';
   locationsToVisitCount?: number;
 }
 
@@ -60,7 +61,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, locationsToVisitCount = 0 }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', locationsToVisitCount = 0 }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -624,9 +625,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Use stable map key - let the map update bounds naturally via onMove
   const mapKey = 'main-map';
 
-  // Build histogram filter expression for vector tiles
+  // Build histogram filter expression for vector tiles (locations)
   const buildHistogramFilter = (geometryFilter: any): any => {
-    if (!histogramBrushRanges || histogramBrushRanges.length === 0) {
+    // Only apply histogram filter to locations when histogramDataType is 'locations'
+    if (!histogramBrushRanges || histogramBrushRanges.length === 0 || histogramDataType !== 'locations') {
       return geometryFilter;
     }
 
@@ -641,6 +643,26 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     )];
 
     return ['all', geometryFilter, rangeFilter];
+  };
+
+  // Build histogram filter expression for pixels
+  const buildPixelHistogramFilter = (): any => {
+    // Only apply histogram filter to pixels when histogramDataType is 'pixels'
+    if (!histogramBrushRanges || histogramBrushRanges.length === 0 || histogramDataType !== 'pixels') {
+      return true; // No filter
+    }
+
+    const property = interpolationMode === 'coverage' ? 'prevalence_prediction' : 'prevalence_bci_width';
+
+    // Convert string values to numbers for comparison
+    const rangeFilter = ['any', ...histogramBrushRanges.map(([min, max]) =>
+      ['all',
+        ['>=', ['to-number', ['get', property]], min],
+        ['<=', ['to-number', ['get', property]], max]
+      ]
+    )];
+
+    return rangeFilter;
   };
 
   // Helper to check if a location should be shown based on rounds filter
@@ -1021,6 +1043,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 id="pixels-fill-layer"
                 type="fill"
                 source-layer="pixels"
+                filter={buildPixelHistogramFilter()}
                 paint={{
                   'fill-color': interpolationMode === 'coverage'
                     ? [
@@ -1058,6 +1081,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 id="pixels-line-layer"
                 type="line"
                 source-layer="pixels"
+                filter={buildPixelHistogramFilter()}
                 paint={{
                   'line-color': interpolationMode !== 'none'
                     ? '#ffffff'

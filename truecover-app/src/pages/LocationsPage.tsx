@@ -416,6 +416,7 @@ const LocationsPage: React.FC = () => {
                 pixelCount={pixelStats?.count || 0}
                 onGeneratePixels={() => setIsGeneratePixelsModalOpen(true)}
                 histogramBrushRanges={histogramBrushRanges}
+                histogramDataType={histogramTab}
                 locationsToVisitCount={locationsToVisitCount}
               />
             </TacticalCard>
