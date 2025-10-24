@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
 from auth.helpers import check_area_access
 from db.connection import get_db_connection, return_db_connection
+from routes.locations import calculate_quadkey
+from routes.coverage import update_coverage_pixel
 import uuid
 import json
 from datetime import datetime
@@ -45,6 +47,7 @@ def create_visits_bulk(user):
         new_locations = 0
         total_processed = 0
         errors = []
+        affected_quadkeys = set()  # Track quadkeys that need coverage_pixel update
 
         # Create ONE upload ID for this entire upload session
         upload_id = str(uuid.uuid4())
@@ -116,12 +119,15 @@ def create_visits_bulk(user):
                         total_processed += 1
                         continue
                     else:
-                        # Create geometry Point from coordinates
+                        # Create geometry Point from coordinates and calculate quadkey
+                        quadkey = calculate_quadkey(latitude, longitude)
+                        if quadkey:
+                            affected_quadkeys.add(quadkey)
                         cursor.execute("""
-                            INSERT INTO locations (area_id, external_id, latitude, longitude, geometry)
-                            VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+                            INSERT INTO locations (area_id, external_id, latitude, longitude, geometry, quadkey)
+                            VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
                             RETURNING id
-                        """, (area_id, uploaded_location_id, latitude, longitude, longitude, latitude))
+                        """, (area_id, uploaded_location_id, latitude, longitude, longitude, latitude, quadkey))
 
                         location_result = cursor.fetchone()
                         actual_location_id = str(location_result[0])
@@ -148,35 +154,53 @@ def create_visits_bulk(user):
                     round_number = round_result[0] if round_result else None
 
                     if coverage_result:
-                        # Update existing coverage entry with new visit data
+                        # Update existing coverage entry with new visit data and recalculate quadkey
                         # Add round_number to rounds array if not already present
                         existing_rounds = coverage_result[1] if coverage_result[1] else []
                         updated_rounds = list(set(existing_rounds + [round_number])) if round_number else existing_rounds
+
+                        # Recalculate quadkey from current location coordinates
+                        quadkey = calculate_quadkey(latitude, longitude)
+                        if quadkey:
+                            affected_quadkeys.add(quadkey)
 
                         cursor.execute("""
                             UPDATE coverage
                             SET n_trials = %s,
                                 n_covered = %s,
                                 rounds = %s,
+                                quadkey = %s,
                                 updated_at = NOW()
                             WHERE id = %s
-                        """, (n_trials, n_covered, updated_rounds, coverage_result[0]))
+                        """, (n_trials, n_covered, updated_rounds, quadkey, coverage_result[0]))
                     else:
                         # Only create new coverage entry if this is a new location_id
+                        # Calculate quadkey from location coordinates
+                        quadkey = calculate_quadkey(latitude, longitude)
+                        if quadkey:
+                            affected_quadkeys.add(quadkey)
                         initial_rounds = [round_number] if round_number else []
                         cursor.execute("""
                             INSERT INTO coverage (
                                 location_id, area_id, indicator_id,
-                                version, n_trials, n_covered, rounds
+                                version, n_trials, n_covered, rounds, quadkey
                             )
-                            VALUES (%s, %s, %s, 0, %s, %s, %s)
-                        """, (actual_location_id, area_id, indicator_id, n_trials, n_covered, initial_rounds))
+                            VALUES (%s, %s, %s, 0, %s, %s, %s, %s)
+                        """, (actual_location_id, area_id, indicator_id, n_trials, n_covered, initial_rounds, quadkey))
 
                 total_processed += 1
 
             except Exception as e:
                 errors.append(f"Error processing location {uploaded_location_id or 'unknown'}: {str(e)}")
                 continue
+
+        # Update coverage_pixel table with aggregated data (only if not in preview mode)
+        if not preview_mode and affected_quadkeys:
+            try:
+                update_coverage_pixel(cursor, area_id, indicator_id, list(affected_quadkeys))
+            except Exception as e:
+                print(f"Error updating coverage_pixel: {e}")
+                # Don't fail the entire request if coverage_pixel update fails
 
         # Only commit if not in preview mode
         if not preview_mode:

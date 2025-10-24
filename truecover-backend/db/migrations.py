@@ -1,4 +1,5 @@
 from db.connection import get_db_connection, return_db_connection
+import mercantile
 
 def run_migrations():
     """Run database migrations"""
@@ -121,6 +122,7 @@ def run_migrations():
                 IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'locations') THEN
                     ALTER TABLE locations ADD COLUMN IF NOT EXISTS external_id TEXT;
                     ALTER TABLE locations ADD COLUMN IF NOT EXISTS properties JSONB DEFAULT '{}'::jsonb;
+                    ALTER TABLE locations ADD COLUMN IF NOT EXISTS quadkey TEXT;
                     ALTER TABLE locations DROP COLUMN IF EXISTS version;
                     ALTER TABLE locations DROP COLUMN IF EXISTS sources;
                     ALTER TABLE locations DROP COLUMN IF EXISTS exceedance_probability;
@@ -150,6 +152,11 @@ def run_migrations():
         # Create index on external_id for faster duplicate detection
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_locations_external_id ON locations(external_id) WHERE external_id IS NOT NULL;
+        """)
+
+        # Create index on quadkey for spatial queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_locations_quadkey ON locations(quadkey);
         """)
 
         # Create pixels table for quadkey pixel grids
@@ -469,6 +476,7 @@ def run_migrations():
             BEGIN
                 IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'coverage') THEN
                     ALTER TABLE coverage ADD COLUMN IF NOT EXISTS last_predicted_at TIMESTAMP;
+                    ALTER TABLE coverage ADD COLUMN IF NOT EXISTS quadkey TEXT;
                 END IF;
             END $$;
         """)
@@ -476,6 +484,50 @@ def run_migrations():
         # Create index on last_predicted_at for filtering/sorting
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_coverage_last_predicted_at ON coverage(last_predicted_at);
+        """)
+
+        # Create index on quadkey for spatial queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_quadkey ON coverage(quadkey);
+        """)
+
+        # Create coverage_pixel table for storing aggregated pixel-level predictions
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS coverage_pixel (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                quadkey TEXT NOT NULL,
+                area_id UUID NOT NULL REFERENCES areas(id) ON DELETE CASCADE,
+                indicator_id UUID NOT NULL REFERENCES indicators(id) ON DELETE CASCADE,
+                version INTEGER NOT NULL,
+                n_trials INTEGER NOT NULL,
+                n_covered INTEGER NOT NULL,
+                rounds INTEGER[] DEFAULT '{}',
+                exceedance_probability DECIMAL(10, 8),
+                exceedance_uncertainty DECIMAL(10, 8),
+                prevalence_bci_width DECIMAL(10, 8),
+                prevalence_prediction DECIMAL(10, 8),
+                last_predicted_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(quadkey, indicator_id, area_id, version)
+            );
+        """)
+
+        # Create indexes on coverage_pixel table for faster lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_pixel_quadkey ON coverage_pixel(quadkey);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_pixel_area_id ON coverage_pixel(area_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_pixel_indicator_id ON coverage_pixel(indicator_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_pixel_version ON coverage_pixel(indicator_id, version);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_pixel_rounds ON coverage_pixel USING GIN(rounds);
         """)
 
         # Add indicator_id to rounds table
@@ -512,6 +564,59 @@ def run_migrations():
                 END IF;
             END $$;
         """)
+
+        # Backfill quadkeys for existing locations
+        print("Backfilling quadkeys for existing locations...")
+        cursor.execute("""
+            SELECT id, latitude, longitude FROM locations
+            WHERE quadkey IS NULL AND latitude IS NOT NULL AND longitude IS NOT NULL
+        """)
+        locations_to_update = cursor.fetchall()
+
+        quadkey_level = 18
+        location_updates = []
+        for location_id, lat, lng in locations_to_update:
+            try:
+                tile = mercantile.tile(float(lng), float(lat), quadkey_level)
+                quadkey = mercantile.quadkey(tile)
+                location_updates.append((quadkey, location_id))
+            except Exception as e:
+                print(f"Warning: Could not calculate quadkey for location {location_id}: {e}")
+
+        if location_updates:
+            cursor.executemany("""
+                UPDATE locations SET quadkey = %s WHERE id = %s
+            """, location_updates)
+            print(f"Backfilled {len(location_updates)} location quadkeys")
+        else:
+            print("No locations to backfill")
+
+        # Backfill quadkeys for existing coverage records
+        print("Backfilling quadkeys for existing coverage records...")
+        cursor.execute("""
+            SELECT c.id, l.latitude, l.longitude
+            FROM coverage c
+            JOIN locations l ON c.location_id = l.id
+            WHERE c.quadkey IS NULL AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL
+        """)
+        coverage_to_update = cursor.fetchall()
+
+        coverage_updates = []
+        for coverage_id, lat, lng in coverage_to_update:
+            try:
+                tile = mercantile.tile(float(lng), float(lat), quadkey_level)
+                quadkey = mercantile.quadkey(tile)
+                coverage_updates.append((quadkey, coverage_id))
+            except Exception as e:
+                print(f"Warning: Could not calculate quadkey for coverage {coverage_id}: {e}")
+
+        if coverage_updates:
+            cursor.executemany("""
+                UPDATE coverage SET quadkey = %s WHERE id = %s
+            """, coverage_updates)
+            print(f"Backfilled {len(coverage_updates)} coverage quadkeys")
+        else:
+            print("No coverage records to backfill")
 
         conn.commit()
         print("Database migrations completed successfully")

@@ -26,6 +26,8 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
 
   // Define the columns based on the locations table schema
   const headers = [
+    { key: 'id', label: 'ID' },
+    { key: 'quadkey', label: 'Quadkey' },
     { key: 'external_id', label: 'External ID' },
     { key: 'latitude', label: 'Latitude' },
     { key: 'longitude', label: 'Longitude' },
@@ -67,8 +69,8 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
                     }
                   }
 
-                  // Truncate external_id if too long
-                  if (header.key === 'external_id' && displayValue.length > 12) {
+                  // Truncate long IDs for display (but not quadkey)
+                  if ((header.key === 'id' || header.key === 'external_id') && displayValue.length > 12) {
                     return (
                       <td key={header.key} title={displayValue}>
                         {displayValue.substring(0, 12)}...

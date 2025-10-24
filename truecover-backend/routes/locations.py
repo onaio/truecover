@@ -7,8 +7,23 @@ import csv
 import io
 from shapely.geometry import shape, Point, mapping
 from shapely.wkt import loads as wkt_loads
+import mercantile
 
 locations_bp = Blueprint('locations', __name__)
+
+QUADKEY_LEVEL = 18
+
+
+def calculate_quadkey(latitude, longitude, level=QUADKEY_LEVEL):
+    """Calculate quadkey from latitude/longitude at given level"""
+    if latitude is None or longitude is None:
+        return None
+    try:
+        tile = mercantile.tile(longitude, latitude, level)
+        return mercantile.quadkey(tile)
+    except Exception as e:
+        print(f"Error calculating quadkey for lat={latitude}, lng={longitude}: {e}")
+        return None
 
 
 def calculate_centroid(geometry_dict):
@@ -117,9 +132,9 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
 
         # For each new location
         for location_id in new_location_ids:
-            # Get location properties to extract prediction values
+            # Get location properties and coordinates to extract prediction values and calculate quadkey
             cursor.execute("""
-                SELECT properties FROM locations WHERE id = %s
+                SELECT properties, latitude, longitude FROM locations WHERE id = %s
             """, (location_id,))
             location_result = cursor.fetchone()
 
@@ -127,6 +142,8 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
                 continue
 
             properties = location_result[0] if location_result[0] else {}
+            latitude = location_result[1]
+            longitude = location_result[2]
 
             # Extract prediction values, defaulting to 0
             exceedance_probability = properties.get('exceedance_probability', 0)
@@ -147,6 +164,9 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
                 prevalence_bci_width = 0
                 prevalence_prediction = 0
 
+            # Calculate quadkey from location coordinates
+            quadkey = calculate_quadkey(latitude, longitude)
+
             # For each indicator, create a coverage entry
             for indicator_row in indicators:
                 indicator_id = indicator_row[0]
@@ -161,23 +181,36 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
                     # Entry already exists, skip
                     continue
 
-                # Insert new coverage entry
+                # Insert new coverage entry with quadkey
                 cursor.execute("""
                     INSERT INTO coverage (
                         location_id, area_id, indicator_id,
                         version, n_trials, n_covered,
                         exceedance_probability, exceedance_uncertainty,
-                        prevalence_bci_width, prevalence_prediction
+                        prevalence_bci_width, prevalence_prediction, quadkey
                     )
-                    VALUES (%s, %s, %s, 0, 0, 0, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, 0, 0, 0, %s, %s, %s, %s, %s)
                 """, (
                     location_id, area_id, indicator_id,
                     exceedance_probability, exceedance_uncertainty,
-                    prevalence_bci_width, prevalence_prediction
+                    prevalence_bci_width, prevalence_prediction, quadkey
                 ))
 
         expected_total = len(new_location_ids) * len(indicators)
         print(f"Coverage population complete: processed {len(new_location_ids)} locations × {len(indicators)} indicators = {expected_total} total records")
+
+        # Update coverage_pixel table for all affected indicators
+        # Import here to avoid circular dependency
+        from routes.coverage import update_coverage_pixel
+
+        for indicator_row in indicators:
+            indicator_id = indicator_row[0]
+            try:
+                # Update all quadkeys for this indicator (don't pass specific quadkeys, let it aggregate all)
+                update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None)
+            except Exception as e:
+                print(f"Error updating coverage_pixel for indicator {indicator_id}: {e}")
+                # Continue with other indicators even if one fails
 
     except Exception as e:
         print(f"Error populating coverage: {e}")
@@ -345,7 +378,8 @@ def upload_locations(user, area_id):
                 duplicate_id = find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt)
 
                 if duplicate_id:
-                    # Update existing location - merge properties
+                    # Update existing location - merge properties and recalculate quadkey
+                    quadkey = calculate_quadkey(lat, lng)
                     cursor.execute("""
                         UPDATE locations
                         SET
@@ -353,27 +387,29 @@ def upload_locations(user, area_id):
                             geometry = COALESCE(ST_GeomFromText(%s, 4326), geometry),
                             latitude = COALESCE(%s, latitude),
                             longitude = COALESCE(%s, longitude),
+                            quadkey = COALESCE(%s, quadkey),
                             properties = properties || %s::jsonb,
                             updated_at = NOW()
                         WHERE id = %s
                     """, (
-                        external_id, geometry_wkt, lat, lng,
+                        external_id, geometry_wkt, lat, lng, quadkey,
                         json.dumps(properties),
                         duplicate_id
                     ))
                     updated_count += 1
                 else:
-                    # Insert new location
+                    # Insert new location and calculate quadkey
+                    quadkey = calculate_quadkey(lat, lng)
                     cursor.execute("""
                         INSERT INTO locations (
-                            area_id, external_id, geometry, latitude, longitude, properties
+                            area_id, external_id, geometry, latitude, longitude, quadkey, properties
                         )
                         VALUES (
-                            %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s
+                            %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s
                         )
                         RETURNING id
                     """, (
-                        area_id, external_id, geometry_wkt, lat, lng,
+                        area_id, external_id, geometry_wkt, lat, lng, quadkey,
                         json.dumps(properties)
                     ))
                     new_location_id = cursor.fetchone()[0]
@@ -438,7 +474,7 @@ def list_locations(user, area_id):
             SELECT
                 id, external_id,
                 latitude, longitude,
-                properties,
+                properties, quadkey,
                 created_at, updated_at
             FROM locations
             WHERE area_id = %s
@@ -459,8 +495,9 @@ def list_locations(user, area_id):
                 'latitude': float(row[2]) if row[2] else None,
                 'longitude': float(row[3]) if row[3] else None,
                 'properties': properties,
-                'created_at': row[5].isoformat() if row[5] else None,
-                'updated_at': row[6].isoformat() if row[6] else None,
+                'quadkey': row[5],
+                'created_at': row[6].isoformat() if row[6] else None,
+                'updated_at': row[7].isoformat() if row[7] else None,
             }
             locations.append(location)
 

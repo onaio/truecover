@@ -9,6 +9,7 @@ interface Location {
   latitude?: number;
   longitude?: number;
   properties?: Record<string, any>;
+  quadkey?: string | null;
 }
 
 interface LocationEditModalProps {

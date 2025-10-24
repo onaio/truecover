@@ -144,7 +144,35 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       ] as [[number, number], [number, number]];
     }
     // Fall back to calculating bounds from locations
+    else if (mode === 'locations' && locations && locations.locations && locations.locations.length > 0) {
+      // Handle lightweight locations format { locations: [...] }
+      let minLng = Infinity;
+      let minLat = Infinity;
+      let maxLng = -Infinity;
+      let maxLat = -Infinity;
+
+      locations.locations.forEach((location: any) => {
+        if (location.latitude && location.longitude) {
+          const lat = location.latitude;
+          const lng = location.longitude;
+          minLng = Math.min(minLng, lng);
+          minLat = Math.min(minLat, lat);
+          maxLng = Math.max(maxLng, lng);
+          maxLat = Math.max(maxLat, lat);
+        }
+      });
+
+      // Add padding
+      const lngPadding = (maxLng - minLng) * 0.1 || 0.01;
+      const latPadding = (maxLat - minLat) * 0.1 || 0.01;
+
+      calculatedBounds = [
+        [minLng - lngPadding, minLat - latPadding],
+        [maxLng + lngPadding, maxLat + latPadding]
+      ] as [[number, number], [number, number]];
+    }
     else if (primaryData && primaryData.features && primaryData.features.length > 0) {
+      // Handle GeoJSON FeatureCollection format
       let minLng = Infinity;
       let minLat = Infinity;
       let maxLng = -Infinity;
@@ -176,7 +204,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     }
 
     return calculatedBounds;
-  }, [primaryData, pixelsBounds, pixelCount]);
+  }, [primaryData, pixelsBounds, pixelCount, locations, mode]);
 
   // Update map viewport when bounds change (e.g., new area selected or pixels generated)
   React.useEffect(() => {
