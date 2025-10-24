@@ -1013,7 +1013,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="pixels-source"
               type="vector"
-              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&v=${pixelVersion || '0'}`]}
+              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&v=${pixelVersion || '0'}`]}
               minzoom={0}
               maxzoom={24}
             >
@@ -1022,10 +1022,36 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 type="fill"
                 source-layer="pixels"
                 paint={{
-                  'fill-color': mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
-                    ? 'rgba(255, 255, 255, 0.1)'
-                    : 'rgba(40, 167, 69, 0.1)',
-                  'fill-opacity': 0.5
+                  'fill-color': interpolationMode === 'coverage'
+                    ? [
+                        'interpolate',
+                        ['linear'],
+                        ['to-number', ['coalesce', ['get', 'prevalence_prediction'], 0]],
+                        0, PREVALENCE_COLORS[0],
+                        0.2, PREVALENCE_COLORS[1],
+                        0.35, PREVALENCE_COLORS[2],
+                        0.5, PREVALENCE_COLORS[3],
+                        0.65, PREVALENCE_COLORS[4],
+                        0.8, PREVALENCE_COLORS[5],
+                        1, PREVALENCE_COLORS[6]
+                      ]
+                    : interpolationMode === 'uncertainty'
+                      ? [
+                          'interpolate',
+                          ['linear'],
+                          ['to-number', ['coalesce', ['get', 'prevalence_bci_width'], 0]],
+                          0, UNCERTAINTY_COLORS[0],
+                          0.2, UNCERTAINTY_COLORS[1],
+                          0.35, UNCERTAINTY_COLORS[2],
+                          0.5, UNCERTAINTY_COLORS[3],
+                          0.65, UNCERTAINTY_COLORS[4],
+                          0.8, UNCERTAINTY_COLORS[5],
+                          1, UNCERTAINTY_COLORS[6]
+                        ]
+                      : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
+                        ? 'rgba(255, 255, 255, 0.1)'
+                        : 'rgba(40, 167, 69, 0.1)',
+                  'fill-opacity': interpolationMode !== 'none' ? 0.9 : 0.5
                 }}
               />
               <Layer
@@ -1033,11 +1059,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 type="line"
                 source-layer="pixels"
                 paint={{
-                  'line-color': mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
+                  'line-color': interpolationMode !== 'none'
                     ? '#ffffff'
-                    : '#28a745',
+                    : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
+                      ? '#ffffff'
+                      : '#28a745',
                   'line-width': 1,
-                  'line-opacity': 0.6
+                  'line-opacity': interpolationMode !== 'none' ? 0.3 : 0.6
                 }}
               />
             </Source>

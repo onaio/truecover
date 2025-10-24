@@ -201,9 +201,11 @@ def run_migrations():
             DECLARE
                 mvt bytea;
                 target_area_id uuid;
+                target_indicator_id uuid;
             BEGIN
-                -- Extract area_id from query params
+                -- Extract area_id and indicator_id from query params
                 target_area_id := (query_params->>'area_id')::uuid;
+                target_indicator_id := (query_params->>'indicator_id')::uuid;
 
                 -- If no area_id provided, return empty tile
                 IF target_area_id IS NULL THEN
@@ -215,23 +217,30 @@ def run_migrations():
                 FROM (
                     SELECT
                         ST_AsMVTGeom(
-                            ST_Transform(geometry, 3857),
+                            ST_Transform(p.geometry, 3857),
                             ST_TileEnvelope(z, x, y),
                             4096, 64, true
                         ) AS geom,
-                        quadkey,
-                        level,
-                        latitude,
-                        longitude
-                    FROM pixels
-                    WHERE area_id = target_area_id
-                      AND geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
+                        p.quadkey,
+                        p.level,
+                        p.latitude,
+                        p.longitude,
+                        cp.prevalence_prediction,
+                        cp.prevalence_bci_width,
+                        cp.n_trials,
+                        cp.n_covered
+                    FROM pixels p
+                    LEFT JOIN coverage_pixel cp ON p.quadkey = cp.quadkey
+                        AND cp.area_id = target_area_id
+                        AND (target_indicator_id IS NULL OR cp.indicator_id = target_indicator_id)
+                    WHERE p.area_id = target_area_id
+                      AND p.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
                 ) as tile
                 WHERE geom IS NOT NULL;
 
                 RETURN mvt;
             END
-            $$ LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
+            $$ LANGUAGE plpgsql STABLE STRICT PARALLEL SAFE;
         """)
 
         # Create Martin tile server function for locations filtered by area_id
