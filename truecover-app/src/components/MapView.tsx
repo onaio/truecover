@@ -1147,7 +1147,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               className="tactical-popup"
             >
               <div className="bg-tactical-bg-primary border border-tactical-border-medium p-4" style={{ minWidth: '400px', maxWidth: '500px' }}>
-                <div className="text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-3 pr-8">
+                <div className="text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-3">
                   {popupInfo.properties?.quadkey ? 'Pixel Properties' : 'Location Properties'}
                 </div>
                 <div className="overflow-auto tactical-scrollbar" style={{ maxHeight: '400px' }}>
