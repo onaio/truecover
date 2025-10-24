@@ -32,10 +32,10 @@ code {
   color: #ffffff !important;
   font-size: 20px !important;
   font-weight: bold !important;
-  padding: 8px 12px !important;
+  padding: 4px !important;
   position: absolute !important;
-  right: 8px !important;
-  top: 8px !important;
+  right: 12px !important;
+  top: 12px !important;
   background-color: transparent !important;
   border: none !important;
   cursor: pointer !important;

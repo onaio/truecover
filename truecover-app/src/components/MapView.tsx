@@ -1049,34 +1049,58 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 paint={{
                   'fill-color': interpolationMode === 'coverage'
                     ? [
-                        'interpolate',
-                        ['linear'],
-                        ['to-number', ['coalesce', ['get', 'prevalence_prediction'], 0]],
-                        0, PREVALENCE_COLORS[0],
-                        0.2, PREVALENCE_COLORS[1],
-                        0.35, PREVALENCE_COLORS[2],
-                        0.5, PREVALENCE_COLORS[3],
-                        0.65, PREVALENCE_COLORS[4],
-                        0.8, PREVALENCE_COLORS[5],
-                        1, PREVALENCE_COLORS[6]
+                        'case',
+                        ['!=', ['get', 'prevalence_prediction'], null],
+                        [
+                          'interpolate',
+                          ['linear'],
+                          ['to-number', ['get', 'prevalence_prediction']],
+                          0, PREVALENCE_COLORS[0],
+                          0.2, PREVALENCE_COLORS[1],
+                          0.35, PREVALENCE_COLORS[2],
+                          0.5, PREVALENCE_COLORS[3],
+                          0.65, PREVALENCE_COLORS[4],
+                          0.8, PREVALENCE_COLORS[5],
+                          1, PREVALENCE_COLORS[6]
+                        ],
+                        'rgba(0, 0, 0, 0)' // transparent if no prediction
                       ]
                     : interpolationMode === 'uncertainty'
                       ? [
-                          'interpolate',
-                          ['linear'],
-                          ['to-number', ['coalesce', ['get', 'prevalence_bci_width'], 0]],
-                          0, UNCERTAINTY_COLORS[0],
-                          0.2, UNCERTAINTY_COLORS[1],
-                          0.35, UNCERTAINTY_COLORS[2],
-                          0.5, UNCERTAINTY_COLORS[3],
-                          0.65, UNCERTAINTY_COLORS[4],
-                          0.8, UNCERTAINTY_COLORS[5],
-                          1, UNCERTAINTY_COLORS[6]
+                          'case',
+                          ['!=', ['get', 'prevalence_bci_width'], null],
+                          [
+                            'interpolate',
+                            ['linear'],
+                            ['to-number', ['get', 'prevalence_bci_width']],
+                            0, UNCERTAINTY_COLORS[0],
+                            0.2, UNCERTAINTY_COLORS[1],
+                            0.35, UNCERTAINTY_COLORS[2],
+                            0.5, UNCERTAINTY_COLORS[3],
+                            0.65, UNCERTAINTY_COLORS[4],
+                            0.8, UNCERTAINTY_COLORS[5],
+                            1, UNCERTAINTY_COLORS[6]
+                          ],
+                          'rgba(0, 0, 0, 0)' // transparent if no uncertainty
                         ]
                       : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
                         ? 'rgba(255, 255, 255, 0.1)'
                         : 'rgba(40, 167, 69, 0.1)',
-                  'fill-opacity': interpolationMode !== 'none' ? 0.9 : 0.5
+                  'fill-opacity': interpolationMode === 'coverage'
+                    ? [
+                        'case',
+                        ['!=', ['get', 'prevalence_prediction'], null],
+                        0.9,
+                        0
+                      ]
+                    : interpolationMode === 'uncertainty'
+                      ? [
+                          'case',
+                          ['!=', ['get', 'prevalence_bci_width'], null],
+                          0.9,
+                          0
+                        ]
+                      : 0.5
                 }}
               />
               <Layer
@@ -1091,7 +1115,21 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                       ? '#ffffff'
                       : '#28a745',
                   'line-width': 1,
-                  'line-opacity': interpolationMode !== 'none' ? 0.3 : 0.6
+                  'line-opacity': interpolationMode === 'coverage'
+                    ? [
+                        'case',
+                        ['!=', ['get', 'prevalence_prediction'], null],
+                        0.3,
+                        0
+                      ]
+                    : interpolationMode === 'uncertainty'
+                      ? [
+                          'case',
+                          ['!=', ['get', 'prevalence_bci_width'], null],
+                          0.3,
+                          0
+                        ]
+                      : 0.6
                 }}
               />
             </Source>
