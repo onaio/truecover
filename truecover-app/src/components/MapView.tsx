@@ -779,15 +779,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   };
 
   const getPolygonLineWidth = () => {
-    if (interpolationMode !== 'none') {
-      return 1;
-    }
-    return [
-      'case',
-      shouldShowLocation(),
-      2,
-      1
-    ];
+    // Always use consistent border width
+    return 1;
   };
 
   const getPolygonLineOpacity = () => {
@@ -868,17 +861,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   };
 
   const getPointStrokeWidth = () => {
-    if (interpolationMode !== 'none') {
-      return 1;
-    }
-    if (showVisitLocations) {
-      return [
-        'case',
-        shouldShowLocation(),
-        2,
-        0
-      ];
-    }
+    // Always use consistent stroke width
     return 1;
   };
 
@@ -886,15 +869,17 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     if (interpolationMode !== 'none') {
       return 'rgba(255, 255, 255, 0.5)';
     }
-    if (showVisitLocations) {
-      return [
-        'case',
-        shouldShowLocation(),
-        '#28a745',
-        'rgba(0, 0, 0, 0)'
-      ];
+    // When show visits is off, all borders are white
+    if (!showVisitLocations) {
+      return '#ffffff';
     }
-    return '#ffffff';
+    // When show visits is on, locations with rounds get green borders
+    return [
+      'case',
+      shouldShowLocation(),
+      '#28a745',
+      '#ffffff'
+    ];
   };
 
   const getPointOpacity = () => {
