@@ -12,9 +12,10 @@ interface DistributionHistogramProps {
   visible: boolean;
   indicatorName?: string;
   onBrushChange?: (ranges: [number, number][] | null) => void;
+  dataType?: 'locations' | 'pixels';
 }
 
-const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mode, visible, indicatorName, onBrushChange }) => {
+const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mode, visible, indicatorName, onBrushChange, dataType = 'locations' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [numBins, setNumBins] = useState<number>(12);
@@ -138,7 +139,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
         ticks: boundaries
       },
       y: {
-        label: 'Number of Locations',
+        label: dataType === 'pixels' ? 'Number of Pixels' : 'Number of Locations',
         labelAnchor: 'center',
         grid: true,
         line: true
@@ -212,7 +213,8 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
         rect.addEventListener('mouseenter', (e: MouseEvent) => {
           if (tooltipRef.current) {
             const action = isSelected ? 'click to unselect' : 'click to select';
-            tooltipRef.current.innerHTML = `${bin.x0.toFixed(3)} - ${bin.x1.toFixed(3)}<br/>${bin.count} locations<br/><i>(${action})</i>`;
+            const itemType = dataType === 'pixels' ? 'pixels' : 'locations';
+            tooltipRef.current.innerHTML = `${bin.x0.toFixed(3)} - ${bin.x1.toFixed(3)}<br/>${bin.count} ${itemType}<br/><i>(${action})</i>`;
             tooltipRef.current.style.display = 'block';
             tooltipRef.current.style.left = `${e.clientX + 10}px`;
             tooltipRef.current.style.top = `${e.clientY + 10}px`;
@@ -262,7 +264,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
         containerRef.current.innerHTML = '';
       }
     };
-  }, [data, mode, visible, numBins, showColors, selectedRanges]);
+  }, [data, mode, visible, numBins, showColors, selectedRanges, dataType]);
 
   if (!visible) {
     return null;

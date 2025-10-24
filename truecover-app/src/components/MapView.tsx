@@ -765,6 +765,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     if (interpolationMode !== 'none') {
       return '#ffffff';
     }
+    // When show visits is off, all borders are white
+    if (!showVisitLocations) {
+      return '#ffffff';
+    }
+    // When show visits is on, locations with rounds get green borders
     return [
       'case',
       shouldShowLocation(),

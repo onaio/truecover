@@ -52,10 +52,12 @@ const LocationsPage: React.FC = () => {
     handleLocationDeleted,
   } = useLocationsData();
 
-  const { listCoverage } = useCoverage();
+  const { listCoverage, listCoveragePixel } = useCoverage();
   const [coverageData, setCoverageData] = useState<any[]>([]);
+  const [coveragePixelData, setCoveragePixelData] = useState<any[]>([]);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [histogramBrushRanges, setHistogramBrushRanges] = useState<[number, number][] | null>(null);
+  const [histogramTab, setHistogramTab] = useState<'locations' | 'pixels'>('locations');
 
   // Refresh key to trigger data reload after mutations
   const [refreshKey, setRefreshKey] = useState(0);
@@ -99,6 +101,7 @@ const LocationsPage: React.FC = () => {
     const loadCoverage = async () => {
       if (!selectedArea?.id || !selectedIndicatorId) {
         setCoverageData([]);
+        setCoveragePixelData([]);
         return;
       }
 
@@ -111,17 +114,26 @@ const LocationsPage: React.FC = () => {
             ? String(selectedRoundIds[0])
             : undefined;
 
-        // Load coverage data for metrics (GeoJSON is now served via Martin vector tiles)
-        const data = await listCoverage({
-          area_id: selectedArea.id,
-          indicator_id: selectedIndicatorId,
-          round_id: roundId,
-        });
+        // Load both location and pixel coverage data
+        const [locationData, pixelData] = await Promise.all([
+          listCoverage({
+            area_id: selectedArea.id,
+            indicator_id: selectedIndicatorId,
+            round_id: roundId,
+          }),
+          listCoveragePixel({
+            area_id: selectedArea.id,
+            indicator_id: selectedIndicatorId,
+            round_id: roundId,
+          })
+        ]);
 
-        setCoverageData(data);
+        setCoverageData(locationData);
+        setCoveragePixelData(pixelData);
       } catch (error) {
         console.error('Error loading coverage data:', error);
         setCoverageData([]);
+        setCoveragePixelData([]);
       } finally {
         setIsLoadingCoverage(false);
       }
@@ -408,14 +420,44 @@ const LocationsPage: React.FC = () => {
               />
             </TacticalCard>
 
-            {/* Distribution Histogram */}
-            <DistributionHistogram
-              data={coverageData}
-              mode={interpolationMode === 'coverage' ? 'coverage' : 'uncertainty'}
-              visible={interpolationMode === 'coverage' || interpolationMode === 'uncertainty'}
-              indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
-              onBrushChange={setHistogramBrushRanges}
-            />
+            {/* Distribution Histogram with Tabs */}
+            {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty') && (
+              <div className="mb-6">
+                {/* Tab Switcher */}
+                <div className="flex gap-2 mb-0 border-b border-tactical-border-medium bg-tactical-bg-secondary">
+                  <button
+                    className={`px-4 py-2 font-medium transition-colors ${
+                      histogramTab === 'locations'
+                        ? 'text-tactical-accent-green border-b-2 border-tactical-accent-green'
+                        : 'text-tactical-text-dim hover:text-tactical-text-secondary'
+                    }`}
+                    onClick={() => setHistogramTab('locations')}
+                  >
+                    Locations ({coverageData.length})
+                  </button>
+                  <button
+                    className={`px-4 py-2 font-medium transition-colors ${
+                      histogramTab === 'pixels'
+                        ? 'text-tactical-accent-green border-b-2 border-tactical-accent-green'
+                        : 'text-tactical-text-dim hover:text-tactical-text-secondary'
+                    }`}
+                    onClick={() => setHistogramTab('pixels')}
+                  >
+                    Pixels ({coveragePixelData.length})
+                  </button>
+                </div>
+
+                {/* Histogram */}
+                <DistributionHistogram
+                  data={histogramTab === 'locations' ? coverageData : coveragePixelData}
+                  mode={interpolationMode === 'coverage' ? 'coverage' : 'uncertainty'}
+                  visible={true}
+                  indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
+                  onBrushChange={setHistogramBrushRanges}
+                  dataType={histogramTab}
+                />
+              </div>
+            )}
 
             {/* Predicted Coverage Section */}
             <PredictedCoverageSection
