@@ -186,3 +186,85 @@ def delete_pixels(user, area_id):
     finally:
         if conn:
             return_db_connection(conn)
+
+
+@pixels_bp.route('/api/areas/<area_id>/pixels/metadata-stats', methods=['GET'])
+@require_auth
+def get_pixels_metadata_stats(user, area_id):
+    """Get statistics about pixel metadata for an area"""
+    check_area_access(user['id'], area_id)
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get all metadata field definitions
+        cursor.execute("""
+            SELECT name, description, data_type, unit
+            FROM pixel_metadata_definitions
+            ORDER BY name
+        """)
+        field_definitions = cursor.fetchall()
+
+        # Get count of pixels with metadata in this area
+        cursor.execute("""
+            SELECT COUNT(DISTINCT pm.quadkey)
+            FROM pixel_metadata pm
+            JOIN pixels p ON pm.quadkey = p.quadkey
+            WHERE p.area_id = %s
+        """, (area_id,))
+        total_enriched = cursor.fetchone()[0]
+
+        # For each field, get count and stats
+        metadata_fields = []
+        for field_name, field_desc, field_type, field_unit in field_definitions:
+            # Count how many pixels have this field
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM pixel_metadata pm
+                JOIN pixels p ON pm.quadkey = p.quadkey
+                WHERE p.area_id = %s
+                  AND pm.metadata ? %s
+            """, (area_id, field_name))
+            field_count = cursor.fetchone()[0]
+
+            field_info = {
+                'name': field_name,
+                'description': field_desc,
+                'data_type': field_type,
+                'unit': field_unit,
+                'count': field_count
+            }
+
+            # If numeric type, get min/max/avg
+            if field_type in ['integer', 'float'] and field_count > 0:
+                cursor.execute(f"""
+                    SELECT
+                        MIN((pm.metadata->>%s)::{field_type}) as min_val,
+                        MAX((pm.metadata->>%s)::{field_type}) as max_val,
+                        AVG((pm.metadata->>%s)::{field_type}) as avg_val
+                    FROM pixel_metadata pm
+                    JOIN pixels p ON pm.quadkey = p.quadkey
+                    WHERE p.area_id = %s
+                      AND pm.metadata ? %s
+                """, (field_name, field_name, field_name, area_id, field_name))
+                stats_row = cursor.fetchone()
+                if stats_row:
+                    field_info['min'] = float(stats_row[0]) if stats_row[0] is not None else None
+                    field_info['max'] = float(stats_row[1]) if stats_row[1] is not None else None
+                    field_info['avg'] = float(stats_row[2]) if stats_row[2] is not None else None
+
+            metadata_fields.append(field_info)
+
+        return jsonify({
+            'total_enriched': total_enriched,
+            'metadata_fields': metadata_fields
+        }), 200
+
+    except Exception as e:
+        print(f"Error getting pixel metadata stats: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)

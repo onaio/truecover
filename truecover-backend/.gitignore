@@ -20,3 +20,6 @@ ENV/
 
 # OS
 .DS_Store
+
+# COG cache
+cog_cache/

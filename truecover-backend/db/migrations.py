@@ -100,6 +100,21 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_areas_project_id ON areas(project_id);
         """)
 
+        # Add deleted_at column to areas table for soft delete
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'areas') THEN
+                    ALTER TABLE areas ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+                END IF;
+            END $$;
+        """)
+
+        # Create index on deleted_at for filtering queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_areas_deleted_at ON areas(deleted_at) WHERE deleted_at IS NULL;
+        """)
+
         # Create locations table with PostGIS geometry
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS locations (
@@ -199,21 +214,24 @@ def run_migrations():
             CREATE OR REPLACE FUNCTION pixels_by_area(z integer, x integer, y integer, query_params json)
             RETURNS bytea AS $$
             DECLARE
-                mvt bytea;
+                mvt_polygons bytea;
+                mvt_points bytea;
                 target_area_id uuid;
                 target_indicator_id uuid;
+                metadata_field text;
             BEGIN
-                -- Extract area_id and indicator_id from query params
+                -- Extract area_id, indicator_id, and metadata_field from query params
                 target_area_id := (query_params->>'area_id')::uuid;
                 target_indicator_id := (query_params->>'indicator_id')::uuid;
+                metadata_field := query_params->>'metadata_field';
 
                 -- If no area_id provided, return empty tile
                 IF target_area_id IS NULL THEN
                     RETURN NULL;
                 END IF;
 
-                -- Generate MVT tile for pixels in the specified area
-                SELECT INTO mvt ST_AsMVT(tile, 'pixels', 4096, 'geom')
+                -- Generate MVT tile for pixel polygons
+                SELECT INTO mvt_polygons ST_AsMVT(tile, 'pixels', 4096, 'geom')
                 FROM (
                     SELECT
                         ST_AsMVTGeom(
@@ -228,17 +246,50 @@ def run_migrations():
                         cp.prevalence_prediction,
                         cp.prevalence_bci_width,
                         cp.n_trials,
-                        cp.n_covered
+                        cp.n_covered,
+                        pm.metadata,
+                        -- Extract specific metadata field as metadata_value for visualization
+                        CASE
+                            WHEN metadata_field IS NOT NULL AND pm.metadata IS NOT NULL THEN
+                                (pm.metadata->>metadata_field)::numeric
+                            ELSE NULL
+                        END AS metadata_value
                     FROM pixels p
                     LEFT JOIN coverage_pixel cp ON p.quadkey = cp.quadkey
                         AND cp.area_id = target_area_id
                         AND (target_indicator_id IS NULL OR cp.indicator_id = target_indicator_id)
+                    LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
                     WHERE p.area_id = target_area_id
                       AND p.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
                 ) as tile
                 WHERE geom IS NOT NULL;
 
-                RETURN mvt;
+                -- Generate MVT tile for pixel centroids (points)
+                SELECT INTO mvt_points ST_AsMVT(tile, 'pixels_centroids', 4096, 'geom')
+                FROM (
+                    SELECT
+                        ST_AsMVTGeom(
+                            ST_Transform(ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326), 3857),
+                            ST_TileEnvelope(z, x, y),
+                            4096, 64, true
+                        ) AS geom,
+                        p.quadkey,
+                        p.level,
+                        -- Extract specific metadata field as metadata_value for visualization
+                        CASE
+                            WHEN metadata_field IS NOT NULL AND pm.metadata IS NOT NULL THEN
+                                (pm.metadata->>metadata_field)::numeric
+                            ELSE NULL
+                        END AS metadata_value
+                    FROM pixels p
+                    LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
+                    WHERE p.area_id = target_area_id
+                      AND p.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
+                ) as tile
+                WHERE geom IS NOT NULL;
+
+                -- Combine both MVT layers
+                RETURN mvt_polygons || mvt_points;
             END
             $$ LANGUAGE plpgsql STABLE STRICT PARALLEL SAFE;
         """)
@@ -537,6 +588,92 @@ def run_migrations():
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_coverage_pixel_rounds ON coverage_pixel USING GIN(rounds);
+        """)
+
+        # Create pixel_metadata_definitions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pixel_metadata_definitions (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                data_type TEXT NOT NULL,
+                unit TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Create pixel_metadata table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pixel_metadata (
+                quadkey TEXT PRIMARY KEY,
+                metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Create GIN index on pixel_metadata JSONB column for fast queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixel_metadata_data ON pixel_metadata USING GIN(metadata);
+        """)
+
+        # Create data_sources table for managing COG/STAC data sources
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS data_sources (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                source_type TEXT NOT NULL DEFAULT 'stac',
+                stac_catalog_url TEXT,
+                stac_collection TEXT,
+                stac_item TEXT,
+                stac_asset TEXT DEFAULT 'cog',
+                cog_url TEXT,
+                default_statistic TEXT DEFAULT 'sum',
+                metadata_field_name TEXT NOT NULL,
+                metadata_field_description TEXT,
+                metadata_field_type TEXT NOT NULL,
+                metadata_field_unit TEXT,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Create enrichment_jobs table for tracking async enrichment jobs
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS enrichment_jobs (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                area_id UUID REFERENCES areas(id) ON DELETE CASCADE,
+                data_source_id UUID REFERENCES data_sources(id) ON DELETE CASCADE,
+                statistic TEXT NOT NULL,
+                status TEXT NOT NULL,
+                pixels_processed INTEGER DEFAULT 0,
+                pixels_total INTEGER DEFAULT 0,
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                last_attempted_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Add retry tracking columns to existing enrichment_jobs table
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'enrichment_jobs') THEN
+                    ALTER TABLE enrichment_jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
+                    ALTER TABLE enrichment_jobs ADD COLUMN IF NOT EXISTS last_attempted_at TIMESTAMP;
+                END IF;
+            END $$;
+        """)
+
+        # Create indexes on enrichment_jobs table
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_enrichment_jobs_area_id ON enrichment_jobs(area_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_enrichment_jobs_status ON enrichment_jobs(status);
         """)
 
         # Add indicator_id to rounds table

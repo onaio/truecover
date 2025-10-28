@@ -19,6 +19,8 @@ from routes.visits import visits_bp
 # from routes.visit_indicators import visit_indicators_bp  # No longer used
 from routes.coverage import coverage_bp
 from routes.pixels import pixels_bp
+from routes.data_sources import data_sources_bp
+from routes.enrichment import enrichment_bp
 
 # Import database utilities
 from db.migrations import run_migrations
@@ -46,6 +48,8 @@ app.register_blueprint(visits_bp)
 # app.register_blueprint(visit_indicators_bp)  # No longer used
 app.register_blueprint(coverage_bp)
 app.register_blueprint(pixels_bp)
+app.register_blueprint(data_sources_bp)
+app.register_blueprint(enrichment_bp)
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])
@@ -119,6 +123,14 @@ if __name__ == '__main__':
         print(f"Warning: Could not run migrations: {e}")
         print("Make sure PostgreSQL is running (docker-compose up)")
 
+    # Start enrichment worker
+    print("Starting enrichment worker...")
+    try:
+        from services.enrichment_worker import start_enrichment_worker
+        start_enrichment_worker()
+    except Exception as e:
+        print(f"Warning: Could not start enrichment worker: {e}")
+
     # Start Flask app
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV') == 'development'
@@ -126,6 +138,7 @@ if __name__ == '__main__':
     print(f"\n🚀 Starting TrueCover Backend API on port {port}")
     print(f"📝 Environment: {os.getenv('FLASK_ENV', 'production')}")
     print(f"🔐 Clerk authentication enabled")
+    print(f"🔄 Enrichment worker: enabled")
     print(f"\nAPI Documentation: http://localhost:{port}/\n")
 
     app.run(host='0.0.0.0', port=port, debug=debug)

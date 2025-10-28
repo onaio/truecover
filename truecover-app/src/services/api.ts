@@ -433,5 +433,102 @@ export const pixelsApi = {
       }
     );
     return response.data;
+  },
+
+  async getMetadataStats(
+    areaId: string,
+    token: string
+  ): Promise<{ total_enriched: number; metadata_fields: any[] }> {
+    const response = await axios.get(
+      `${API_URL}/api/areas/${areaId}/pixels/metadata-stats`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  }
+};
+
+// Data Sources API calls
+export const dataSourcesApi = {
+  async list(token: string): Promise<{ data_sources: any[] }> {
+    const response = await axios.get(
+      `${API_URL}/api/data-sources`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async get(id: string, token: string): Promise<any> {
+    const response = await axios.get(
+      `${API_URL}/api/data-sources/${id}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async create(data: any, token: string): Promise<any> {
+    const response = await axios.post(
+      `${API_URL}/api/data-sources`,
+      data,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  }
+};
+
+// Enrichment API calls
+export const enrichmentApi = {
+  async createJob(areaId: string, data: { data_source_id: string; statistic?: string }, token: string): Promise<any> {
+    const response = await axios.post(
+      `${API_URL}/api/areas/${areaId}/enrich-pixels`,
+      data,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getJob(jobId: string, token: string): Promise<any> {
+    const response = await axios.get(
+      `${API_URL}/api/enrichment-jobs/${jobId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async listJobs(areaId: string, token: string): Promise<{ jobs: any[] }> {
+    const response = await axios.get(
+      `${API_URL}/api/areas/${areaId}/enrichment-jobs`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
   }
 };

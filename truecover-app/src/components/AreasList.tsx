@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { Area, Project } from '../types';
 import { areasApi } from '../services/api';
+import { useDeleteArea } from '../hooks/useAreas';
+import { useAppContext } from '../contexts/AppContext';
 import CreateAreaModal from './CreateAreaModal';
 import {
   TacticalCard,
@@ -17,12 +19,14 @@ interface AreasListProps {
 
 const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
   const { getToken } = useAuth();
+  const { selectedArea, setSelectedArea } = useAppContext();
   const [areas, setAreas] = useState<Area[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<Area | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const deleteAreaMutation = useDeleteArea();
 
   useEffect(() => {
     if (project) {
@@ -78,6 +82,30 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
   const handleEditClick = (area: Area) => {
     setEditingArea(area);
     setIsCreateModalOpen(true);
+  };
+
+  const handleDeleteClick = async (area: Area) => {
+    if (!project) return;
+
+    if (!window.confirm(`Are you sure you want to delete "${area.name}"?`)) {
+      return;
+    }
+
+    try {
+      await deleteAreaMutation.mutateAsync({
+        areaId: area.id,
+        projectId: project.id
+      });
+      setAreas(areas.filter(a => a.id !== area.id));
+
+      // Clear selected area if we're deleting the currently selected area
+      if (selectedArea?.id === area.id) {
+        setSelectedArea(null);
+      }
+    } catch (err: any) {
+      console.error('Failed to delete area:', err);
+      setError(err.response?.data?.error || 'Failed to delete area');
+    }
   };
 
   const handleModalClose = () => {
@@ -167,6 +195,16 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
                       }}
                     >
                       Edit
+                    </TacticalButton>
+                    <TacticalButton
+                      variant="danger"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(area);
+                      }}
+                    >
+                      Delete
                     </TacticalButton>
                   </div>
                 </div>

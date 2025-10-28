@@ -84,3 +84,27 @@ export function useDeletePixels() {
     },
   });
 }
+
+/**
+ * Hook to fetch pixel metadata statistics for an area
+ */
+export function usePixelMetadataStats(areaId: string | undefined) {
+  const { getToken, isSignedIn } = useAuth();
+
+  return useQuery({
+    queryKey: ['pixels', 'metadata-stats', areaId],
+    queryFn: async () => {
+      if (!areaId) {
+        throw new Error('Area ID is required');
+      }
+
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+
+      return pixelsApi.getMetadataStats(areaId, token);
+    },
+    enabled: !!areaId && isSignedIn,
+  });
+}

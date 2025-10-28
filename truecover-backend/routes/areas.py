@@ -80,7 +80,7 @@ def list_areas(user, project_id):
         cursor.execute("""
             SELECT id, project_id, name, description, created_at, updated_at
             FROM areas
-            WHERE project_id = %s
+            WHERE project_id = %s AND deleted_at IS NULL
             ORDER BY created_at DESC
         """, (project_id,))
 
@@ -122,7 +122,7 @@ def get_area(user, area_id):
         cursor.execute("""
             SELECT id, project_id, name, description, created_at, updated_at
             FROM areas
-            WHERE id = %s
+            WHERE id = %s AND deleted_at IS NULL
         """, (area_id,))
 
         area_data = cursor.fetchone()
@@ -178,21 +178,21 @@ def update_area(user, area_id):
             cursor.execute("""
                 UPDATE areas
                 SET name = %s, description = %s, updated_at = NOW()
-                WHERE id = %s
+                WHERE id = %s AND deleted_at IS NULL
                 RETURNING id, project_id, name, description, created_at, updated_at;
             """, (name.strip(), description, area_id))
         elif name:
             cursor.execute("""
                 UPDATE areas
                 SET name = %s, updated_at = NOW()
-                WHERE id = %s
+                WHERE id = %s AND deleted_at IS NULL
                 RETURNING id, project_id, name, description, created_at, updated_at;
             """, (name.strip(), area_id))
         else:  # description only
             cursor.execute("""
                 UPDATE areas
                 SET description = %s, updated_at = NOW()
-                WHERE id = %s
+                WHERE id = %s AND deleted_at IS NULL
                 RETURNING id, project_id, name, description, created_at, updated_at;
             """, (description, area_id))
 
@@ -239,10 +239,11 @@ def delete_area(user, area_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Delete area (cascade will delete features)
+        # Soft delete area (set deleted_at timestamp)
         cursor.execute("""
-            DELETE FROM areas
-            WHERE id = %s
+            UPDATE areas
+            SET deleted_at = NOW()
+            WHERE id = %s AND deleted_at IS NULL
             RETURNING id
         """, (area_id,))
 

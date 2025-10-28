@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox';
 import type { LayerProps } from 'react-map-gl/mapbox';
 import { GeoJSONFeatureCollection } from '../types';
-import { createJenksColorExpression, PREVALENCE_COLORS, UNCERTAINTY_COLORS } from '../utils/jenksBreaks';
+import { createJenksColorExpression, PREVALENCE_COLORS, UNCERTAINTY_COLORS, METADATA_COLORS } from '../utils/jenksBreaks';
 import { Geocoder } from '@mapbox/search-js-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -14,7 +14,9 @@ interface MapViewProps {
   mode?: 'sampling' | 'prediction' | 'locations';
   highlightRounds?: number[];
   showVisitLocations?: boolean;
-  interpolationMode?: 'none' | 'coverage' | 'uncertainty';
+  interpolationMode?: 'none' | 'coverage' | 'uncertainty' | 'metadata';
+  selectedMetadataField?: string;
+  metadataVisualizationMode?: 'fill' | 'circle';
   showPixels?: boolean;
   onTogglePixels?: () => void;
   pixelsBounds?: [number, number, number, number] | null;
@@ -61,7 +63,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', locationsToVisitCount = 0 }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', locationsToVisitCount = 0 }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -74,7 +76,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Update tile version when filter states change to bust cache
   React.useEffect(() => {
     setTileVersion(Date.now());
-  }, [showVisitLocations, interpolationMode, highlightRounds]);
+  }, [showVisitLocations, interpolationMode, highlightRounds, selectedMetadataField, metadataVisualizationMode]);
 
   // Use locations data if in locations mode, otherwise use regular data
   const primaryData = mode === 'locations' && locations ? locations : data;
@@ -1037,7 +1039,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="pixels-source"
               type="vector"
-              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&v=${pixelVersion || '0'}`]}
+              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}`]}
               minzoom={0}
               maxzoom={24}
             >
@@ -1083,9 +1085,30 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                           ],
                           'rgba(0, 0, 0, 0)' // transparent if no uncertainty
                         ]
-                      : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
-                        ? 'rgba(255, 255, 255, 0.1)'
-                        : 'rgba(40, 167, 69, 0.1)',
+                      : interpolationMode === 'metadata' && metadataVisualizationMode === 'fill' && selectedMetadataField
+                        ? [
+                            'case',
+                            ['!=', ['get', 'metadata_value'], null],
+                            [
+                              'interpolate',
+                              ['linear'],
+                              ['to-number', ['get', 'metadata_value']],
+                              // Dynamic range - will be replaced by actual breaks
+                              0, METADATA_COLORS[0],
+                              1, METADATA_COLORS[1],
+                              10, METADATA_COLORS[2],
+                              50, METADATA_COLORS[3],
+                              100, METADATA_COLORS[4],
+                              500, METADATA_COLORS[5],
+                              1000, METADATA_COLORS[6],
+                              5000, METADATA_COLORS[7],
+                              10000, METADATA_COLORS[8]
+                            ],
+                            'rgba(0, 0, 0, 0)' // transparent if no metadata
+                          ]
+                        : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
+                          ? 'rgba(255, 255, 255, 0.1)'
+                          : 'rgba(40, 167, 69, 0.1)',
                   'fill-opacity': interpolationMode === 'coverage'
                     ? [
                         'case',
@@ -1100,7 +1123,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                           0.9,
                           0
                         ]
-                      : 0.5
+                      : interpolationMode === 'metadata' && metadataVisualizationMode === 'fill' && selectedMetadataField
+                        ? [
+                            'case',
+                            ['!=', ['get', 'metadata_value'], null],
+                            0.9,
+                            0
+                          ]
+                        : 0.5
                 }}
               />
               <Layer
@@ -1129,9 +1159,46 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                           0.3,
                           0
                         ]
-                      : 0.6
+                      : interpolationMode === 'metadata' && selectedMetadataField
+                        ? [
+                            'case',
+                            ['!=', ['get', 'metadata_value'], null],
+                            0.3,
+                            0
+                          ]
+                        : 0.6
                 }}
               />
+
+              {/* Metadata Circle Layer - shown when metadata field is selected and mode is 'circle' */}
+              {selectedMetadataField && metadataVisualizationMode === 'circle' && (
+                <Layer
+                  id="pixels-metadata-circles"
+                  type="circle"
+                  source-layer="pixels_centroids"
+                  filter={['!=', ['get', 'metadata_value'], null]}
+                  paint={{
+                    'circle-radius': [
+                      'interpolate',
+                      ['linear'],
+                      ['to-number', ['get', 'metadata_value']],
+                      0, 2,
+                      10, 4,
+                      50, 6,
+                      100, 8,
+                      500, 10,
+                      1000, 12,
+                      5000, 14,
+                      10000, 16
+                    ],
+                    'circle-color': METADATA_COLORS[4], // Mid-range blue
+                    'circle-opacity': 0.7,
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-opacity': 0.8
+                  }}
+                />
+              )}
             </Source>
           )}
 

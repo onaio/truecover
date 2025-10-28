@@ -6,10 +6,12 @@ import { useLocationsData } from '../hooks/useLocationsData';
 import { useCoverage } from '../hooks/useCoverage';
 import { useIndicators } from '../hooks/useIndicators';
 import { useRounds } from '../hooks/useRounds';
-import { usePixelStats, useDeletePixels } from '../hooks/usePixels';
+import { usePixelStats, useDeletePixels, usePixelMetadataStats } from '../hooks/usePixels';
+import { useEnrichmentJobs } from '../hooks/useEnrichment';
 import LocationUploadModal from '../components/LocationUploadModal';
 import LocationEditModal from '../components/LocationEditModal';
 import GeneratePixelsModal from '../components/GeneratePixelsModal';
+import EnrichPixelsModal from '../components/EnrichPixelsModal';
 import LocationsTable from '../components/LocationsTable';
 import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
@@ -66,14 +68,20 @@ const LocationsPage: React.FC = () => {
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>(['all']);
   const [showVisitLocations, setShowVisitLocations] = useState<boolean>(true);
-  const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty'>('none');
+  const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty' | 'metadata'>('none');
+  const [selectedMetadataField, setSelectedMetadataField] = useState<string>('');
+  const [metadataVisualizationMode, setMetadataVisualizationMode] = useState<'fill' | 'circle'>('fill');
   const [showPixels, setShowPixels] = useState<boolean>(false);
   const [isGeneratePixelsModalOpen, setIsGeneratePixelsModalOpen] = useState<boolean>(false);
+  const [isEnrichPixelsModalOpen, setIsEnrichPixelsModalOpen] = useState<boolean>(false);
   const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
   const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedArea?.id);
   const deletePixels = useDeletePixels();
+  const { data: enrichmentJobsData } = useEnrichmentJobs(selectedArea?.id);
+  const enrichmentJobs = enrichmentJobsData?.jobs || [];
+  const { data: pixelMetadataStats } = usePixelMetadataStats(selectedArea?.id);
 
   // Set default indicator to first one when indicators load
   useEffect(() => {
@@ -88,6 +96,23 @@ const LocationsPage: React.FC = () => {
       setShowPixels(true);
     }
   }, [pixelStats?.count]);
+
+  // Auto-select first metadata field when switching to metadata mode
+  useEffect(() => {
+    if (interpolationMode === 'metadata' && !selectedMetadataField && pixelMetadataStats?.metadata_fields) {
+      const availableFields = pixelMetadataStats.metadata_fields.filter((field: any) => field.count > 0);
+      if (availableFields.length > 0) {
+        setSelectedMetadataField(availableFields[0].name);
+      }
+    }
+  }, [interpolationMode, selectedMetadataField, pixelMetadataStats]);
+
+  // Clear metadata field when switching away from metadata/coverage/uncertainty modes
+  useEffect(() => {
+    if (interpolationMode === 'none') {
+      setSelectedMetadataField('');
+    }
+  }, [interpolationMode]);
 
   // Load locations when entering the page or after data mutations
   useEffect(() => {
@@ -395,6 +420,65 @@ const LocationsPage: React.FC = () => {
               >
                 Uncertainty
               </TacticalButton>
+
+              {/* Metadata Toggle */}
+              {pixelMetadataStats && pixelMetadataStats.metadata_fields.length > 0 && (
+                <TacticalButton
+                  variant={interpolationMode === 'metadata' ? "primary" : "secondary"}
+                  size="md"
+                  isActive={interpolationMode === 'metadata'}
+                  onClick={() => setInterpolationMode(interpolationMode === 'metadata' ? 'none' : 'metadata')}
+                >
+                  Metadata
+                </TacticalButton>
+              )}
+
+              {/* Metadata Field Selector */}
+              {(interpolationMode === 'metadata' || (interpolationMode !== 'none' && selectedMetadataField)) && pixelMetadataStats && pixelMetadataStats.metadata_fields.length > 0 && (
+                <>
+                  <div className="w-64 text-lg">
+                    <TacticalSelect
+                      value={selectedMetadataField}
+                      onChange={(value) => setSelectedMetadataField(value)}
+                      options={
+                        pixelMetadataStats.metadata_fields
+                          .filter((field: any) => field.count > 0)
+                          .map((field: any) => ({
+                            value: field.name,
+                            label: field.name
+                          }))
+                      }
+                      placeholder="Select Metadata Field"
+                    />
+                  </div>
+
+                  {/* Metadata Visualization Mode Toggle */}
+                  {selectedMetadataField && (
+                    <div className="flex gap-2 border border-tactical-border-medium bg-tactical-bg-secondary">
+                      <button
+                        className={`px-3 py-2 text-sm font-mono transition-colors ${
+                          metadataVisualizationMode === 'fill'
+                            ? 'bg-tactical-accent-blue text-tactical-text-primary'
+                            : 'text-tactical-text-dim hover:text-tactical-text-secondary'
+                        }`}
+                        onClick={() => setMetadataVisualizationMode('fill')}
+                      >
+                        Fill
+                      </button>
+                      <button
+                        className={`px-3 py-2 text-sm font-mono transition-colors ${
+                          metadataVisualizationMode === 'circle'
+                            ? 'bg-tactical-accent-blue text-tactical-text-primary'
+                            : 'text-tactical-text-dim hover:text-tactical-text-secondary'
+                        }`}
+                        onClick={() => setMetadataVisualizationMode('circle')}
+                      >
+                        Circle
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Map View */}
@@ -406,6 +490,8 @@ const LocationsPage: React.FC = () => {
                 highlightRounds={mapHighlightRounds}
                 showVisitLocations={showVisitLocations}
                 interpolationMode={interpolationMode}
+                selectedMetadataField={selectedMetadataField}
+                metadataVisualizationMode={metadataVisualizationMode}
                 showPixels={showPixels}
                 onTogglePixels={() => setShowPixels(!showPixels)}
                 pixelsBounds={pixelStats?.bounds || null}
@@ -422,7 +508,7 @@ const LocationsPage: React.FC = () => {
             </TacticalCard>
 
             {/* Distribution Histogram with Tabs */}
-            {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty') && (
+            {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty' || interpolationMode === 'metadata') && (
               <div className="mb-6">
                 {/* Tab Switcher */}
                 <div className="flex gap-2 mb-0 border-b border-tactical-border-medium bg-tactical-bg-secondary">
@@ -548,6 +634,58 @@ const LocationsPage: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Metadata Stats */}
+                      {pixelMetadataStats && pixelMetadataStats.total_enriched > 0 && (
+                        <div className="p-4 bg-tactical-bg-tertiary border border-tactical-border-medium">
+                          <div className="mb-3 font-mono font-bold text-xs text-tactical-text-muted uppercase tracking-wider">
+                            Pixel Metadata
+                          </div>
+                          <div className="mb-3">
+                            <div className="font-mono text-xs text-tactical-text-muted">Enriched Pixels</div>
+                            <div className="font-mono text-lg text-tactical-text-primary">
+                              {pixelMetadataStats.total_enriched.toLocaleString()} / {pixelStats.count.toLocaleString()}
+                              <span className="text-tactical-text-muted text-sm ml-2">
+                                ({((pixelMetadataStats.total_enriched / pixelStats.count) * 100).toFixed(1)}%)
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            {pixelMetadataStats.metadata_fields.map((field: any) => (
+                              field.count > 0 && (
+                                <div key={field.name} className="p-2 bg-tactical-bg-secondary border border-tactical-border-dark">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <div>
+                                      <div className="font-mono text-xs font-bold text-tactical-text-primary">
+                                        {field.name}
+                                      </div>
+                                      {field.description && (
+                                        <div className="font-mono text-xs text-tactical-text-dim">
+                                          {field.description}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="font-mono text-xs text-tactical-text-muted">
+                                      {field.count.toLocaleString()} pixels
+                                    </div>
+                                  </div>
+                                  {field.min !== undefined && field.max !== undefined && (
+                                    <div className="font-mono text-xs text-tactical-text-secondary">
+                                      Range: {field.min.toLocaleString()} - {field.max.toLocaleString()}
+                                      {field.unit && ` ${field.unit}`}
+                                      {field.avg !== undefined && (
+                                        <span className="text-tactical-text-dim ml-2">
+                                          (avg: {field.avg.toLocaleString()})
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex gap-3">
                         <TacticalButton
                           variant="primary"
@@ -555,6 +693,13 @@ const LocationsPage: React.FC = () => {
                           onClick={() => setIsGeneratePixelsModalOpen(true)}
                         >
                           Regenerate Pixels
+                        </TacticalButton>
+                        <TacticalButton
+                          variant="primary"
+                          size="md"
+                          onClick={() => setIsEnrichPixelsModalOpen(true)}
+                        >
+                          Enrich Pixels
                         </TacticalButton>
                         <TacticalButton
                           variant="danger"
@@ -588,6 +733,104 @@ const LocationsPage: React.FC = () => {
                       >
                         Generate Pixels
                       </TacticalButton>
+                    </div>
+                  )}
+                </div>
+              </TacticalCollapsible>
+            </TacticalCard>
+
+            {/* Enrichment Jobs Section */}
+            <TacticalCard>
+              <TacticalCollapsible title="Enrichment Jobs" defaultOpen={true}>
+                <div className="p-4 space-y-4">
+                  {enrichmentJobs.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-tactical-text-muted mb-4 font-mono text-sm">
+                        No enrichment jobs yet. Enrich pixels to add metadata from COG/STAC sources.
+                      </p>
+                      <TacticalButton
+                        variant="primary"
+                        size="md"
+                        onClick={() => setIsEnrichPixelsModalOpen(true)}
+                        disabled={!pixelStats || pixelStats.count === 0}
+                      >
+                        Enrich Pixels
+                      </TacticalButton>
+                      {(!pixelStats || pixelStats.count === 0) && (
+                        <p className="text-tactical-text-dim font-mono text-xs mt-2">
+                          Generate pixels first before enriching
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {enrichmentJobs.map((job: any) => (
+                        <div
+                          key={job.id}
+                          className="p-3 bg-tactical-bg-tertiary border border-tactical-border-medium"
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <div className="font-mono text-sm font-bold text-tactical-text-primary">
+                                {job.data_source.name}
+                              </div>
+                              <div className="font-mono text-xs text-tactical-text-muted">
+                                Field: {job.data_source.metadata_field_name} ({job.statistic})
+                              </div>
+                            </div>
+                            <div>
+                              <span
+                                className={`px-2 py-1 font-mono text-xs font-bold uppercase ${
+                                  job.status === 'completed'
+                                    ? 'bg-tactical-accent-green/20 text-tactical-accent-green border border-tactical-accent-green'
+                                    : job.status === 'failed'
+                                    ? 'bg-tactical-accent-red/20 text-tactical-accent-red border border-tactical-accent-red'
+                                    : job.status === 'processing'
+                                    ? 'bg-tactical-accent-orange/20 text-tactical-accent-orange border border-tactical-accent-orange'
+                                    : 'bg-tactical-bg-secondary text-tactical-text-muted border border-tactical-border-medium'
+                                }`}
+                              >
+                                {job.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {(job.status === 'processing' || job.status === 'pending') && (
+                            <div className="mb-2">
+                              <div className="flex justify-between font-mono text-xs text-tactical-text-muted mb-1">
+                                <span>Progress</span>
+                                <span>
+                                  {job.pixels_processed.toLocaleString()} / {job.pixels_total.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="w-full bg-tactical-bg-secondary border border-tactical-border-dark h-2">
+                                <div
+                                  className="bg-tactical-accent-green h-full transition-all duration-300"
+                                  style={{
+                                    width: `${(job.pixels_processed / job.pixels_total) * 100}%`
+                                  }}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+
+                          {job.status === 'completed' && (
+                            <div className="font-mono text-xs text-tactical-text-secondary">
+                              ✓ Processed {job.pixels_total.toLocaleString()} pixels
+                            </div>
+                          )}
+
+                          {job.status === 'failed' && job.error_message && (
+                            <div className="mt-2 p-2 bg-tactical-accent-red/10 border border-tactical-accent-red font-mono text-xs text-tactical-accent-red">
+                              Error: {job.error_message}
+                            </div>
+                          )}
+
+                          <div className="mt-2 font-mono text-xs text-tactical-text-dim">
+                            Created: {new Date(job.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -635,6 +878,17 @@ const LocationsPage: React.FC = () => {
         onGenerated={() => {
           refetchPixelStats();
           setRefreshKey(prev => prev + 1);
+        }}
+      />
+
+      {/* Enrich Pixels Modal */}
+      <EnrichPixelsModal
+        isOpen={isEnrichPixelsModalOpen}
+        onClose={() => setIsEnrichPixelsModalOpen(false)}
+        areaId={selectedArea?.id || ''}
+        pixelCount={pixelStats?.count || 0}
+        onJobCreated={(jobId) => {
+          console.log('Enrichment job created:', jobId);
         }}
       />
     </div>

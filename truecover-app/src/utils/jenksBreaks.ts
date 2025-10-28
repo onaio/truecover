@@ -30,6 +30,18 @@ export const UNCERTAINTY_COLORS = [
   '#40004b'   // Very dark purple (high - low confidence)
 ];
 
+export const METADATA_COLORS = [
+  '#f7fbff',  // Very light blue (low)
+  '#deebf7',  // Light blue
+  '#c6dbef',  // Light-medium blue
+  '#9ecae1',  // Medium blue
+  '#6baed6',  // Medium-dark blue
+  '#4292c6',  // Dark blue
+  '#2171b5',  // Darker blue
+  '#08519c',  // Very dark blue
+  '#08306b'   // Darkest blue (high)
+];
+
 /**
  * Calculate Jenks natural breaks classification
  * This algorithm finds class breaks that minimize variance within classes
