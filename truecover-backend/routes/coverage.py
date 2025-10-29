@@ -11,6 +11,77 @@ import sys
 coverage_bp = Blueprint('coverage', __name__)
 
 
+def create_default_coverage_pixels(cursor, area_id, quadkeys):
+    """
+    Create default coverage_pixel records for newly created pixels.
+    Creates records for all indicators in the project with zero values.
+
+    Args:
+        cursor: Database cursor
+        area_id: UUID of the area
+        quadkeys: List of quadkeys to create coverage_pixel records for
+    """
+    if not quadkeys:
+        return
+
+    try:
+        # Get the project_id from the area
+        cursor.execute("""
+            SELECT project_id FROM areas WHERE id = %s
+        """, (area_id,))
+        result = cursor.fetchone()
+        if not result:
+            print(f"Warning: Could not find area {area_id}")
+            return
+
+        project_id = result[0]
+
+        # Get all indicators for this project
+        cursor.execute("""
+            SELECT id FROM indicators WHERE project_id = %s
+        """, (project_id,))
+        indicators = cursor.fetchall()
+
+        if not indicators:
+            print(f"Info: No indicators found for project {project_id}, skipping coverage_pixel creation")
+            return
+
+        # Create coverage_pixel records for each quadkey and indicator
+        records_to_create = []
+        for quadkey in quadkeys:
+            for indicator_row in indicators:
+                indicator_id = indicator_row[0]
+
+                # Check if coverage_pixel entry already exists
+                cursor.execute("""
+                    SELECT id FROM coverage_pixel
+                    WHERE quadkey = %s AND indicator_id = %s AND area_id = %s AND version = 0
+                """, (quadkey, indicator_id, area_id))
+
+                if not cursor.fetchone():
+                    # Doesn't exist, add to batch insert
+                    records_to_create.append((quadkey, area_id, indicator_id))
+
+        # Batch insert new coverage_pixel records with default values
+        if records_to_create:
+            cursor.executemany("""
+                INSERT INTO coverage_pixel (
+                    quadkey, area_id, indicator_id, version,
+                    n_trials, n_covered, rounds,
+                    exceedance_probability, exceedance_uncertainty,
+                    prevalence_bci_width, prevalence_prediction
+                )
+                VALUES (%s, %s, %s, 0, 0, 0, '{}', 0, 0, 0, 0)
+            """, records_to_create)
+            print(f"Created {len(records_to_create)} default coverage_pixel records for {len(quadkeys)} quadkeys")
+
+    except Exception as e:
+        print(f"Error creating default coverage_pixel records: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't fail the pixel creation if this fails
+
+
 def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
     """
     Update coverage_pixel table by aggregating coverage data by quadkey.
@@ -870,6 +941,7 @@ def list_area_coverage_pixel(user, area_id):
 
         # Get query parameters for filtering
         indicator_id = request.args.get('indicator_id')
+        only_with_locations = request.args.get('only_with_locations', 'false').lower() == 'true'
 
         # Build dynamic query based on filters
         query = """
@@ -880,9 +952,11 @@ def list_area_coverage_pixel(user, area_id):
                 cp.prevalence_bci_width, cp.prevalence_prediction,
                 cp.created_at, cp.updated_at, cp.last_predicted_at,
                 i.name as indicator_name,
-                cp.rounds
+                cp.rounds,
+                p.latitude, p.longitude
             FROM coverage_pixel cp
             JOIN indicators i ON cp.indicator_id = i.id
+            LEFT JOIN pixels p ON cp.quadkey = p.quadkey
             WHERE cp.area_id = %s
         """
         params = [area_id]
@@ -890,6 +964,14 @@ def list_area_coverage_pixel(user, area_id):
         if indicator_id:
             query += " AND cp.indicator_id = %s"
             params.append(indicator_id)
+
+        if only_with_locations:
+            query += """
+                AND EXISTS (
+                    SELECT 1 FROM locations l
+                    WHERE l.quadkey = cp.quadkey AND l.area_id = cp.area_id
+                )
+            """
 
         cursor.execute(query, tuple(params))
 
@@ -911,7 +993,9 @@ def list_area_coverage_pixel(user, area_id):
                 'updated_at': row[12].isoformat() if row[12] else None,
                 'last_predicted_at': row[13].isoformat() if row[13] else None,
                 'indicator_name': row[14],
-                'rounds': list(row[15]) if row[15] else []
+                'rounds': list(row[15]) if row[15] else [],
+                'latitude': float(row[16]) if row[16] is not None else None,
+                'longitude': float(row[17]) if row[17] is not None else None
             })
 
         cursor.close()

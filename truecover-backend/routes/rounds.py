@@ -34,6 +34,7 @@ def create_round(user, area_id):
         batch_size = data.get('batch_size', 10)
         uncertainty_field = data.get('uncertainty_field', 'exceedance_uncertainty')
         allow_revisit = data.get('allow_revisit', False)
+        sampling_target = data.get('sampling_target', 'locations')
 
         if not name:
             return jsonify({'error': 'Round name is required'}), 400
@@ -54,86 +55,150 @@ def create_round(user, area_id):
 
         # Create the round
         cursor.execute("""
-            INSERT INTO rounds (area_id, round_number, name, description, start_date, end_date, indicator_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at
-        """, (area_id, round_number, name, description, start_date, end_date, indicator_id))
+            INSERT INTO rounds (area_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at, sampling_target
+        """, (area_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target))
 
         round_data = cursor.fetchone()
         round_id = str(round_data[0])
 
-        # Fetch coverage data for this area and indicator
-        # If allow_revisit is False, exclude locations that already have rounds assigned
-        if allow_revisit:
-            cursor.execute("""
-                SELECT
-                    c.id as coverage_id,
-                    c.location_id,
-                    ST_AsGeoJSON(l.geometry) as geometry,
-                    l.latitude, l.longitude,
-                    c.exceedance_probability, c.exceedance_uncertainty,
-                    c.prevalence_bci_width, c.prevalence_prediction,
-                    l.properties, l.external_id
-                FROM coverage c
-                LEFT JOIN locations l ON c.location_id = l.id
-                WHERE c.area_id = %s AND c.indicator_id = %s
-            """, (area_id, indicator_id))
+        # Fetch data based on sampling target (locations or pixels)
+        if sampling_target == 'pixels':
+            # Fetch coverage_pixel data joined with pixels
+            if allow_revisit:
+                cursor.execute("""
+                    SELECT
+                        cp.id as coverage_pixel_id,
+                        cp.quadkey,
+                        ST_AsGeoJSON(p.geometry) as geometry,
+                        p.latitude, p.longitude,
+                        cp.exceedance_probability, cp.exceedance_uncertainty,
+                        cp.prevalence_bci_width, cp.prevalence_prediction
+                    FROM coverage_pixel cp
+                    LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                    WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                """, (area_id, indicator_id))
+            else:
+                # Only include pixels that have NOT been visited in any round
+                cursor.execute("""
+                    SELECT
+                        cp.id as coverage_pixel_id,
+                        cp.quadkey,
+                        ST_AsGeoJSON(p.geometry) as geometry,
+                        p.latitude, p.longitude,
+                        cp.exceedance_probability, cp.exceedance_uncertainty,
+                        cp.prevalence_bci_width, cp.prevalence_prediction
+                    FROM coverage_pixel cp
+                    LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                    WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                      AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
+                """, (area_id, indicator_id))
         else:
-            # Only include locations that have NOT been visited in any round
-            cursor.execute("""
-                SELECT
-                    c.id as coverage_id,
-                    c.location_id,
-                    ST_AsGeoJSON(l.geometry) as geometry,
-                    l.latitude, l.longitude,
-                    c.exceedance_probability, c.exceedance_uncertainty,
-                    c.prevalence_bci_width, c.prevalence_prediction,
-                    l.properties, l.external_id
-                FROM coverage c
-                LEFT JOIN locations l ON c.location_id = l.id
-                WHERE c.area_id = %s AND c.indicator_id = %s
-                  AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
-            """, (area_id, indicator_id))
+            # Fetch coverage data for locations (existing behavior)
+            if allow_revisit:
+                cursor.execute("""
+                    SELECT
+                        c.id as coverage_id,
+                        c.location_id,
+                        ST_AsGeoJSON(l.geometry) as geometry,
+                        l.latitude, l.longitude,
+                        c.exceedance_probability, c.exceedance_uncertainty,
+                        c.prevalence_bci_width, c.prevalence_prediction,
+                        l.properties, l.external_id
+                    FROM coverage c
+                    LEFT JOIN locations l ON c.location_id = l.id
+                    WHERE c.area_id = %s AND c.indicator_id = %s
+                """, (area_id, indicator_id))
+            else:
+                # Only include locations that have NOT been visited in any round
+                cursor.execute("""
+                    SELECT
+                        c.id as coverage_id,
+                        c.location_id,
+                        ST_AsGeoJSON(l.geometry) as geometry,
+                        l.latitude, l.longitude,
+                        c.exceedance_probability, c.exceedance_uncertainty,
+                        c.prevalence_bci_width, c.prevalence_prediction,
+                        l.properties, l.external_id
+                    FROM coverage c
+                    LEFT JOIN locations l ON c.location_id = l.id
+                    WHERE c.area_id = %s AND c.indicator_id = %s
+                      AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
+                """, (area_id, indicator_id))
 
         locations = cursor.fetchall()
 
         if not locations:
             conn.rollback()
             cursor.close()
-            return jsonify({'error': 'No locations found in this area'}), 400
+            target_name = 'pixels' if sampling_target == 'pixels' else 'locations'
+            return jsonify({'error': f'No {target_name} found in this area'}), 400
 
-        # Convert coverage data to GeoJSON for adaptive sampling
+        # Convert data to GeoJSON for adaptive sampling
         features = []
-        coverage_ids = {}  # Map feature index to coverage_id
-        for idx, cov in enumerate(locations):
-            coverage_id = str(cov[0])
-            location_id = str(cov[1])
-            geometry = json.loads(cov[2]) if cov[2] else {
-                'type': 'Point',
-                'coordinates': [float(cov[4]), float(cov[3])]
-            }
+        coverage_ids = {}  # Map feature index to coverage_id (or coverage_pixel_id)
 
-            properties = cov[9] if isinstance(cov[9], dict) else json.loads(cov[9]) if cov[9] else {}
-            external_id = cov[10]
-            properties.update({
-                'exceedance_probability': float(cov[5]) if cov[5] else 0,
-                'exceedance_uncertainty': float(cov[6]) if cov[6] else 0,
-                'prevalence_bci_width': float(cov[7]) if cov[7] else 0,
-                'prevalence_prediction': float(cov[8]) if cov[8] else 0,
-                'external_id': external_id,
-            })
+        if sampling_target == 'pixels':
+            # Process pixel data (use centroid point)
+            for idx, pix in enumerate(locations):
+                coverage_pixel_id = str(pix[0])
+                quadkey = pix[1]
+                # Always use centroid point for pixels (not polygon)
+                geometry = {
+                    'type': 'Point',
+                    'coordinates': [float(pix[4]), float(pix[3])]
+                }
 
-            feature = {
-                'type': 'Feature',
-                'id': idx,
-                'geometry': geometry,
-                'properties': properties
-            }
-            features.append(feature)
-            # Map both by index and external_id to coverage_id for lookup
-            coverage_ids[idx] = coverage_id
-            if external_id:
-                coverage_ids[external_id] = coverage_id
+                properties = {
+                    'quadkey': quadkey,
+                    'exceedance_probability': float(pix[5]) if pix[5] else 0,
+                    'exceedance_uncertainty': float(pix[6]) if pix[6] else 0,
+                    'prevalence_bci_width': float(pix[7]) if pix[7] else 0,
+                    'prevalence_prediction': float(pix[8]) if pix[8] else 0,
+                }
+
+                feature = {
+                    'type': 'Feature',
+                    'id': idx,
+                    'geometry': geometry,
+                    'properties': properties
+                }
+                features.append(feature)
+                # Map by index and quadkey to coverage_pixel_id for lookup
+                coverage_ids[idx] = coverage_pixel_id
+                coverage_ids[quadkey] = coverage_pixel_id
+        else:
+            # Process location data (existing behavior)
+            for idx, cov in enumerate(locations):
+                coverage_id = str(cov[0])
+                location_id = str(cov[1])
+                geometry = json.loads(cov[2]) if cov[2] else {
+                    'type': 'Point',
+                    'coordinates': [float(cov[4]), float(cov[3])]
+                }
+
+                properties = cov[9] if isinstance(cov[9], dict) else json.loads(cov[9]) if cov[9] else {}
+                external_id = cov[10]
+                properties.update({
+                    'exceedance_probability': float(cov[5]) if cov[5] else 0,
+                    'exceedance_uncertainty': float(cov[6]) if cov[6] else 0,
+                    'prevalence_bci_width': float(cov[7]) if cov[7] else 0,
+                    'prevalence_prediction': float(cov[8]) if cov[8] else 0,
+                    'external_id': external_id,
+                })
+
+                feature = {
+                    'type': 'Feature',
+                    'id': idx,
+                    'geometry': geometry,
+                    'properties': properties
+                }
+                features.append(feature)
+                # Map both by index and external_id to coverage_id for lookup
+                coverage_ids[idx] = coverage_id
+                if external_id:
+                    coverage_ids[external_id] = coverage_id
 
         geojson_data = {
             'type': 'FeatureCollection',
@@ -178,38 +243,64 @@ def create_round(user, area_id):
             # Debug logging
             print(f"DEBUG: Adaptive sampling returned {len(result.get('features', []))} features")
 
-            # Update coverage.rounds array with round assignment
+            # Update coverage or coverage_pixel rounds array with round assignment
             selected_count = 0
             if result.get('features'):
                 for feature in result['features']:
                     feature_id = feature.get('id')
                     properties = feature.get('properties', {})
                     adaptively_selected = properties.get('adaptively_selected', 0)
-                    external_id = properties.get('external_id')
 
-                    print(f"DEBUG: Feature id={feature_id}, external_id={external_id}, adaptively_selected={adaptively_selected}")
+                    if sampling_target == 'pixels':
+                        quadkey = properties.get('quadkey')
+                        print(f"DEBUG: Feature id={feature_id}, quadkey={quadkey}, adaptively_selected={adaptively_selected}")
 
-                    if adaptively_selected == 1:
-                        # Try to find coverage_id using feature_id first, then external_id
-                        coverage_id = None
-                        if feature_id is not None:
-                            coverage_id = coverage_ids.get(feature_id)
-                        if not coverage_id and external_id:
-                            coverage_id = coverage_ids.get(external_id)
+                        if adaptively_selected == 1:
+                            # Try to find coverage_pixel_id using feature_id first, then quadkey
+                            coverage_pixel_id = None
+                            if feature_id is not None:
+                                coverage_pixel_id = coverage_ids.get(feature_id)
+                            if not coverage_pixel_id and quadkey:
+                                coverage_pixel_id = coverage_ids.get(quadkey)
 
-                        print(f"DEBUG: Selected location -> coverage_id={coverage_id}")
-                        if coverage_id:
-                            # Add round_number to coverage.rounds array
-                            cursor.execute("""
-                                UPDATE coverage
-                                SET rounds = array_append(rounds, %s),
-                                    updated_at = NOW()
-                                WHERE id = %s
-                            """, (round_number, coverage_id))
-                            print(f"DEBUG: Coverage {coverage_id} added to round {round_number}")
-                            selected_count += 1
-                        else:
-                            print(f"DEBUG: WARNING - Could not find coverage_id for feature {feature_id}/{external_id}")
+                            print(f"DEBUG: Selected pixel -> coverage_pixel_id={coverage_pixel_id}")
+                            if coverage_pixel_id:
+                                # Add round_number to coverage_pixel.rounds array
+                                cursor.execute("""
+                                    UPDATE coverage_pixel
+                                    SET rounds = array_append(rounds, %s),
+                                        updated_at = NOW()
+                                    WHERE id = %s
+                                """, (round_number, coverage_pixel_id))
+                                print(f"DEBUG: Coverage_pixel {coverage_pixel_id} added to round {round_number}")
+                                selected_count += 1
+                            else:
+                                print(f"DEBUG: WARNING - Could not find coverage_pixel_id for feature {feature_id}/{quadkey}")
+                    else:
+                        external_id = properties.get('external_id')
+                        print(f"DEBUG: Feature id={feature_id}, external_id={external_id}, adaptively_selected={adaptively_selected}")
+
+                        if adaptively_selected == 1:
+                            # Try to find coverage_id using feature_id first, then external_id
+                            coverage_id = None
+                            if feature_id is not None:
+                                coverage_id = coverage_ids.get(feature_id)
+                            if not coverage_id and external_id:
+                                coverage_id = coverage_ids.get(external_id)
+
+                            print(f"DEBUG: Selected location -> coverage_id={coverage_id}")
+                            if coverage_id:
+                                # Add round_number to coverage.rounds array
+                                cursor.execute("""
+                                    UPDATE coverage
+                                    SET rounds = array_append(rounds, %s),
+                                        updated_at = NOW()
+                                    WHERE id = %s
+                                """, (round_number, coverage_id))
+                                print(f"DEBUG: Coverage {coverage_id} added to round {round_number}")
+                                selected_count += 1
+                            else:
+                                print(f"DEBUG: WARNING - Could not find coverage_id for feature {feature_id}/{external_id}")
 
             print(f"DEBUG: Total selected_count: {selected_count}")
 
@@ -235,6 +326,7 @@ def create_round(user, area_id):
                 'end_date': round_data[5].isoformat() if round_data[5] else None,
                 'created_at': round_data[6].isoformat() if round_data[6] else None,
                 'updated_at': round_data[7].isoformat() if round_data[7] else None,
+                'sampling_target': round_data[8] if len(round_data) > 8 else 'locations',
             },
             'selected_count': selected_count
         }), 201
@@ -267,7 +359,7 @@ def list_rounds(user, area_id):
         cursor.execute("""
             SELECT
                 id, round_number, name, description,
-                start_date, end_date, created_at, updated_at
+                start_date, end_date, created_at, updated_at, sampling_target
             FROM rounds
             WHERE area_id = %s
             ORDER BY round_number ASC
@@ -292,6 +384,7 @@ def list_rounds(user, area_id):
                 'end_date': row[5].isoformat() if row[5] else None,
                 'created_at': row[6].isoformat() if row[6] else None,
                 'updated_at': row[7].isoformat() if row[7] else None,
+                'sampling_target': row[8] if len(row) > 8 else 'locations',
                 'location_count': location_count
             })
 

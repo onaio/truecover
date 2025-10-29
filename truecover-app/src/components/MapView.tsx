@@ -13,7 +13,8 @@ interface MapViewProps {
   locations?: any | null;
   mode?: 'sampling' | 'prediction' | 'locations';
   highlightRounds?: number[];
-  showVisitLocations?: boolean;
+  showSampled?: boolean;
+  onToggleSampled?: () => void;
   interpolationMode?: 'none' | 'coverage' | 'uncertainty' | 'metadata';
   selectedMetadataField?: string;
   metadataVisualizationMode?: 'fill' | 'circle';
@@ -28,7 +29,7 @@ interface MapViewProps {
   onGeneratePixels?: () => void;
   histogramBrushRanges?: [number, number][] | null;
   histogramDataType?: 'locations' | 'pixels';
-  locationsToVisitCount?: number;
+  sampledItemsCount?: number;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -63,7 +64,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showVisitLocations = true, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', locationsToVisitCount = 0 }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0 }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -76,7 +77,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Update tile version when filter states change to bust cache
   React.useEffect(() => {
     setTileVersion(Date.now());
-  }, [showVisitLocations, interpolationMode, highlightRounds, selectedMetadataField, metadataVisualizationMode]);
+  }, [showSampled, interpolationMode, highlightRounds, selectedMetadataField, metadataVisualizationMode]);
 
   // Use locations data if in locations mode, otherwise use regular data
   const primaryData = mode === 'locations' && locations ? locations : data;
@@ -220,7 +221,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const selectedFeatures = useMemo(() => {
     if (mode === 'locations' && locations && locations.features) {
       // If toggle is off, don't show any selected features
-      if (!showVisitLocations) {
+      if (!showSampled) {
         return [];
       }
       // If highlightRounds is specified and has values, only highlight those rounds
@@ -246,7 +247,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       );
     }
     return [];
-  }, [data, selectedData, mode, locations, highlightRounds, showVisitLocations]);
+  }, [data, selectedData, mode, locations, highlightRounds, showSampled]);
 
   // Use mode prop to determine visualization type
   const isPredictionData = mode === 'prediction';
@@ -548,8 +549,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
       // When both visit locations AND interpolation are active, make fill transparent
-      'fill-color': (showVisitLocations && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
-      'fill-opacity': (showVisitLocations && interpolationMode !== 'none') ? 0 : 0.95
+      'fill-color': (showSampled && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
+      'fill-opacity': (showSampled && interpolationMode !== 'none') ? 0 : 0.95
     }
   };
 
@@ -586,7 +587,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     paint: {
       'circle-radius': 3,
       // When both visit locations AND interpolation are active, make fill transparent
-      'circle-color': (showVisitLocations && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
+      'circle-color': (showSampled && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
       'circle-opacity': 1,
       'circle-stroke-width': 2,
       'circle-stroke-color': '#28a745'
@@ -670,7 +671,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Helper to check if a location should be shown based on rounds filter
   // highlightRounds: [] = show all with any rounds, [1,2] = show only locations with round 1 or 2
   const shouldShowLocation = () => {
-    if (!showVisitLocations) {
+    if (!showSampled) {
       return true; // Not filtering by rounds
     }
 
@@ -715,7 +716,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
       // When visit locations is toggled, only show coverage for locations with rounds
       // NOTE: rounds comes from MVT as a string like "{}" or "{1,2}", not an array
-      if (showVisitLocations) {
+      if (showSampled) {
         return [
           'case',
           shouldShowLocation(),
@@ -740,7 +741,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       ];
 
       // When visit locations is toggled, only show uncertainty for locations with rounds
-      if (showVisitLocations) {
+      if (showSampled) {
         return [
           'case',
           shouldShowLocation(),
@@ -750,7 +751,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       }
       return uncertaintyExpression;
     }
-    if (showVisitLocations) {
+    if (showSampled) {
       return [
         'case',
         shouldShowLocation(),
@@ -764,7 +765,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const getPolygonFillOpacity = () => {
     if (interpolationMode !== 'none') {
       // When visit locations is toggled, only show opacity for locations with rounds
-      if (showVisitLocations) {
+      if (showSampled) {
         return [
           'case',
           shouldShowLocation(),
@@ -774,7 +775,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       }
       return 0.9;
     }
-    if (showVisitLocations) {
+    if (showSampled) {
       return [
         'case',
         shouldShowLocation(),
@@ -790,7 +791,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       return '#ffffff';
     }
     // When show visits is off, all borders are white
-    if (!showVisitLocations) {
+    if (!showSampled) {
       return '#ffffff';
     }
     // When show visits is on, locations with rounds get green borders
@@ -811,7 +812,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     if (interpolationMode !== 'none') {
       return 0.3;
     }
-    if (showVisitLocations) {
+    if (showSampled) {
       return [
         'case',
         shouldShowLocation(),
@@ -838,7 +839,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       ];
 
       // When visit locations is toggled, only show coverage for locations with rounds
-      if (showVisitLocations) {
+      if (showSampled) {
         return [
           'case',
           shouldShowLocation(),
@@ -863,7 +864,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       ];
 
       // When visit locations is toggled, only show uncertainty for locations with rounds
-      if (showVisitLocations) {
+      if (showSampled) {
         return [
           'case',
           shouldShowLocation(),
@@ -873,7 +874,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       }
       return uncertaintyExpression;
     }
-    if (showVisitLocations) {
+    if (showSampled) {
       return [
         'case',
         shouldShowLocation(),
@@ -894,7 +895,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       return 'rgba(255, 255, 255, 0.5)';
     }
     // When show visits is off, all borders are white
-    if (!showVisitLocations) {
+    if (!showSampled) {
       return '#ffffff';
     }
     // When show visits is on, locations with rounds get green borders
@@ -910,7 +911,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     if (interpolationMode !== 'none') {
       return 0.8;
     }
-    if (showVisitLocations) {
+    if (showSampled) {
       return [
         'case',
         shouldShowLocation(),
@@ -1039,7 +1040,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="pixels-source"
               type="vector"
-              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}`]}
+              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
               minzoom={0}
               maxzoom={24}
             >
@@ -1106,7 +1107,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                             ],
                             'rgba(0, 0, 0, 0)' // transparent if no metadata
                           ]
-                        : 'rgba(0, 0, 0, 0)',
+                        : showSampled
+                          ? [
+                              'case',
+                              shouldShowLocation(),
+                              '#28a745',
+                              'rgba(0, 0, 0, 0)'
+                            ]
+                          : 'rgba(0, 0, 0, 0)',
                   'fill-opacity': interpolationMode === 'coverage'
                     ? [
                         'case',
@@ -1130,7 +1138,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                               0.9,
                               0
                             ]
-                        : 0
+                        : showSampled
+                          ? [
+                              'case',
+                              shouldShowLocation(),
+                              0.7,
+                              0
+                            ]
+                          : 0
                 }}
               />
               <Layer
@@ -1148,14 +1163,18 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   'line-opacity': interpolationMode === 'coverage'
                     ? [
                         'case',
-                        ['!=', ['get', 'prevalence_prediction'], null],
+                        showSampled
+                          ? ['all', ['!=', ['get', 'prevalence_prediction'], null], shouldShowLocation()]
+                          : ['!=', ['get', 'prevalence_prediction'], null],
                         0.3,
                         0
                       ]
                     : interpolationMode === 'uncertainty'
                       ? [
                           'case',
-                          ['!=', ['get', 'prevalence_bci_width'], null],
+                          showSampled
+                            ? ['all', ['!=', ['get', 'prevalence_bci_width'], null], shouldShowLocation()]
+                            : ['!=', ['get', 'prevalence_bci_width'], null],
                           0.3,
                           0
                         ]
@@ -1164,7 +1183,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                           ? 0
                           : [
                               'case',
-                              ['!=', ['get', 'metadata_value'], null],
+                              showSampled
+                                ? ['all', ['!=', ['get', 'metadata_value'], null], shouldShowLocation()]
+                                : ['!=', ['get', 'metadata_value'], null],
                               0.3,
                               0
                             ]
@@ -1242,19 +1263,36 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           )}
         </Map>
 
-        {/* Pixels Toggle/Generate Button */}
-        {mode === 'locations' && (onTogglePixels || onGeneratePixels) && (
-          <div className="absolute top-3 left-3 z-10">
-            <button
-              onClick={pixelCount > 0 ? onTogglePixels : onGeneratePixels}
-              className={`px-3 py-2 font-mono text-xs uppercase tracking-wider border transition-colors ${
-                showPixels && pixelCount > 0
-                  ? 'bg-tactical-accent-green border-tactical-accent-green text-black'
-                  : 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-primary hover:border-tactical-accent-green'
-              }`}
-            >
-              {pixelCount > 0 ? 'Pixels' : 'Generate Pixels'}
-            </button>
+        {/* Map Control Buttons */}
+        {mode === 'locations' && (
+          <div className="absolute top-3 left-3 z-10 flex gap-2">
+            {/* Pixels Toggle/Generate Button */}
+            {(onTogglePixels || onGeneratePixels) && (
+              <button
+                onClick={pixelCount > 0 ? onTogglePixels : onGeneratePixels}
+                className={`px-3 py-2 font-mono text-xs uppercase tracking-wider border transition-colors ${
+                  showPixels && pixelCount > 0
+                    ? 'bg-tactical-accent-green border-tactical-accent-green text-black'
+                    : 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-primary hover:border-tactical-accent-green'
+                }`}
+              >
+                {pixelCount > 0 ? 'Pixels' : 'Generate Pixels'}
+              </button>
+            )}
+
+            {/* Sample Toggle Button */}
+            {onToggleSampled && sampledItemsCount > 0 && (
+              <button
+                onClick={onToggleSampled}
+                className={`px-3 py-2 font-mono text-xs uppercase tracking-wider border transition-colors ${
+                  showSampled
+                    ? 'bg-tactical-accent-green border-tactical-accent-green text-black'
+                    : 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-primary hover:border-tactical-accent-green'
+                }`}
+              >
+                Sample
+              </button>
+            )}
           </div>
         )}
 
@@ -1326,11 +1364,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     Locations ({locationCount})
                   </span>
                 </div>
-                {mode === 'locations' && locationsToVisitCount > 0 && (
+                {mode === 'locations' && sampledItemsCount > 0 && (
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
                     <span className="font-mono text-xs text-tactical-text-muted">
-                      To visit ({locationsToVisitCount})
+                      To visit ({sampledItemsCount})
                     </span>
                   </div>
                 )}
@@ -1370,11 +1408,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     Locations ({locationCount})
                   </span>
                 </div>
-                {mode === 'locations' && locationsToVisitCount > 0 && (
+                {mode === 'locations' && sampledItemsCount > 0 && (
                   <div className="flex items-center">
                     <div className="w-3 h-3 rounded-full border-2 border-tactical-accent-green mr-2" style={{ backgroundColor: 'transparent' }}></div>
                     <span className="font-mono text-xs text-tactical-text-muted">
-                      To visit ({locationsToVisitCount})
+                      To visit ({sampledItemsCount})
                     </span>
                   </div>
                 )}
@@ -1397,11 +1435,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   {mode === 'locations' ? 'Locations' : 'All Points'} ({locationCount})
                 </span>
               </div>
-              {mode === 'locations' && locationsToVisitCount > 0 && (
+              {mode === 'locations' && sampledItemsCount > 0 && (
                 <div className="flex items-center">
                   <div className="w-3 h-3 rounded-full bg-tactical-accent-green border-2 border-tactical-accent-green mr-2"></div>
                   <span className="font-mono text-xs text-tactical-text-muted">
-                    Locations to visit ({locationsToVisitCount})
+                    Locations to visit ({sampledItemsCount})
                   </span>
                 </div>
               )}

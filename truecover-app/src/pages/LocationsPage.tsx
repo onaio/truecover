@@ -68,7 +68,7 @@ const LocationsPage: React.FC = () => {
   // Indicator and Round filters
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>(['all']);
-  const [showVisitLocations, setShowVisitLocations] = useState<boolean>(true);
+  const [showSampled, setShowSampled] = useState<boolean>(true);
   const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty' | 'metadata'>('none');
   const [selectedMetadataField, setSelectedMetadataField] = useState<string>('');
   const [metadataVisualizationMode, setMetadataVisualizationMode] = useState<'fill' | 'circle'>('fill');
@@ -168,41 +168,62 @@ const LocationsPage: React.FC = () => {
     loadCoverage();
   }, [selectedArea?.id, selectedIndicatorId, selectedRoundIds, refreshKey]);
 
-  // Calculate locations to visit count for map legend
-  const locationsToVisitCount = useMemo(() => {
-    if (!coverageData || !selectedRoundIds) {
+  // Calculate sampled items count (locations + pixels) for map legend
+  const sampledItemsCount = useMemo(() => {
+    if (!selectedRoundIds) {
       return 0;
     }
 
+    let locationsCount = 0;
+    let pixelsCount = 0;
+
     if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
       // Count all records with any rounds data
-      return coverageData.filter(record =>
-        record.rounds && record.rounds.length > 0
-      ).length;
+      if (coverageData) {
+        locationsCount = coverageData.filter(record =>
+          record.rounds && record.rounds.length > 0
+        ).length;
+      }
+      if (coveragePixelData) {
+        pixelsCount = coveragePixelData.filter(record =>
+          record.rounds && record.rounds.length > 0
+        ).length;
+      }
+    } else {
+      // Count records with rounds matching selected round IDs
+      const selectedRoundNumbers = selectedRoundIds
+        .map(id => rounds?.find(r => r.id === id)?.round_number)
+        .filter((num): num is number => num !== undefined);
+
+      if (coverageData) {
+        locationsCount = coverageData.filter(record =>
+          record.rounds &&
+          record.rounds.length > 0 &&
+          record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
+        ).length;
+      }
+      if (coveragePixelData) {
+        pixelsCount = coveragePixelData.filter(record =>
+          record.rounds &&
+          record.rounds.length > 0 &&
+          record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
+        ).length;
+      }
     }
 
-    // Count records with rounds matching selected round IDs
-    const selectedRoundNumbers = selectedRoundIds
-      .map(id => rounds?.find(r => r.id === id)?.round_number)
-      .filter((num): num is number => num !== undefined);
-
-    return coverageData.filter(record =>
-      record.rounds &&
-      record.rounds.length > 0 &&
-      record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
-    ).length;
-  }, [coverageData, selectedRoundIds, rounds]);
+    return locationsCount + pixelsCount;
+  }, [coverageData, coveragePixelData, selectedRoundIds, rounds]);
 
   // Update mapHighlightRounds based on toggle and selected rounds
   useEffect(() => {
-    if (!showVisitLocations) {
+    if (!showSampled) {
       // Toggle is off - don't highlight anything
       setMapHighlightRounds([]);
       return;
     }
 
     if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
-      // "All Rounds" selected - highlight all locations with any rounds data
+      // "All Rounds" selected - highlight all sampled locations/pixels
       setMapHighlightRounds([]);
     } else {
       // Specific rounds selected - find the round numbers
@@ -211,7 +232,7 @@ const LocationsPage: React.FC = () => {
         .filter((num): num is number => num !== undefined);
       setMapHighlightRounds(roundNumbers);
     }
-  }, [showVisitLocations, selectedRoundIds, rounds]);
+  }, [showSampled, selectedRoundIds, rounds]);
 
   // Clear histogram brush when interpolation mode changes
   useEffect(() => {
@@ -419,16 +440,6 @@ const LocationsPage: React.FC = () => {
                 />
               </div>
 
-              {/* Visit Locations Toggle */}
-              <TacticalButton
-                variant={showVisitLocations ? "success" : "secondary"}
-                size="md"
-                isActive={showVisitLocations}
-                onClick={() => setShowVisitLocations(!showVisitLocations)}
-              >
-                Visit Locations
-              </TacticalButton>
-
               {/* Coverage Toggle */}
               <TacticalButton
                 variant={interpolationMode === 'coverage' ? "primary" : "secondary"}
@@ -516,7 +527,8 @@ const LocationsPage: React.FC = () => {
                 locations={locations}
                 mode="locations"
                 highlightRounds={mapHighlightRounds}
-                showVisitLocations={showVisitLocations}
+                showSampled={showSampled}
+                onToggleSampled={() => setShowSampled(!showSampled)}
                 interpolationMode={interpolationMode}
                 selectedMetadataField={selectedMetadataField}
                 metadataVisualizationMode={metadataVisualizationMode}
@@ -531,7 +543,7 @@ const LocationsPage: React.FC = () => {
                 onGeneratePixels={() => setIsGeneratePixelsModalOpen(true)}
                 histogramBrushRanges={histogramBrushRanges}
                 histogramDataType={histogramTab}
-                locationsToVisitCount={locationsToVisitCount}
+                sampledItemsCount={sampledItemsCount}
               />
             </TacticalCard>
 

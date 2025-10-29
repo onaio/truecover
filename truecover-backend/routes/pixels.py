@@ -86,6 +86,11 @@ def generate_pixels(user, area_id):
                     updated_at = NOW()
             """, pixel_data)
 
+            # Create default coverage_pixel records for the new pixels
+            from routes.coverage import create_default_coverage_pixels
+            quadkeys = [p[0] for p in pixel_data]
+            create_default_coverage_pixels(cursor, area_id, quadkeys)
+
         conn.commit()
 
         return jsonify({

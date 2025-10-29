@@ -31,6 +31,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   const [batchSize, setBatchSize] = useState('10');
   const [uncertaintyField, setUncertaintyField] = useState('prevalence_bci_width');
   const [allowRevisit, setAllowRevisit] = useState(false);
+  const [samplingTarget, setSamplingTarget] = useState<'locations' | 'pixels'>('locations');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,6 +78,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           batch_size: batchSizeNum,
           uncertainty_field: uncertaintyField,
           allow_revisit: allowRevisit,
+          sampling_target: samplingTarget,
         },
         {
           headers: {
@@ -96,6 +98,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         setBatchSize('10');
         setUncertaintyField('prevalence_bci_width');
         setAllowRevisit(false);
+        setSamplingTarget('locations');
 
         onRoundCreated();
         onClose();
@@ -160,6 +163,17 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           disabled={isSubmitting}
         />
 
+        <TacticalSelect
+          label="Sampling Target"
+          value={samplingTarget}
+          onChange={(value) => setSamplingTarget(value as 'locations' | 'pixels')}
+          options={[
+            { value: 'locations', label: 'Locations' },
+            { value: 'pixels', label: 'Pixels' },
+          ]}
+          disabled={isSubmitting}
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <TacticalDatePicker
             label="Start Date (Optional)"
@@ -193,7 +207,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
             />
 
             <TacticalInput
-              label="Batch Size (Number of Locations to Select)"
+              label={`Batch Size (Number of ${samplingTarget === 'locations' ? 'Locations' : 'Pixels'} to Select)`}
               type="number"
               value={batchSize}
               onChange={setBatchSize}
@@ -216,7 +230,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
                 htmlFor="allowRevisit"
                 className="text-sm font-mono text-tactical-text-primary cursor-pointer select-none"
               >
-                Allow visit to same location
+                Allow revisit to same {samplingTarget === 'locations' ? 'location' : 'pixel'}
               </label>
             </div>
           </div>

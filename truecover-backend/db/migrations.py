@@ -247,6 +247,7 @@ def run_migrations():
                         cp.prevalence_bci_width,
                         cp.n_trials,
                         cp.n_covered,
+                        cp.rounds,
                         pm.metadata,
                         -- Extract specific metadata field as metadata_value for visualization
                         CASE
@@ -683,6 +684,8 @@ def run_migrations():
                 IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'rounds') THEN
                     -- Add indicator_id column (nullable initially to allow existing rows)
                     ALTER TABLE rounds ADD COLUMN IF NOT EXISTS indicator_id UUID REFERENCES indicators(id) ON DELETE CASCADE;
+                    -- Add sampling_target column (defaults to 'locations' for backwards compatibility)
+                    ALTER TABLE rounds ADD COLUMN IF NOT EXISTS sampling_target TEXT DEFAULT 'locations';
                 END IF;
             END $$;
         """)

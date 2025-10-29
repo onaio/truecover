@@ -491,6 +491,10 @@ def upload_locations(user, area_id):
                         """, pixel_data)
 
                         print(f"Auto-generated {len(pixel_data)} pixels for uploaded locations")
+
+                        # Create default coverage_pixel records for the new pixels
+                        from routes.coverage import create_default_coverage_pixels
+                        create_default_coverage_pixels(cursor, area_id, list(quadkeys_needing_pixels))
                     else:
                         print(f"All location quadkeys already have pixels")
                 else:

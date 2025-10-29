@@ -23,11 +23,12 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 }) => {
   const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
   const { data: indicators = [] } = useIndicators(projectId);
-  const { listCoverage } = useCoverage();
+  const { listCoverage, listCoveragePixel } = useCoverage();
 
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<string[]>([]);
   const [coverageData, setCoverageData] = useState<any[]>([]);
+  const [coveragePixelData, setCoveragePixelData] = useState<any[]>([]);
   const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [includeAllPoints, setIncludeAllPoints] = useState(true);
   const [exportFormat, setExportFormat] = useState<'geojson' | 'csv'>('geojson');
@@ -44,20 +45,29 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     const loadCoverageData = async () => {
       if (!areaId || !selectedIndicatorId) {
         setCoverageData([]);
+        setCoveragePixelData([]);
         return;
       }
 
       setIsLoadingCoverage(true);
       try {
-        // Load all coverage data for the indicator
-        const data = await listCoverage({
-          area_id: areaId,
-          indicator_id: selectedIndicatorId,
-        });
-        setCoverageData(data);
+        // Load both location and pixel coverage data for the indicator
+        const [locationData, pixelData] = await Promise.all([
+          listCoverage({
+            area_id: areaId,
+            indicator_id: selectedIndicatorId,
+          }),
+          listCoveragePixel({
+            area_id: areaId,
+            indicator_id: selectedIndicatorId,
+          })
+        ]);
+        setCoverageData(locationData);
+        setCoveragePixelData(pixelData);
       } catch (error) {
         console.error('Error loading coverage data:', error);
         setCoverageData([]);
+        setCoveragePixelData([]);
       } finally {
         setIsLoadingCoverage(false);
       }
@@ -66,57 +76,103 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     loadCoverageData();
   }, [areaId, selectedIndicatorId]);
 
-  // Calculate how many locations would be exported
+  // Calculate how many items would be exported (locations + pixels)
   const exportCount = useMemo(() => {
-    if (!coverageData || coverageData.length === 0) return 0;
-
     if (includeAllPoints) {
-      // Count ALL coverage records for the indicator
-      return coverageData.length;
+      // Count ALL coverage records for the indicator (both locations and pixels)
+      return (coverageData?.length || 0) + (coveragePixelData?.length || 0);
     }
 
-    // Get the round numbers from selected round IDs
-    const selectedRoundNumbers = rounds
-      .filter(r => selectedRoundIds.includes(r.id))
-      .map(r => r.round_number);
+    if (!selectedRoundIds || selectedRoundIds.length === 0) {
+      return 0;
+    }
 
-    // Count coverage records that have data in selected rounds
-    return coverageData.filter((record: any) => {
-      const recordRounds = record.rounds || [];
-      return recordRounds.length > 0 && selectedRoundNumbers.some((roundNum: number) =>
-        recordRounds.includes(roundNum)
-      );
-    }).length;
-  }, [coverageData, includeAllPoints, selectedRoundIds, rounds]);
+    // Get selected rounds with their sampling targets
+    const selectedRounds = rounds.filter(r => selectedRoundIds.includes(r.id));
+
+    // Separate rounds by sampling target
+    const locationRounds = selectedRounds.filter(r => r.sampling_target === 'locations' || !r.sampling_target);
+    const pixelRounds = selectedRounds.filter(r => r.sampling_target === 'pixels');
+
+    let count = 0;
+
+    // Count locations from location rounds
+    if (locationRounds.length > 0 && coverageData) {
+      const locationRoundNumbers = locationRounds.map(r => r.round_number);
+      count += coverageData.filter((record: any) => {
+        const recordRounds = record.rounds || [];
+        return recordRounds.length > 0 && locationRoundNumbers.some((roundNum: number) =>
+          recordRounds.includes(roundNum)
+        );
+      }).length;
+    }
+
+    // Count pixels from pixel rounds
+    if (pixelRounds.length > 0 && coveragePixelData) {
+      const pixelRoundNumbers = pixelRounds.map(r => r.round_number);
+      count += coveragePixelData.filter((record: any) => {
+        const recordRounds = record.rounds || [];
+        return recordRounds.length > 0 && pixelRoundNumbers.some((roundNum: number) =>
+          recordRounds.includes(roundNum)
+        );
+      }).length;
+    }
+
+    return count;
+  }, [coverageData, coveragePixelData, includeAllPoints, selectedRoundIds, rounds]);
 
   const handleExport = () => {
-    if (!coverageData || coverageData.length === 0) {
+    if ((!coverageData || coverageData.length === 0) && (!coveragePixelData || coveragePixelData.length === 0)) {
       alert('No coverage data available to export');
       return;
     }
 
-    // Filter coverage data based on settings
-    let filteredData: any[];
+    // Filter coverage data based on settings and sampling_target
+    let filteredLocationData: any[] = [];
+    let filteredPixelData: any[] = [];
 
     if (includeAllPoints) {
-      // Export ALL coverage records for the indicator
-      filteredData = coverageData;
+      // Export ALL coverage records for the indicator (both locations and pixels)
+      filteredLocationData = coverageData || [];
+      filteredPixelData = coveragePixelData || [];
     } else if (selectedRoundIds.length > 0) {
-      // Get the round numbers from selected round IDs
-      const selectedRoundNumbers = rounds
-        .filter(r => selectedRoundIds.includes(r.id))
-        .map(r => r.round_number);
+      // Get selected rounds with their sampling targets
+      const selectedRounds = rounds.filter(r => selectedRoundIds.includes(r.id));
 
-      // Only export locations with data in selected rounds
-      filteredData = coverageData.filter((record: any) => {
-        const recordRounds = record.rounds || [];
-        return recordRounds.length > 0 && selectedRoundNumbers.some((roundNum: number) =>
-          recordRounds.includes(roundNum)
-        );
-      });
+      // Separate rounds by sampling target
+      const locationRounds = selectedRounds.filter(r => r.sampling_target === 'locations' || !r.sampling_target);
+      const pixelRounds = selectedRounds.filter(r => r.sampling_target === 'pixels');
+
+      // Filter location data for location rounds
+      if (locationRounds.length > 0 && coverageData) {
+        const locationRoundNumbers = locationRounds.map(r => r.round_number);
+        filteredLocationData = coverageData.filter((record: any) => {
+          const recordRounds = record.rounds || [];
+          return recordRounds.length > 0 && locationRoundNumbers.some((roundNum: number) =>
+            recordRounds.includes(roundNum)
+          );
+        });
+      }
+
+      // Filter pixel data for pixel rounds
+      if (pixelRounds.length > 0 && coveragePixelData) {
+        const pixelRoundNumbers = pixelRounds.map(r => r.round_number);
+        filteredPixelData = coveragePixelData.filter((record: any) => {
+          const recordRounds = record.rounds || [];
+          return recordRounds.length > 0 && pixelRoundNumbers.some((roundNum: number) =>
+            recordRounds.includes(roundNum)
+          );
+        });
+      }
     } else {
       // No rounds selected and includeAllPoints is false - export nothing
-      alert('Please select at least one round or enable "Include all locations"');
+      alert('Please select at least one round or enable "Include all items"');
+      return;
+    }
+
+    // Check if we have any data to export
+    if (filteredLocationData.length === 0 && filteredPixelData.length === 0) {
+      alert('No data to export with current selection');
       return;
     }
 
@@ -130,7 +186,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     const sanitizedAreaName = areaName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
     // Build filename parts
-    let filename = `locations-to-visit-${sanitizedAreaName}-${sanitizedIndicatorName}`;
+    let filename = `samples-to-visit-${sanitizedAreaName}-${sanitizedIndicatorName}`;
 
     // Include round numbers in filename if specific rounds are selected
     if (selectedRoundIds.length > 0) {
@@ -144,8 +200,8 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     filename += `-${timestamp}`;
 
     if (exportFormat === 'csv') {
-      // Export as CSV
-      const csvContent = convertCoverageToCSV(filteredData);
+      // Export as CSV - combine location and pixel data
+      const csvContent = convertToCSV(filteredLocationData, filteredPixelData);
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -154,41 +210,75 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
       link.click();
       URL.revokeObjectURL(url);
     } else {
-      // Export as GeoJSON - create Point geometries from lat/lng
+      // Export as GeoJSON - combine location and pixel features
+      const features: any[] = [];
+
+      // Add location features
+      filteredLocationData.forEach((record: any) => {
+        if (!record.latitude || !record.longitude) {
+          console.warn(`No coordinates found for location ${record.location_id}`);
+          return;
+        }
+
+        features.push({
+          type: 'Feature',
+          id: record.id,
+          geometry: {
+            type: 'Point',
+            coordinates: [record.longitude, record.latitude]
+          },
+          properties: {
+            sample_type: 'location',
+            location_id: record.location_id,
+            external_id: record.external_id,
+            latitude: record.latitude,
+            longitude: record.longitude,
+            rounds: record.rounds,
+            indicator_name: record.indicator_name,
+            n_trials: record.n_trials,
+            n_covered: record.n_covered,
+            exceedance_probability: record.exceedance_probability,
+            exceedance_uncertainty: record.exceedance_uncertainty,
+            prevalence_bci_width: record.prevalence_bci_width,
+            prevalence_prediction: record.prevalence_prediction
+          }
+        });
+      });
+
+      // Add pixel features
+      filteredPixelData.forEach((record: any) => {
+        if (!record.latitude || !record.longitude) {
+          console.warn(`No coordinates found for pixel ${record.quadkey}`);
+          return;
+        }
+
+        features.push({
+          type: 'Feature',
+          id: record.id,
+          geometry: {
+            type: 'Point',
+            coordinates: [record.longitude, record.latitude]
+          },
+          properties: {
+            sample_type: 'pixel',
+            quadkey: record.quadkey,
+            latitude: record.latitude,
+            longitude: record.longitude,
+            rounds: record.rounds,
+            indicator_name: record.indicator_name,
+            n_trials: record.n_trials,
+            n_covered: record.n_covered,
+            exceedance_probability: record.exceedance_probability,
+            exceedance_uncertainty: record.exceedance_uncertainty,
+            prevalence_bci_width: record.prevalence_bci_width,
+            prevalence_prediction: record.prevalence_prediction
+          }
+        });
+      });
+
       const exportData = {
         type: 'FeatureCollection',
-        features: filteredData
-          .map((record: any) => {
-            // Skip if no coordinates
-            if (!record.latitude || !record.longitude) {
-              console.warn(`No coordinates found for location ${record.location_id}`);
-              return null;
-            }
-
-            return {
-              type: 'Feature',
-              id: record.id,
-              geometry: {
-                type: 'Point',
-                coordinates: [record.longitude, record.latitude]
-              },
-              properties: {
-                location_id: record.location_id,
-                external_id: record.external_id,
-                latitude: record.latitude,
-                longitude: record.longitude,
-                rounds: record.rounds,
-                indicator_name: record.indicator_name,
-                n_trials: record.n_trials,
-                n_covered: record.n_covered,
-                exceedance_probability: record.exceedance_probability,
-                exceedance_uncertainty: record.exceedance_uncertainty,
-                prevalence_bci_width: record.prevalence_bci_width,
-                prevalence_prediction: record.prevalence_prediction
-              }
-            };
-          })
-          .filter(feature => feature !== null) // Remove any features without coordinates
+        features
       };
 
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -206,11 +296,13 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     onClose();
   };
 
-  const convertCoverageToCSV = (records: any[]): string => {
-    // CSV Headers
+  const convertToCSV = (locationRecords: any[], pixelRecords: any[]): string => {
+    // CSV Headers - include sample_type and both location_id/external_id and quadkey
     const headers = [
+      'sample_type',
       'location_id',
       'external_id',
+      'quadkey',
       'latitude',
       'longitude',
       'rounds',
@@ -224,18 +316,17 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     ];
     const csvRows = [headers.join(',')];
 
-    // Convert each record to CSV row
-    records.forEach((record: any) => {
-      // Handle rounds array - format as quoted comma-separated string
+    // Convert location records to CSV rows
+    locationRecords.forEach((record: any) => {
       const roundsStr = (record.rounds || []).join(',');
-
-      // Escape values that might contain commas or quotes
       const row = [
+        'location',
         escapeCSVValue(record.location_id || ''),
         escapeCSVValue(record.external_id || ''),
+        '', // no quadkey for locations
         escapeCSVValue(record.latitude || ''),
         escapeCSVValue(record.longitude || ''),
-        `"${roundsStr}"`, // Always quote the rounds field
+        `"${roundsStr}"`,
         escapeCSVValue(record.indicator_name || ''),
         escapeCSVValue(record.n_trials || ''),
         escapeCSVValue(record.n_covered || ''),
@@ -244,7 +335,28 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
         escapeCSVValue(record.prevalence_bci_width || ''),
         escapeCSVValue(record.prevalence_prediction || '')
       ];
+      csvRows.push(row.join(','));
+    });
 
+    // Convert pixel records to CSV rows
+    pixelRecords.forEach((record: any) => {
+      const roundsStr = (record.rounds || []).join(',');
+      const row = [
+        'pixel',
+        '', // no location_id for pixels
+        '', // no external_id for pixels
+        escapeCSVValue(record.quadkey || ''),
+        escapeCSVValue(record.latitude || ''),
+        escapeCSVValue(record.longitude || ''),
+        `"${roundsStr}"`,
+        escapeCSVValue(record.indicator_name || ''),
+        escapeCSVValue(record.n_trials || ''),
+        escapeCSVValue(record.n_covered || ''),
+        escapeCSVValue(record.exceedance_probability || ''),
+        escapeCSVValue(record.exceedance_uncertainty || ''),
+        escapeCSVValue(record.prevalence_bci_width || ''),
+        escapeCSVValue(record.prevalence_prediction || '')
+      ];
       csvRows.push(row.join(','));
     });
 
@@ -271,13 +383,16 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   };
 
   const handleSelectAll = () => {
-    // Filter to only rounds with coverage data
+    // Filter to only rounds with coverage data (checking appropriate data source)
     const roundsWithCoverage = rounds.filter((round) => {
-      const locationsInRound = coverageData.filter((record: any) => {
+      const isPixelRound = round.sampling_target === 'pixels';
+      const dataSource = isPixelRound ? coveragePixelData : coverageData;
+
+      const itemsInRound = dataSource.filter((record: any) => {
         const recordRounds = record.rounds || [];
         return recordRounds.includes(round.round_number);
       }).length;
-      return locationsInRound > 0;
+      return itemsInRound > 0;
     });
 
     if (selectedRoundIds.length === roundsWithCoverage.length) {
@@ -291,7 +406,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     <TacticalModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Export Locations to Visit"
+      title="Export Samples to Visit"
       size="md"
     >
       <div className="space-y-4">
@@ -325,11 +440,14 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
             >
               {(() => {
                 const roundsWithCoverage = rounds.filter((round) => {
-                  const locationsInRound = coverageData.filter((record: any) => {
+                  const isPixelRound = round.sampling_target === 'pixels';
+                  const dataSource = isPixelRound ? coveragePixelData : coverageData;
+
+                  const itemsInRound = dataSource.filter((record: any) => {
                     const recordRounds = record.rounds || [];
                     return recordRounds.includes(round.round_number);
                   }).length;
-                  return locationsInRound > 0;
+                  return itemsInRound > 0;
                 });
                 return selectedRoundIds.length === roundsWithCoverage.length && roundsWithCoverage.length > 0 ? 'Deselect All' : 'Select All';
               })()}
@@ -354,11 +472,16 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
                 (() => {
                   // Filter rounds to only show those with coverage data for the selected indicator
                   const roundsWithCoverage = rounds.filter((round) => {
-                    const locationsInRound = coverageData.filter((record: any) => {
+                    // Check the appropriate data source based on sampling_target
+                    const isPixelRound = round.sampling_target === 'pixels';
+                    const dataSource = isPixelRound ? coveragePixelData : coverageData;
+
+                    const itemsInRound = dataSource.filter((record: any) => {
                       const recordRounds = record.rounds || [];
                       return recordRounds.includes(round.round_number);
                     }).length;
-                    return locationsInRound > 0;
+
+                    return itemsInRound > 0;
                   });
 
                   if (roundsWithCoverage.length === 0) {
@@ -370,11 +493,17 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
                   }
 
                   return roundsWithCoverage.map((round) => {
-                    // Count coverage records in this round
-                    const locationsInRound = coverageData.filter((record: any) => {
+                    // Count items in this round from the appropriate data source
+                    const isPixelRound = round.sampling_target === 'pixels';
+                    const dataSource = isPixelRound ? coveragePixelData : coverageData;
+
+                    const itemsInRound = dataSource.filter((record: any) => {
                       const recordRounds = record.rounds || [];
                       return recordRounds.includes(round.round_number);
                     }).length;
+
+                    const itemType = isPixelRound ? 'pixel' : 'location';
+                    const itemTypeLabel = itemsInRound === 1 ? itemType : `${itemType}s`;
 
                     return (
                       <label
@@ -397,7 +526,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
                             </span>
                           </div>
                           <span className="text-xs text-tactical-text-dim font-mono">
-                            {locationsInRound} {locationsInRound === 1 ? 'location' : 'locations'}
+                            {itemsInRound} {itemTypeLabel}
                           </span>
                         </div>
                       </label>
@@ -456,10 +585,10 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
             />
             <div className="flex-1">
               <div className="text-sm text-tactical-text-primary font-mono">
-                Include all locations
+                Include all items
               </div>
               <div className="text-xs text-tactical-text-dim font-mono mt-1">
-                When enabled, exports all locations regardless of round selection. When disabled, only exports locations with data in selected rounds.
+                When enabled, exports all items (locations or pixels) regardless of round selection. When disabled, only exports items with data in selected rounds.
               </div>
             </div>
           </label>
@@ -472,7 +601,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
           </div>
           <div className="text-sm font-mono space-y-1">
             <div className="flex justify-between">
-              <span className="text-tactical-text-dim">Locations to export:</span>
+              <span className="text-tactical-text-dim">Items to export:</span>
               <span className="text-tactical-text-primary font-bold">{exportCount}</span>
             </div>
             <div className="flex justify-between">
