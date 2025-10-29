@@ -112,11 +112,17 @@ def process_enrichment_jobs():
 
 
 def download_and_cache_cog(cog_url, cache_dir='cog_cache'):
-    """Download a COG file and cache it locally for reuse"""
+    """Download a COG file and cache it locally for reuse, or use local file if path is provided"""
     import os
     import hashlib
     import requests
     from urllib.parse import urlparse
+
+    # Check if cog_url is a local file path
+    if os.path.isfile(cog_url):
+        file_size_mb = os.path.getsize(cog_url) / (1024 * 1024)
+        print(f"Using local COG file: {cog_url} ({file_size_mb:.2f} MB)")
+        return cog_url
 
     # Create cache directory if it doesn't exist
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -138,7 +144,7 @@ def download_and_cache_cog(cog_url, cache_dir='cog_cache'):
 
     cached_file_path = os.path.join(cache_path, cached_filename)
 
-    # Check if file already exists
+    # Check if file already exists in cache
     if os.path.exists(cached_file_path):
         file_size_mb = os.path.getsize(cached_file_path) / (1024 * 1024)
         print(f"Using cached COG: {cached_filename} ({file_size_mb:.2f} MB)")

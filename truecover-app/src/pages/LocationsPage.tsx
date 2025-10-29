@@ -23,6 +23,7 @@ import {
   TacticalHeader,
   TacticalCollapsible,
   TacticalMultiSelect,
+  tacticalToast,
   TacticalSelect,
 } from '../tactical-ui';
 
@@ -216,6 +217,33 @@ const LocationsPage: React.FC = () => {
   useEffect(() => {
     setHistogramBrushRanges(null);
   }, [interpolationMode]);
+
+  // Monitor enrichment job completion and show toast notifications
+  const previousJobsRef = React.useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    enrichmentJobs.forEach((job: any) => {
+      const previousStatus = previousJobsRef.current.get(job.id);
+
+      // Job just completed
+      if (previousStatus === 'processing' && job.status === 'completed') {
+        tacticalToast.success(
+          'Enrichment Complete',
+          `Successfully enriched ${job.pixels_processed.toLocaleString()} pixels with ${job.data_source_name || 'metadata'}`
+        );
+      }
+
+      // Job just failed
+      if (previousStatus === 'processing' && job.status === 'failed') {
+        tacticalToast.error(
+          'Enrichment Failed',
+          job.error_message || 'The enrichment job encountered an error'
+        );
+      }
+
+      // Update tracked status
+      previousJobsRef.current.set(job.id, job.status);
+    });
+  }, [enrichmentJobs]);
 
   if (!selectedArea) {
     return null;
@@ -738,104 +766,6 @@ const LocationsPage: React.FC = () => {
                 </div>
               </TacticalCollapsible>
             </TacticalCard>
-
-            {/* Enrichment Jobs Section */}
-            <TacticalCard>
-              <TacticalCollapsible title="Enrichment Jobs" defaultOpen={true}>
-                <div className="p-4 space-y-4">
-                  {enrichmentJobs.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-tactical-text-muted mb-4 font-mono text-sm">
-                        No enrichment jobs yet. Enrich pixels to add metadata from COG/STAC sources.
-                      </p>
-                      <TacticalButton
-                        variant="primary"
-                        size="md"
-                        onClick={() => setIsEnrichPixelsModalOpen(true)}
-                        disabled={!pixelStats || pixelStats.count === 0}
-                      >
-                        Enrich Pixels
-                      </TacticalButton>
-                      {(!pixelStats || pixelStats.count === 0) && (
-                        <p className="text-tactical-text-dim font-mono text-xs mt-2">
-                          Generate pixels first before enriching
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {enrichmentJobs.map((job: any) => (
-                        <div
-                          key={job.id}
-                          className="p-3 bg-tactical-bg-tertiary border border-tactical-border-medium"
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <div className="font-mono text-sm font-bold text-tactical-text-primary">
-                                {job.data_source.name}
-                              </div>
-                              <div className="font-mono text-xs text-tactical-text-muted">
-                                Field: {job.data_source.metadata_field_name} ({job.statistic})
-                              </div>
-                            </div>
-                            <div>
-                              <span
-                                className={`px-2 py-1 font-mono text-xs font-bold uppercase ${
-                                  job.status === 'completed'
-                                    ? 'bg-tactical-accent-green/20 text-tactical-accent-green border border-tactical-accent-green'
-                                    : job.status === 'failed'
-                                    ? 'bg-tactical-accent-red/20 text-tactical-accent-red border border-tactical-accent-red'
-                                    : job.status === 'processing'
-                                    ? 'bg-tactical-accent-orange/20 text-tactical-accent-orange border border-tactical-accent-orange'
-                                    : 'bg-tactical-bg-secondary text-tactical-text-muted border border-tactical-border-medium'
-                                }`}
-                              >
-                                {job.status}
-                              </span>
-                            </div>
-                          </div>
-
-                          {(job.status === 'processing' || job.status === 'pending') && (
-                            <div className="mb-2">
-                              <div className="flex justify-between font-mono text-xs text-tactical-text-muted mb-1">
-                                <span>Progress</span>
-                                <span>
-                                  {job.pixels_processed.toLocaleString()} / {job.pixels_total.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="w-full bg-tactical-bg-secondary border border-tactical-border-dark h-2">
-                                <div
-                                  className="bg-tactical-accent-green h-full transition-all duration-300"
-                                  style={{
-                                    width: `${(job.pixels_processed / job.pixels_total) * 100}%`
-                                  }}
-                                ></div>
-                              </div>
-                            </div>
-                          )}
-
-                          {job.status === 'completed' && (
-                            <div className="font-mono text-xs text-tactical-text-secondary">
-                              ✓ Processed {job.pixels_total.toLocaleString()} pixels
-                            </div>
-                          )}
-
-                          {job.status === 'failed' && job.error_message && (
-                            <div className="mt-2 p-2 bg-tactical-accent-red/10 border border-tactical-accent-red font-mono text-xs text-tactical-accent-red">
-                              Error: {job.error_message}
-                            </div>
-                          )}
-
-                          <div className="mt-2 font-mono text-xs text-tactical-text-dim">
-                            Created: {new Date(job.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </TacticalCollapsible>
-            </TacticalCard>
           </>
         )}
       </div>
@@ -847,6 +777,7 @@ const LocationsPage: React.FC = () => {
         area={selectedArea}
         onLocationsUploaded={() => {
           handleLocationsUploaded(selectedArea.id, setLocations);
+          refetchPixelStats();
           setRefreshKey(prev => prev + 1);
         }}
       />

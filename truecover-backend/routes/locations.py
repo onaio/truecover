@@ -142,8 +142,8 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
                 continue
 
             properties = location_result[0] if location_result[0] else {}
-            latitude = location_result[1]
-            longitude = location_result[2]
+            latitude = float(location_result[1])
+            longitude = float(location_result[2])
 
             # Extract prediction values, defaulting to 0
             exceedance_probability = properties.get('exceedance_probability', 0)
@@ -430,6 +430,77 @@ def upload_locations(user, area_id):
             print(f"Coverage population complete")
         else:
             print(f"No new locations to populate coverage for")
+
+        # Generate pixels for uploaded locations (if new locations were added)
+        if inserted_count > 0:
+            print(f"Auto-generating pixels for uploaded locations...")
+            try:
+                # Get all unique quadkeys from locations in this area
+                cursor.execute("""
+                    SELECT DISTINCT quadkey FROM locations
+                    WHERE area_id = %s AND quadkey IS NOT NULL
+                """, (area_id,))
+                location_quadkeys = {row[0] for row in cursor.fetchall()}
+
+                if location_quadkeys:
+                    # Get existing pixels for this area
+                    cursor.execute("""
+                        SELECT quadkey FROM pixels WHERE area_id = %s
+                    """, (area_id,))
+                    existing_quadkeys = {row[0] for row in cursor.fetchall()}
+
+                    # Find quadkeys that need pixels
+                    quadkeys_needing_pixels = location_quadkeys - existing_quadkeys
+
+                    if quadkeys_needing_pixels:
+                        print(f"Creating {len(quadkeys_needing_pixels)} new pixels...")
+
+                        # Create pixel data for each missing quadkey
+                        pixel_data = []
+                        for quadkey in quadkeys_needing_pixels:
+                            tile = mercantile.quadkey_to_tile(quadkey)
+                            bounds = mercantile.bounds(tile)
+
+                            # Calculate centroid
+                            centroid_lng = (bounds.west + bounds.east) / 2
+                            centroid_lat = (bounds.south + bounds.north) / 2
+
+                            # Create polygon geometry WKT
+                            geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"
+
+                            pixel_data.append((
+                                quadkey,
+                                area_id,
+                                geometry_wkt,
+                                centroid_lat,
+                                centroid_lng,
+                                tile.z
+                            ))
+
+                        # Batch insert pixels (upsert to handle any race conditions)
+                        cursor.executemany("""
+                            INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level)
+                            VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
+                            ON CONFLICT (quadkey) DO UPDATE SET
+                                area_id = EXCLUDED.area_id,
+                                geometry = EXCLUDED.geometry,
+                                latitude = EXCLUDED.latitude,
+                                longitude = EXCLUDED.longitude,
+                                level = EXCLUDED.level,
+                                updated_at = NOW()
+                        """, pixel_data)
+
+                        print(f"Auto-generated {len(pixel_data)} pixels for uploaded locations")
+                    else:
+                        print(f"All location quadkeys already have pixels")
+                else:
+                    print(f"No valid quadkeys found in locations")
+
+            except Exception as e:
+                print(f"Error auto-generating pixels: {e}")
+                import traceback
+                traceback.print_exc()
+                # Don't fail the upload if pixel generation fails
 
         print(f"Committing transaction...")
         conn.commit()

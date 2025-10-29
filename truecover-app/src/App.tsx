@@ -13,7 +13,7 @@ import { LocationsWrapper } from './components/RouteWrappers';
 import CreateOrganizationModal from './components/CreateOrganizationModal';
 import CreateProjectModal from './components/CreateProjectModal';
 import AddVisitModal from './components/AddVisitModal';
-import { TacticalButton } from './tactical-ui';
+import { TacticalButton, TacticalToaster } from './tactical-ui';
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
@@ -149,6 +149,9 @@ const AppContent: React.FC = () => {
           }}
         />
       )}
+
+      {/* Toast Notifications */}
+      <TacticalToaster />
     </div>
   );
 };

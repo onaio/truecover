@@ -92,5 +92,14 @@ export function useEnrichmentJobs(areaId: string | undefined) {
       return enrichmentApi.listJobs(areaId, token);
     },
     enabled: !!areaId && isSignedIn,
+    refetchInterval: (data) => {
+      // Poll every 2 seconds if any jobs are pending or processing
+      if (data?.jobs && data.jobs.some((job: any) =>
+        job.status === 'pending' || job.status === 'processing'
+      )) {
+        return 2000;
+      }
+      return false;
+    },
   });
 }

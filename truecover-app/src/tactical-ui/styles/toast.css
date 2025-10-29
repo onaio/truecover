@@ -1,0 +1,102 @@
+/* Tactical Toast Styles */
+
+.tactical-toast {
+  background-color: #000000;
+  border: 1px solid #404040;
+  padding: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  min-width: 350px;
+  max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tactical-toast-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.tactical-toast-description {
+  font-size: 12px;
+  color: #cccccc;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.tactical-toast-success {
+  border-left: 3px solid #28a745;
+}
+
+.tactical-toast-success .tactical-toast-title::before {
+  content: "✓ ";
+  color: #28a745;
+}
+
+.tactical-toast-error {
+  border-left: 3px solid #dc3545;
+}
+
+.tactical-toast-error .tactical-toast-title::before {
+  content: "✗ ";
+  color: #dc3545;
+}
+
+.tactical-toast-warning {
+  border-left: 3px solid #ff6b35;
+}
+
+.tactical-toast-warning .tactical-toast-title::before {
+  content: "⚠ ";
+  color: #ff6b35;
+}
+
+.tactical-toast-info {
+  border-left: 3px solid #17a2b8;
+}
+
+.tactical-toast-info .tactical-toast-title::before {
+  content: "ℹ ";
+  color: #17a2b8;
+}
+
+/* Animation */
+@keyframes tactical-toast-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes tactical-toast-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+[data-sonner-toast] {
+  animation: tactical-toast-in 0.2s ease-out;
+}
+
+[data-sonner-toast][data-removed="true"] {
+  animation: tactical-toast-out 0.2s ease-in;
+}
+
+/* Sonner container positioning */
+[data-sonner-toaster] {
+  z-index: 9999;
+}

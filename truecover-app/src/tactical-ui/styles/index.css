@@ -4,6 +4,8 @@
  * Import this file to get all tactical-ui styles
  */
 
+@import './toast.css';
+
 /* Moved content from tactical.css to avoid @import issues with Vite + Tailwind */
 /**
  * Tactical UI - Core Styles

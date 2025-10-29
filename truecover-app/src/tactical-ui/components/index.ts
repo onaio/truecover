@@ -44,3 +44,5 @@ export type { TacticalDatePickerProps } from './TacticalDatePicker';
 
 export { TacticalCollapsible } from './TacticalCollapsible';
 export type { TacticalCollapsibleProps } from './TacticalCollapsible';
+
+export { TacticalToaster, tacticalToast } from './TacticalToast';

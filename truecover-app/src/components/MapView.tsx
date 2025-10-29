@@ -1106,9 +1106,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                             ],
                             'rgba(0, 0, 0, 0)' // transparent if no metadata
                           ]
-                        : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
-                          ? 'rgba(255, 255, 255, 0.1)'
-                          : 'rgba(40, 167, 69, 0.1)',
+                        : 'rgba(0, 0, 0, 0)',
                   'fill-opacity': interpolationMode === 'coverage'
                     ? [
                         'case',
@@ -1123,14 +1121,16 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                           0.9,
                           0
                         ]
-                      : interpolationMode === 'metadata' && metadataVisualizationMode === 'fill' && selectedMetadataField
-                        ? [
-                            'case',
-                            ['!=', ['get', 'metadata_value'], null],
-                            0.9,
-                            0
-                          ]
-                        : 0.5
+                      : interpolationMode === 'metadata' && selectedMetadataField
+                        ? metadataVisualizationMode === 'circle'
+                          ? 0
+                          : [
+                              'case',
+                              ['!=', ['get', 'metadata_value'], null],
+                              0.9,
+                              0
+                            ]
+                        : 0
                 }}
               />
               <Layer
@@ -1160,12 +1160,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                           0
                         ]
                       : interpolationMode === 'metadata' && selectedMetadataField
-                        ? [
-                            'case',
-                            ['!=', ['get', 'metadata_value'], null],
-                            0.3,
-                            0
-                          ]
+                        ? metadataVisualizationMode === 'circle'
+                          ? 0
+                          : [
+                              'case',
+                              ['!=', ['get', 'metadata_value'], null],
+                              0.3,
+                              0
+                            ]
                         : 0.6
                 }}
               />

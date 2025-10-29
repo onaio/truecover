@@ -2,7 +2,7 @@
 // ABOUTME: Allows selecting data source and statistic, then creates async enrichment job
 
 import React, { useState } from 'react';
-import { TacticalModal, TacticalButton, TacticalSelect } from '../tactical-ui';
+import { TacticalModal, TacticalButton, TacticalSelect, tacticalToast } from '../tactical-ui';
 import { useDataSources } from '../hooks/useDataSources';
 import { useCreateEnrichmentJob } from '../hooks/useEnrichment';
 
@@ -47,12 +47,12 @@ const EnrichPixelsModal: React.FC<EnrichPixelsModalProps> = ({
 
   const handleEnrich = async () => {
     if (!selectedDataSourceId) {
-      alert('Please select a data source');
+      tacticalToast.warning('Missing Selection', 'Please select a data source');
       return;
     }
 
     if (!selectedStatistic) {
-      alert('Please select a statistic');
+      tacticalToast.warning('Missing Selection', 'Please select a statistic');
       return;
     }
 
@@ -63,7 +63,10 @@ const EnrichPixelsModal: React.FC<EnrichPixelsModalProps> = ({
         statistic: selectedStatistic
       });
 
-      alert(`Enrichment job created successfully! Job ID: ${result.id}\n\nThe job is running in the background. You can check its status in the enrichment jobs list.`);
+      tacticalToast.info(
+        'Enrichment Job Started',
+        `Job is running in the background. You'll be notified when it completes.`
+      );
 
       if (onJobCreated) {
         onJobCreated(result.id);
@@ -72,7 +75,10 @@ const EnrichPixelsModal: React.FC<EnrichPixelsModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Error creating enrichment job:', error);
-      alert(`Error creating enrichment job: ${error.message || 'Unknown error'}`);
+      tacticalToast.error(
+        'Failed to Create Job',
+        error.message || 'Unknown error occurred'
+      );
     }
   };
 
@@ -191,7 +197,7 @@ const EnrichPixelsModal: React.FC<EnrichPixelsModalProps> = ({
         {/* Info Box */}
         <div className="p-3 bg-tactical-bg-secondary border border-tactical-border-medium font-mono text-xs text-tactical-text-dim">
           <div className="mb-1 font-bold text-tactical-text-muted uppercase">Note:</div>
-          <div>This will create an asynchronous enrichment job that runs in the background. The metadata will be added to pixels and will appear in pixel popups on the map once the job completes.</div>
+          <div>This will create an asynchronous enrichment job that runs in the background. You'll receive a notification when the job completes. The metadata will be added to pixels and will appear in pixel popups on the map.</div>
         </div>
 
         {/* Action Buttons */}

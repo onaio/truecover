@@ -26,6 +26,7 @@
     "react-dom": "^19.1.1",
     "react-map-gl": "^8.0.4",
     "react-router-dom": "^7.9.4",
+    "sonner": "^2.0.7",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
