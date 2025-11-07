@@ -101,19 +101,72 @@ def generate_pixels(user, area_id):
                 level
             ))
 
-        # Batch insert/update pixels (upsert to avoid duplicates)
+        # Batch insert/update pixels with admin boundary pcodes (upsert to avoid duplicates)
         if pixel_data:
-            cursor.executemany("""
-                INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level)
-                VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
+            # Extract data into separate lists for unnest
+            quadkeys = [p[0] for p in pixel_data]
+            area_ids = [p[1] for p in pixel_data]
+            geometries = [p[2] for p in pixel_data]
+            latitudes = [p[3] for p in pixel_data]
+            longitudes = [p[4] for p in pixel_data]
+            levels = [p[5] for p in pixel_data]
+
+            cursor.execute("""
+                WITH pixel_data AS (
+                    SELECT
+                        unnest(%s::text[]) as quadkey,
+                        unnest(%s::uuid[]) as area_id,
+                        unnest(%s::text[]) as geometry_wkt,
+                        unnest(%s::decimal[]) as latitude,
+                        unnest(%s::decimal[]) as longitude,
+                        unnest(%s::integer[]) as level
+                ),
+                pixels_with_admin AS (
+                    SELECT
+                        pd.quadkey,
+                        pd.area_id,
+                        pd.geometry_wkt,
+                        pd.latitude,
+                        pd.longitude,
+                        pd.level,
+                        ab.adm1_pcode,
+                        ab.adm2_pcode,
+                        ab.adm3_pcode,
+                        ab.adm4_pcode
+                    FROM pixel_data pd
+                    LEFT JOIN LATERAL (
+                        SELECT adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+                        FROM admin_boundaries
+                        WHERE ST_Contains(geometry, ST_SetSRID(ST_MakePoint(pd.longitude, pd.latitude), 4326))
+                        ORDER BY level DESC
+                        LIMIT 1
+                    ) ab ON true
+                )
+                INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode)
+                SELECT
+                    quadkey,
+                    area_id,
+                    ST_GeomFromText(geometry_wkt, 4326),
+                    latitude,
+                    longitude,
+                    level,
+                    adm1_pcode,
+                    adm2_pcode,
+                    adm3_pcode,
+                    adm4_pcode
+                FROM pixels_with_admin
                 ON CONFLICT (quadkey) DO UPDATE SET
                     area_id = EXCLUDED.area_id,
                     geometry = EXCLUDED.geometry,
                     latitude = EXCLUDED.latitude,
                     longitude = EXCLUDED.longitude,
                     level = EXCLUDED.level,
+                    adm1_pcode = EXCLUDED.adm1_pcode,
+                    adm2_pcode = EXCLUDED.adm2_pcode,
+                    adm3_pcode = EXCLUDED.adm3_pcode,
+                    adm4_pcode = EXCLUDED.adm4_pcode,
                     updated_at = NOW()
-            """, pixel_data)
+            """, (quadkeys, area_ids, geometries, latitudes, longitudes, levels))
 
             # Create default coverage_pixel records for the new pixels
             from routes.coverage import create_default_coverage_pixels

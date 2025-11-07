@@ -44,12 +44,13 @@ const AppContent: React.FC = () => {
       {/* Clerk Auth Button - Top Right */}
       <div style={{
         position: 'fixed',
-        top: '1rem',
-        right: '1rem',
-        zIndex: 9999,
+        top: '16px',
+        right: '16px',
+        zIndex: 10000,
         display: 'flex',
-        gap: '0.75rem',
-        alignItems: 'center'
+        gap: '12px',
+        alignItems: 'center',
+        pointerEvents: 'auto'
       }}>
         {isSignedIn && window.location.pathname === '/' && (
           <TacticalButton

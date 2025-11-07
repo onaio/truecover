@@ -72,6 +72,7 @@ const LocationsPage: React.FC = () => {
   const [isGeneratePixelsModalOpen, setIsGeneratePixelsModalOpen] = useState<boolean>(false);
   const [isEnrichPixelsModalOpen, setIsEnrichPixelsModalOpen] = useState<boolean>(false);
   const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
+  const [editMode, setEditMode] = useState<boolean>(false);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
   const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedArea?.id);
@@ -245,11 +246,30 @@ const LocationsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-tactical-bg-primary">
-      <TacticalHeader
-        title=""
-        subtitle=""
-      />
+    <>
+      {/* Edit Mode Button - Fixed to viewport */}
+      <div style={{
+        position: 'fixed',
+        top: '16px',
+        right: '72px',
+        zIndex: 10000,
+        pointerEvents: 'auto'
+      }}>
+        <TacticalButton
+          variant={editMode ? "primary" : "secondary"}
+          size="sm"
+          isActive={editMode}
+          onClick={() => setEditMode(!editMode)}
+        >
+          {editMode ? 'Edit On' : 'Edit Off'}
+        </TacticalButton>
+      </div>
+
+      <div className="min-h-screen bg-tactical-bg-primary">
+        <TacticalHeader
+          title=""
+          subtitle=""
+        />
 
       <div className="max-w-7xl mx-auto p-6">
         {/* Breadcrumbs */}
@@ -518,6 +538,7 @@ const LocationsPage: React.FC = () => {
                 histogramBrushRanges={histogramBrushRanges}
                 histogramDataType={histogramTab}
                 sampledItemsCount={sampledItemsCount}
+                editMode={editMode}
               />
             </TacticalCard>
 
@@ -806,7 +827,8 @@ const LocationsPage: React.FC = () => {
           console.log('Enrichment job created:', jobId);
         }}
       />
-    </div>
+      </div>
+    </>
   );
 };
 
