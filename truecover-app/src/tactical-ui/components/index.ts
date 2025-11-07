@@ -46,3 +46,6 @@ export { TacticalCollapsible } from './TacticalCollapsible';
 export type { TacticalCollapsibleProps } from './TacticalCollapsible';
 
 export { TacticalToaster, tacticalToast } from './TacticalToast';
+
+export { TacticalBreadcrumb } from './TacticalBreadcrumb';
+export type { TacticalBreadcrumbProps, BreadcrumbItem } from './TacticalBreadcrumb';

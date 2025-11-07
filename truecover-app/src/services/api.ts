@@ -390,11 +390,13 @@ export const pixelsApi = {
     areaId: string,
     bbox: [number, number, number, number],
     level: number,
-    token: string
+    token: string,
+    append?: boolean,
+    admin_pcode?: string
   ): Promise<{ count: number; level: number }> {
     const response = await axios.post(
       `${API_URL}/api/areas/${areaId}/pixels/generate`,
-      { bbox, level },
+      { bbox, level, append, admin_pcode },
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -523,6 +525,38 @@ export const enrichmentApi = {
   async listJobs(areaId: string, token: string): Promise<{ jobs: any[] }> {
     const response = await axios.get(
       `${API_URL}/api/areas/${areaId}/enrichment-jobs`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  }
+};
+
+// Admin Boundaries API calls
+export const adminBoundariesApi = {
+  async getBounds(pcode: string, token: string): Promise<{ name: string; level: number; bbox: [number, number, number, number] }> {
+    const response = await axios.get(
+      `${API_URL}/api/admin-boundaries/${pcode}/bounds`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getPixelSummary(pcode: string, areaId: string, token: string): Promise<{
+    pixel_count: number;
+    total_population: number;
+    avg_population: number;
+    pixels_with_data: number;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/admin-boundaries/${pcode}/pixel-summary?area_id=${areaId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`

@@ -78,6 +78,56 @@ def run_migrations():
             CREATE EXTENSION IF NOT EXISTS postgis;
         """)
 
+        # Create admin_boundaries table for administrative boundary data
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS admin_boundaries (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name TEXT NOT NULL,
+                iso3 TEXT NOT NULL,
+                level INTEGER NOT NULL,
+                adm0_pcode TEXT,
+                adm1_pcode TEXT,
+                adm2_pcode TEXT,
+                adm3_pcode TEXT,
+                adm4_pcode TEXT,
+                geometry GEOMETRY(Geometry, 4326),
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        # Create spatial index on admin_boundaries geometry column
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_geometry ON admin_boundaries USING GIST(geometry);
+        """)
+
+        # Create index on iso3 for faster country lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_iso3 ON admin_boundaries(iso3);
+        """)
+
+        # Create index on level for filtering by admin level
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_level ON admin_boundaries(level);
+        """)
+
+        # Create indexes on pcode columns for faster lookups
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_adm0_pcode ON admin_boundaries(adm0_pcode);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_adm1_pcode ON admin_boundaries(adm1_pcode);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_adm2_pcode ON admin_boundaries(adm2_pcode);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_adm3_pcode ON admin_boundaries(adm3_pcode);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_admin_boundaries_adm4_pcode ON admin_boundaries(adm4_pcode);
+        """)
+
         # Drop visits table if it exists (no longer needed) - do this early before other migrations
         cursor.execute("""
             DROP TABLE IF EXISTS visits CASCADE;
@@ -189,6 +239,19 @@ def run_migrations():
             );
         """)
 
+        # Add admin boundary pcode columns to pixels table
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'pixels') THEN
+                    ALTER TABLE pixels ADD COLUMN IF NOT EXISTS adm1_pcode TEXT;
+                    ALTER TABLE pixels ADD COLUMN IF NOT EXISTS adm2_pcode TEXT;
+                    ALTER TABLE pixels ADD COLUMN IF NOT EXISTS adm3_pcode TEXT;
+                    ALTER TABLE pixels ADD COLUMN IF NOT EXISTS adm4_pcode TEXT;
+                END IF;
+            END $$;
+        """)
+
         # Create spatial index on pixel geometry column
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_pixels_geometry ON pixels USING GIST(geometry);
@@ -202,6 +265,20 @@ def run_migrations():
         # Create unique index on quadkey to prevent duplicates
         cursor.execute("""
             CREATE UNIQUE INDEX IF NOT EXISTS idx_pixels_quadkey_unique ON pixels(quadkey);
+        """)
+
+        # Create indexes on admin pcode columns for faster filtering
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixels_adm1_pcode ON pixels(adm1_pcode);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixels_adm2_pcode ON pixels(adm2_pcode);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixels_adm3_pcode ON pixels(adm3_pcode);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixels_adm4_pcode ON pixels(adm4_pcode);
         """)
 
         # Create index on level for zoom-based queries
@@ -354,6 +431,72 @@ def run_migrations():
                     ) c ON true
                     WHERE l.area_id = target_area_id
                       AND l.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
+                ) as tile
+                WHERE geom IS NOT NULL;
+
+                RETURN mvt;
+            END
+            $$ LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE;
+        """)
+
+        # Create Martin tile server function for admin boundaries
+        cursor.execute("""
+            CREATE OR REPLACE FUNCTION admin_boundaries(z integer, x integer, y integer, query_params json)
+            RETURNS bytea AS $$
+            DECLARE
+                mvt bytea;
+                target_iso3 text;
+                target_levels integer[];
+                simplification_tolerance float;
+            BEGIN
+                -- Extract iso3 and levels from query params
+                target_iso3 := query_params->>'iso3';
+                target_levels := string_to_array(query_params->>'levels', ',')::integer[];
+
+                -- If no iso3 provided, show all
+                IF target_iso3 IS NULL OR target_iso3 = '' THEN
+                    target_iso3 := '%';
+                END IF;
+
+                -- Calculate simplification tolerance based on zoom level
+                -- Higher tolerance = more simplification (fewer vertices)
+                -- Tolerance is in degrees for EPSG:4326
+                simplification_tolerance := CASE
+                    WHEN z <= 4 THEN 0.01     -- Light simplification at low zoom
+                    WHEN z <= 6 THEN 0.005    -- Very light simplification
+                    WHEN z <= 8 THEN 0.001    -- Minimal simplification
+                    WHEN z <= 10 THEN 0.0005  -- Very minimal simplification
+                    WHEN z <= 12 THEN 0.0001  -- Almost no simplification
+                    ELSE 0.00001              -- No simplification at high zoom
+                END;
+
+                -- Generate MVT tile for admin boundaries with simplified geometries
+                SELECT INTO mvt ST_AsMVT(tile, 'admin_boundaries', 4096, 'geom')
+                FROM (
+                    SELECT
+                        ST_AsMVTGeom(
+                            ST_Transform(
+                                -- Simplify geometry before transforming to reduce vertices
+                                -- Using ST_SimplifyPreserveTopology to prevent self-intersections
+                                ST_SimplifyPreserveTopology(ab.geometry, simplification_tolerance),
+                                3857
+                            ),
+                            ST_TileEnvelope(z, x, y),
+                            4096, 64, true
+                        ) AS geom,
+                        ab.id::text,
+                        ab.name,
+                        ab.iso3,
+                        ab.level,
+                        ab.adm0_pcode,
+                        ab.adm1_pcode,
+                        ab.adm2_pcode,
+                        ab.adm3_pcode,
+                        ab.adm4_pcode
+                    FROM admin_boundaries ab
+                    WHERE ab.iso3 LIKE target_iso3
+                      AND (target_levels IS NULL OR ab.level = ANY(target_levels))
+                      AND ab.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
                 ) as tile
                 WHERE geom IS NOT NULL;
 

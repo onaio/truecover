@@ -40,18 +40,22 @@ export function useGeneratePixels() {
     mutationFn: async ({
       areaId,
       bbox,
-      level
+      level,
+      append,
+      admin_pcode
     }: {
       areaId: string;
       bbox: [number, number, number, number];
       level: number;
+      append?: boolean;
+      admin_pcode?: string;
     }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');
       }
 
-      return pixelsApi.generate(areaId, bbox, level, token);
+      return pixelsApi.generate(areaId, bbox, level, token, append, admin_pcode);
     },
     onSuccess: (_, variables) => {
       // Invalidate pixels queries for this area

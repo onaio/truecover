@@ -375,6 +375,14 @@ def list_rounds(user, area_id):
             """, (area_id, row[1]))
             location_count = cursor.fetchone()[0]
 
+            # Count pixels in this round (from coverage_pixel table)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT quadkey)
+                FROM coverage_pixel
+                WHERE area_id = %s AND %s = ANY(rounds)
+            """, (area_id, row[1]))
+            pixel_count = cursor.fetchone()[0]
+
             rounds.append({
                 'id': str(row[0]),
                 'round_number': row[1],
@@ -385,7 +393,8 @@ def list_rounds(user, area_id):
                 'created_at': row[6].isoformat() if row[6] else None,
                 'updated_at': row[7].isoformat() if row[7] else None,
                 'sampling_target': row[8] if len(row) > 8 else 'locations',
-                'location_count': location_count
+                'location_count': location_count,
+                'pixel_count': pixel_count
             })
 
         cursor.close()

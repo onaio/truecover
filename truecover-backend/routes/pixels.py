@@ -21,6 +21,8 @@ def generate_pixels(user, area_id):
         data = request.get_json()
         bbox = data.get('bbox')  # [minLng, minLat, maxLng, maxLat]
         level = data.get('level', 18)
+        append = data.get('append', False)  # If True, add to existing pixels instead of replacing
+        admin_pcode = data.get('admin_pcode')  # Optional: filter pixels by admin boundary
 
         if not bbox or len(bbox) != 4:
             return jsonify({'error': 'Invalid bbox. Expected [minLng, minLat, maxLng, maxLat]'}), 400
@@ -42,10 +44,28 @@ def generate_pixels(user, area_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Delete existing pixels for this area
-        cursor.execute("""
-            DELETE FROM pixels WHERE area_id = %s
-        """, (area_id,))
+        # Get admin boundary geometry if PCODE is provided
+        admin_geometry = None
+        if admin_pcode:
+            cursor.execute("""
+                SELECT geometry
+                FROM admin_boundaries
+                WHERE adm0_pcode = %s
+                   OR adm1_pcode = %s
+                   OR adm2_pcode = %s
+                   OR adm3_pcode = %s
+                   OR adm4_pcode = %s
+                LIMIT 1
+            """, (admin_pcode, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+            result = cursor.fetchone()
+            if result:
+                admin_geometry = result[0]  # PostGIS geometry object
+
+        # Delete existing pixels for this area (only if not appending)
+        if not append:
+            cursor.execute("""
+                DELETE FROM pixels WHERE area_id = %s
+            """, (area_id,))
 
         # Generate tiles using mercantile
         tiles = list(mercantile.tiles(min_lng, min_lat, max_lng, max_lat, zooms=[level]))
@@ -59,6 +79,15 @@ def generate_pixels(user, area_id):
             # Calculate centroid
             centroid_lng = (bounds.west + bounds.east) / 2
             centroid_lat = (bounds.south + bounds.north) / 2
+
+            # If admin boundary is provided, check if centroid is within it
+            if admin_geometry:
+                cursor.execute("""
+                    SELECT ST_Contains(%s::geometry, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+                """, (admin_geometry, centroid_lng, centroid_lat))
+                is_within = cursor.fetchone()[0]
+                if not is_within:
+                    continue  # Skip this pixel
 
             # Create polygon geometry WKT
             geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"

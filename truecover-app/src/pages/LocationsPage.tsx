@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../contexts/AppContext';
 import { useLocationsData } from '../hooks/useLocationsData';
-import { useCoverage } from '../hooks/useCoverage';
+import { useCoverageData } from '../hooks/useCoverageData';
 import { useIndicators } from '../hooks/useIndicators';
 import { useRounds } from '../hooks/useRounds';
 import { usePixelStats, useDeletePixels, usePixelMetadataStats } from '../hooks/usePixels';
@@ -55,10 +55,6 @@ const LocationsPage: React.FC = () => {
     handleLocationDeleted,
   } = useLocationsData();
 
-  const { listCoverage, listCoveragePixel } = useCoverage();
-  const [coverageData, setCoverageData] = useState<any[]>([]);
-  const [coveragePixelData, setCoveragePixelData] = useState<any[]>([]);
-  const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [histogramBrushRanges, setHistogramBrushRanges] = useState<[number, number][] | null>(null);
   const [histogramTab, setHistogramTab] = useState<'locations' | 'pixels'>('locations');
 
@@ -83,6 +79,29 @@ const LocationsPage: React.FC = () => {
   const { data: enrichmentJobsData } = useEnrichmentJobs(selectedArea?.id);
   const enrichmentJobs = enrichmentJobsData?.jobs || [];
   const { data: pixelMetadataStats } = usePixelMetadataStats(selectedArea?.id);
+
+  // Compute roundId for coverage data query
+  const coverageRoundId = useMemo(() => {
+    // If "all" is selected or multiple rounds, use undefined for round_id
+    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+      return undefined;
+    }
+    if (selectedRoundIds.length === 1) {
+      return String(selectedRoundIds[0]);
+    }
+    return undefined;
+  }, [selectedRoundIds]);
+
+  // Use React Query hook to fetch coverage data
+  const { data: coverageDataResult, isLoading: isLoadingCoverage, refetch: refetchCoverage } = useCoverageData(
+    selectedArea?.id,
+    selectedIndicatorId,
+    coverageRoundId,
+    refreshKey
+  );
+
+  const coverageData = coverageDataResult?.locationData || [];
+  const coveragePixelData = coverageDataResult?.pixelData || [];
 
   // Set default indicator to first one when indicators load
   useEffect(() => {
@@ -122,51 +141,6 @@ const LocationsPage: React.FC = () => {
     }
   }, [selectedArea?.id, refreshKey]);
 
-  // Load coverage data for metrics and histogram
-  useEffect(() => {
-    const loadCoverage = async () => {
-      if (!selectedArea?.id || !selectedIndicatorId) {
-        setCoverageData([]);
-        setCoveragePixelData([]);
-        return;
-      }
-
-      setIsLoadingCoverage(true);
-      try {
-        // If "all" is selected or multiple rounds, use undefined for round_id
-        const roundId = selectedRoundIds.includes('all') || selectedRoundIds.length === 0
-          ? undefined
-          : selectedRoundIds.length === 1
-            ? String(selectedRoundIds[0])
-            : undefined;
-
-        // Load both location and pixel coverage data
-        const [locationData, pixelData] = await Promise.all([
-          listCoverage({
-            area_id: selectedArea.id,
-            indicator_id: selectedIndicatorId,
-            round_id: roundId,
-          }),
-          listCoveragePixel({
-            area_id: selectedArea.id,
-            indicator_id: selectedIndicatorId,
-            round_id: roundId,
-          })
-        ]);
-
-        setCoverageData(locationData);
-        setCoveragePixelData(pixelData);
-      } catch (error) {
-        console.error('Error loading coverage data:', error);
-        setCoverageData([]);
-        setCoveragePixelData([]);
-      } finally {
-        setIsLoadingCoverage(false);
-      }
-    };
-
-    loadCoverage();
-  }, [selectedArea?.id, selectedIndicatorId, selectedRoundIds, refreshKey]);
 
   // Calculate sampled items count (locations + pixels) for map legend
   const sampledItemsCount = useMemo(() => {
@@ -592,14 +566,12 @@ const LocationsPage: React.FC = () => {
               areaName={selectedArea?.name || ''}
               projectId={selectedProject?.id || ''}
               selectedIndicatorId={selectedIndicatorId}
-              selectedRoundId={
-                selectedRoundIds.includes('all') || selectedRoundIds.length === 0
-                  ? ''
-                  : selectedRoundIds.length === 1
-                    ? String(selectedRoundIds[0])
-                    : ''
-              }
+              selectedRoundId={coverageRoundId}
               indicators={indicators || []}
+              coverageData={coverageData}
+              coveragePixelData={coveragePixelData}
+              isLoadingCoverage={isLoadingCoverage}
+              onRefetchCoverage={refetchCoverage}
             />
 
             {/* Rounds Manager */}

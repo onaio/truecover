@@ -84,13 +84,6 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     name: string;
     bbox: [number, number, number, number];
   } | null>(null);
-  const [populationSummary, setPopulationSummary] = useState<{
-    pixel_count: number;
-    total_population: number;
-    avg_population: number;
-    pixels_with_data: number;
-  } | null>(null);
-  const [loadingPopulation, setLoadingPopulation] = useState<boolean>(false);
   const geocoderInputRef = useRef<HTMLDivElement>(null);
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -652,34 +645,6 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         latitude: lat,
         properties: selectedFeature.properties
       });
-
-      // Fetch population summary if this is an admin boundary and we have an area
-      if (selectedFeature.properties?.level !== undefined && areaId) {
-        const level = selectedFeature.properties.level;
-        const pcode = selectedFeature.properties[`ADM${level}_PCODE`];
-
-        if (pcode) {
-          setLoadingPopulation(true);
-          setPopulationSummary(null);
-
-          getToken().then(token => {
-            if (token) {
-              adminBoundariesApi.getPixelSummary(pcode, areaId, token)
-                .then(summary => {
-                  setPopulationSummary(summary);
-                  setLoadingPopulation(false);
-                })
-                .catch(error => {
-                  console.error('Error fetching population summary:', error);
-                  setLoadingPopulation(false);
-                });
-            }
-          });
-        }
-      } else {
-        setPopulationSummary(null);
-        setLoadingPopulation(false);
-      }
     }
   };
 
@@ -1736,52 +1701,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
                   {/* Pcode */}
                   {popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
-                    <div className="text-xs font-mono text-tactical-text-muted mb-3">
+                    <div className="text-xs font-mono text-tactical-text-muted">
                       <span className="font-bold">PCODE:</span> {popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`]}
-                    </div>
-                  )}
-
-                  {/* Population Summary */}
-                  {areaId && (
-                    <div className="mt-3 pt-3 border-t border-tactical-border-medium">
-                      <div className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-                        Population Summary
-                      </div>
-                      {loadingPopulation ? (
-                        <div className="text-xs font-mono text-tactical-text-muted">Loading...</div>
-                      ) : populationSummary ? (
-                        populationSummary.pixel_count > 0 ? (
-                          <div className="space-y-1">
-                            <div className="text-xs font-mono text-tactical-text-muted flex justify-between">
-                              <span>Total Population:</span>
-                              <span className="font-bold text-tactical-text-primary">
-                                {Math.round(populationSummary.total_population).toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="text-xs font-mono text-tactical-text-muted flex justify-between">
-                              <span>Pixel Count:</span>
-                              <span className="font-bold text-tactical-text-primary">
-                                {populationSummary.pixel_count.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="text-xs font-mono text-tactical-text-muted flex justify-between">
-                              <span>Avg Pop/Pixel:</span>
-                              <span className="font-bold text-tactical-text-primary">
-                                {Math.round(populationSummary.avg_population).toLocaleString()}
-                              </span>
-                            </div>
-                            {populationSummary.pixels_with_data < populationSummary.pixel_count && (
-                              <div className="text-xs font-mono text-tactical-text-muted mt-1 pt-1 border-t border-tactical-border-light">
-                                {populationSummary.pixels_with_data} of {populationSummary.pixel_count} pixels have population data
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-xs font-mono text-tactical-text-muted">No pixels in this area</div>
-                        )
-                      ) : (
-                        <div className="text-xs font-mono text-tactical-text-muted">Click to load population data</div>
-                      )}
                     </div>
                   )}
 

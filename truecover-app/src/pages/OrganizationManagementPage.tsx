@@ -3,7 +3,7 @@ import { useAppContext } from '../contexts/AppContext';
 import OrganizationSelector from '../components/OrganizationSelector';
 import ProjectsList from '../components/ProjectsList';
 import OrganizationSettings from '../components/OrganizationSettings';
-import { TacticalCard, TacticalHeader } from '../tactical-ui';
+import { TacticalCard, TacticalHeader, TacticalBreadcrumb } from '../tactical-ui';
 
 const OrganizationManagementPage: React.FC = () => {
   const {
@@ -16,8 +16,16 @@ const OrganizationManagementPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-tactical-bg-primary">
+      <div className="bg-tactical-bg-secondary px-6 py-3">
+        <TacticalBreadcrumb
+          items={[
+            { label: 'Home', href: '/' },
+            { label: 'Admin' }
+          ]}
+        />
+      </div>
       <TacticalHeader
-        title="True Cover / Organization Management"
+        title="True Cover Admin"
         subtitle="Manage your organizations, projects, and team members"
       />
 

@@ -1,5 +1,5 @@
-# Martin configuration for serving PostGIS vector tiles
-# Serves pixels and locations tables as vector tiles for map visualization
+# Martin configuration for serving PostGIS vector tiles and PMTiles
+# Serves pixels, locations, and admin boundaries as vector tiles
 
 postgres:
   connection_string: "postgresql://truecover:truecover@postgres:5432/truecover"
@@ -19,3 +19,26 @@ postgres:
       function: locations_by_area
       minzoom: 0
       maxzoom: 24
+
+# PMTiles sources for admin boundaries
+pmtiles:
+  sources:
+    # ADM0 - Country level boundaries
+    bgd_adm0:
+      path: /pmtiles/bgd_adm0.pmtiles
+
+    # ADM1 - Division level boundaries
+    bgd_adm1:
+      path: /pmtiles/bgd_adm1.pmtiles
+
+    # ADM2 - District level boundaries
+    bgd_adm2:
+      path: /pmtiles/bgd_adm2.pmtiles
+
+    # ADM3 - Upazila level boundaries
+    bgd_adm3:
+      path: /pmtiles/bgd_adm3.pmtiles
+
+    # ADM4 - Union level boundaries
+    bgd_adm4:
+      path: /pmtiles/bgd_adm4.pmtiles

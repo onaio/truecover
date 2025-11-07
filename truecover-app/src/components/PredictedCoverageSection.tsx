@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TacticalCard, TacticalButton, TacticalCollapsible } from '../tactical-ui';
 import PredictCoverageModal from './PredictCoverageModal';
 import GenerateMockVisitDataModal from './GenerateMockVisitDataModal';
 import AddVisitModal from './AddVisitModal';
 import ExportDataModal from './ExportDataModal';
-import { useCoverage, CoverageRecord, CoveragePixelRecord } from '../hooks/useCoverage';
+import { CoverageRecord, CoveragePixelRecord } from '../hooks/useCoverage';
 
 interface PredictedCoverageSectionProps {
   areaId: string;
   areaName: string;
   projectId: string;
   selectedIndicatorId: string;
-  selectedRoundId: string;
+  selectedRoundId: string | undefined;
   indicators: Array<{ id: string; name: string }>;
+  coverageData: CoverageRecord[];
+  coveragePixelData: CoveragePixelRecord[];
+  isLoadingCoverage: boolean;
+  onRefetchCoverage: () => void;
 }
 
 const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
@@ -22,58 +26,21 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   selectedIndicatorId,
   selectedRoundId,
   indicators,
+  coverageData,
+  coveragePixelData,
+  isLoadingCoverage,
+  onRefetchCoverage,
 }) => {
   const [isPredictCoverageModalOpen, setIsPredictCoverageModalOpen] = useState(false);
   const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = useState(false);
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
   const [isExportDataModalOpen, setIsExportDataModalOpen] = useState(false);
-  const [coverageData, setCoverageData] = useState<CoverageRecord[]>([]);
-  const [coveragePixelData, setCoveragePixelData] = useState<CoveragePixelRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'locations' | 'pixels'>('locations');
-
-  const { listCoverage, listCoveragePixel } = useCoverage();
-
-  // Load coverage data
-  const loadCoverageData = async () => {
-    if (!areaId || !selectedIndicatorId) return;
-
-    setIsLoading(true);
-    try {
-      const [locationData, pixelData] = await Promise.all([
-        listCoverage({
-          area_id: areaId,
-          indicator_id: selectedIndicatorId,
-          round_id: selectedRoundId || undefined,
-        }),
-        listCoveragePixel({
-          area_id: areaId,
-          indicator_id: selectedIndicatorId,
-          round_id: selectedRoundId || undefined,
-        })
-      ]);
-      setCoverageData(locationData);
-      setCoveragePixelData(pixelData);
-    } catch (error) {
-      console.error('Error loading coverage data:', error);
-      setCoverageData([]);
-      setCoveragePixelData([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load coverage data when filters change
-  useEffect(() => {
-    if (selectedIndicatorId) {
-      loadCoverageData();
-    }
-  }, [areaId, selectedIndicatorId, selectedRoundId]);
 
   // Reload data when modal closes
   const handleModalClose = () => {
     setIsPredictCoverageModalOpen(false);
-    loadCoverageData();
+    onRefetchCoverage();
   };
 
   return (
@@ -141,7 +108,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
           </div>
 
           {/* Coverage Table */}
-          {isLoading ? (
+          {isLoadingCoverage ? (
             <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
               <p className="text-tactical-text-dim">Loading coverage data...</p>
             </div>
@@ -322,7 +289,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
         areaName={areaName}
         roundId={selectedRoundId}
         projectId={projectId}
-        onSuccess={loadCoverageData}
+        onSuccess={onRefetchCoverage}
       />
 
       <ExportDataModal

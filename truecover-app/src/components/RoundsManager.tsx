@@ -17,6 +17,7 @@ interface Round {
   created_at: string;
   updated_at: string;
   location_count: number;
+  pixel_count: number;
 }
 
 interface RoundsManagerProps {
@@ -161,6 +162,9 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                   <th className="px-4 py-3 text-center text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
                     Locations
                   </th>
+                  <th className="px-4 py-3 text-center text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                    Pixels
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -207,6 +211,12 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                       onClick={() => handleRoundClick(round.round_number)}
                     >
                       {round.location_count}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-center text-sm text-tactical-text-primary font-mono cursor-pointer"
+                      onClick={() => handleRoundClick(round.round_number)}
+                    >
+                      {round.pixel_count}
                     </td>
                   </tr>
                 ))}

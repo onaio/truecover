@@ -27,6 +27,7 @@ services:
       - DATABASE_URL=postgresql://truecover:truecover@postgres:5432/truecover
     volumes:
       - ./martin-config.yaml:/config/config.yaml
+      - ../pmtiles:/pmtiles
     command: --config /config/config.yaml
     depends_on:
       postgres:

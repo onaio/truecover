@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { TacticalModal, TacticalButton, TacticalBadge, TacticalSelect } from '../tactical-ui';
 import { useRounds } from '../hooks/useRounds';
 import { useIndicators } from '../hooks/useIndicators';
-import { useCoverage } from '../hooks/useCoverage';
+import { useCoverageData } from '../hooks/useCoverageData';
 
 interface ExportLocationsModalProps {
   isOpen: boolean;
@@ -23,15 +23,20 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 }) => {
   const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
   const { data: indicators = [] } = useIndicators(projectId);
-  const { listCoverage, listCoveragePixel } = useCoverage();
 
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<string[]>([]);
-  const [coverageData, setCoverageData] = useState<any[]>([]);
-  const [coveragePixelData, setCoveragePixelData] = useState<any[]>([]);
-  const [isLoadingCoverage, setIsLoadingCoverage] = useState(false);
   const [includeAllPoints, setIncludeAllPoints] = useState(true);
   const [exportFormat, setExportFormat] = useState<'geojson' | 'csv'>('geojson');
+
+  // Use React Query hook to fetch coverage data
+  const { data: coverageDataResult, isLoading: isLoadingCoverage } = useCoverageData(
+    areaId,
+    selectedIndicatorId
+  );
+
+  const coverageData = coverageDataResult?.locationData || [];
+  const coveragePixelData = coverageDataResult?.pixelData || [];
 
   // Set default indicator when indicators load
   useEffect(() => {
@@ -39,42 +44,6 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
       setSelectedIndicatorId(indicators[0].id);
     }
   }, [indicators]);
-
-  // Load coverage data when indicator or rounds change
-  useEffect(() => {
-    const loadCoverageData = async () => {
-      if (!areaId || !selectedIndicatorId) {
-        setCoverageData([]);
-        setCoveragePixelData([]);
-        return;
-      }
-
-      setIsLoadingCoverage(true);
-      try {
-        // Load both location and pixel coverage data for the indicator
-        const [locationData, pixelData] = await Promise.all([
-          listCoverage({
-            area_id: areaId,
-            indicator_id: selectedIndicatorId,
-          }),
-          listCoveragePixel({
-            area_id: areaId,
-            indicator_id: selectedIndicatorId,
-          })
-        ]);
-        setCoverageData(locationData);
-        setCoveragePixelData(pixelData);
-      } catch (error) {
-        console.error('Error loading coverage data:', error);
-        setCoverageData([]);
-        setCoveragePixelData([]);
-      } finally {
-        setIsLoadingCoverage(false);
-      }
-    };
-
-    loadCoverageData();
-  }, [areaId, selectedIndicatorId]);
 
   // Calculate how many items would be exported (locations + pixels)
   const exportCount = useMemo(() => {
