@@ -63,21 +63,23 @@ export const TacticalModal: React.FC<TacticalModalProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ maxHeight: '100vh' }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
 
       {/* Modal */}
       <div
-        className={`relative w-full ${sizeClasses[size]} ${className}`}
+        className={`relative w-full ${sizeClasses[size]} flex flex-col ${className}`}
+        style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative bg-tactical-bg-primary border border-tactical-border-medium">
+        <div className="relative bg-tactical-bg-primary border border-tactical-border-medium flex flex-col" style={{ maxHeight: '100%' }}>
           {/* Corner Brackets */}
           <CornerBrackets size="md" />
 
           {/* Header */}
-          <div className="border-b border-tactical-border-medium p-4">
+          <div className="border-b border-tactical-border-medium p-4 flex-shrink-0">
             <div className="flex items-center justify-between">
               <h3 className="font-mono text-lg font-bold text-tactical-text-primary uppercase tracking-wider">
                 {title}
@@ -93,7 +95,7 @@ export const TacticalModal: React.FC<TacticalModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="p-4">
+          <div className="p-4 tactical-scrollbar" style={{ overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
             {children}
           </div>
         </div>

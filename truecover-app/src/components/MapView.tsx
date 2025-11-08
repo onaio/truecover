@@ -33,7 +33,8 @@ interface MapViewProps {
   histogramBrushRanges?: [number, number][] | null;
   histogramDataType?: 'locations' | 'pixels';
   sampledItemsCount?: number;
-  editMode?: boolean;
+  planningMode?: boolean;
+  onAddRoundForAdminBoundary?: (pcode: string, name: string) => void;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -68,7 +69,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, editMode = false }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -1785,8 +1786,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     </div>
                   )}
 
-                  {/* Generate Pixels button - only show when edit mode is enabled and areaId exists */}
-                  {editMode && areaId && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
+                  {/* Generate Pixels button - only show when planning mode is enabled and areaId exists */}
+                  {planningMode && areaId && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
                     <button
                       onClick={() => handleGeneratePixelsForAdmin(
                         popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`],
@@ -1795,6 +1796,21 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                       className="mt-3 w-full px-3 py-2 bg-tactical-accent-orange hover:bg-opacity-80 text-black font-mono text-sm font-bold uppercase tracking-wider transition-all"
                     >
                       Generate Pixels
+                    </button>
+                  )}
+
+                  {/* Add Round button - only show when planning mode is enabled and pixels exist */}
+                  {planningMode && onAddRoundForAdminBoundary && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && populationSummary && populationSummary.pixel_count > 0 && (
+                    <button
+                      onClick={() => {
+                        const pcode = popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`];
+                        const name = popupInfo.properties[`ADM${popupInfo.properties.level}_EN`];
+                        onAddRoundForAdminBoundary(pcode, name);
+                        setPopupInfo(null);
+                      }}
+                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-green hover:bg-opacity-80 text-black"
+                    >
+                      Add Round
                     </button>
                   )}
                 </div>

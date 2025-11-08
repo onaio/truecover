@@ -26,9 +26,12 @@ interface RoundsManagerProps {
   projectId: string;
   locations: any; // GeoJSON FeatureCollection
   onRoundSelected?: (roundNumber: number | null) => void;
+  selectedAdminBoundary?: { pcode: string; name: string } | null;
+  onClearAdminBoundary?: () => void;
+  pixelCount?: number;
 }
 
-const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, projectId, locations, onRoundSelected }) => {
+const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0 }) => {
   const { getToken } = useAuth();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +79,13 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
     }
   }, [areaId, loadRounds, refreshKey]);
 
+  // Open modal when admin boundary is selected
+  useEffect(() => {
+    if (selectedAdminBoundary) {
+      setIsCreateModalOpen(true);
+    }
+  }, [selectedAdminBoundary]);
+
   const handleRoundCreated = async () => {
     await loadRounds();
   };
@@ -114,6 +124,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                 variant="secondary"
                 size="sm"
                 onClick={() => setIsExportModalOpen(true)}
+                disabled={rounds.length === 0}
               >
                 Export Locations to Visit
               </TacticalButton>
@@ -121,6 +132,8 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                 variant="primary"
                 size="sm"
                 onClick={() => setIsCreateModalOpen(true)}
+                disabled={pixelCount === 0}
+                title={pixelCount === 0 ? "No pixels in this area" : undefined}
               >
                 + Create New Round
               </TacticalButton>
@@ -240,10 +253,15 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
         onClose={() => {
           setIsCreateModalOpen(false);
           setRefreshKey(prev => prev + 1);
+          if (onClearAdminBoundary) {
+            onClearAdminBoundary();
+          }
         }}
         areaId={areaId}
         projectId={projectId}
         onRoundCreated={handleRoundCreated}
+        adminBoundaryPcode={selectedAdminBoundary?.pcode}
+        adminBoundaryName={selectedAdminBoundary?.name}
       />
 
       <ExportLocationsModal

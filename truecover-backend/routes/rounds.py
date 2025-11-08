@@ -35,6 +35,7 @@ def create_round(user, area_id):
         uncertainty_field = data.get('uncertainty_field', 'exceedance_uncertainty')
         allow_revisit = data.get('allow_revisit', False)
         sampling_target = data.get('sampling_target', 'locations')
+        admin_pcode = data.get('admin_pcode')
 
         if not name:
             return jsonify({'error': 'Round name is required'}), 400
@@ -67,65 +68,132 @@ def create_round(user, area_id):
         if sampling_target == 'pixels':
             # Fetch coverage_pixel data joined with pixels
             if allow_revisit:
-                cursor.execute("""
-                    SELECT
-                        cp.id as coverage_pixel_id,
-                        cp.quadkey,
-                        ST_AsGeoJSON(p.geometry) as geometry,
-                        p.latitude, p.longitude,
-                        cp.exceedance_probability, cp.exceedance_uncertainty,
-                        cp.prevalence_bci_width, cp.prevalence_prediction
-                    FROM coverage_pixel cp
-                    LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-                    WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
-                """, (area_id, indicator_id))
+                if admin_pcode:
+                    cursor.execute("""
+                        SELECT
+                            cp.id as coverage_pixel_id,
+                            cp.quadkey,
+                            ST_AsGeoJSON(p.geometry) as geometry,
+                            p.latitude, p.longitude,
+                            cp.exceedance_probability, cp.exceedance_uncertainty,
+                            cp.prevalence_bci_width, cp.prevalence_prediction
+                        FROM coverage_pixel cp
+                        LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                          AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
+                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                else:
+                    cursor.execute("""
+                        SELECT
+                            cp.id as coverage_pixel_id,
+                            cp.quadkey,
+                            ST_AsGeoJSON(p.geometry) as geometry,
+                            p.latitude, p.longitude,
+                            cp.exceedance_probability, cp.exceedance_uncertainty,
+                            cp.prevalence_bci_width, cp.prevalence_prediction
+                        FROM coverage_pixel cp
+                        LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                    """, (area_id, indicator_id))
             else:
                 # Only include pixels that have NOT been visited in any round
-                cursor.execute("""
-                    SELECT
-                        cp.id as coverage_pixel_id,
-                        cp.quadkey,
-                        ST_AsGeoJSON(p.geometry) as geometry,
-                        p.latitude, p.longitude,
-                        cp.exceedance_probability, cp.exceedance_uncertainty,
-                        cp.prevalence_bci_width, cp.prevalence_prediction
-                    FROM coverage_pixel cp
-                    LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-                    WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
-                      AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
-                """, (area_id, indicator_id))
+                if admin_pcode:
+                    cursor.execute("""
+                        SELECT
+                            cp.id as coverage_pixel_id,
+                            cp.quadkey,
+                            ST_AsGeoJSON(p.geometry) as geometry,
+                            p.latitude, p.longitude,
+                            cp.exceedance_probability, cp.exceedance_uncertainty,
+                            cp.prevalence_bci_width, cp.prevalence_prediction
+                        FROM coverage_pixel cp
+                        LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                          AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
+                          AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
+                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                else:
+                    cursor.execute("""
+                        SELECT
+                            cp.id as coverage_pixel_id,
+                            cp.quadkey,
+                            ST_AsGeoJSON(p.geometry) as geometry,
+                            p.latitude, p.longitude,
+                            cp.exceedance_probability, cp.exceedance_uncertainty,
+                            cp.prevalence_bci_width, cp.prevalence_prediction
+                        FROM coverage_pixel cp
+                        LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                          AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
+                    """, (area_id, indicator_id))
         else:
-            # Fetch coverage data for locations (existing behavior)
+            # Fetch coverage data for locations
             if allow_revisit:
-                cursor.execute("""
-                    SELECT
-                        c.id as coverage_id,
-                        c.location_id,
-                        ST_AsGeoJSON(l.geometry) as geometry,
-                        l.latitude, l.longitude,
-                        c.exceedance_probability, c.exceedance_uncertainty,
-                        c.prevalence_bci_width, c.prevalence_prediction,
-                        l.properties, l.external_id
-                    FROM coverage c
-                    LEFT JOIN locations l ON c.location_id = l.id
-                    WHERE c.area_id = %s AND c.indicator_id = %s
-                """, (area_id, indicator_id))
+                if admin_pcode:
+                    # Filter locations by admin boundary via spatial join
+                    cursor.execute("""
+                        SELECT DISTINCT
+                            c.id as coverage_id,
+                            c.location_id,
+                            ST_AsGeoJSON(l.geometry) as geometry,
+                            l.latitude, l.longitude,
+                            c.exceedance_probability, c.exceedance_uncertainty,
+                            c.prevalence_bci_width, c.prevalence_prediction,
+                            l.properties, l.external_id
+                        FROM coverage c
+                        LEFT JOIN locations l ON c.location_id = l.id
+                        LEFT JOIN admin_boundaries ab ON ST_Contains(ab.geometry, l.geometry)
+                        WHERE c.area_id = %s AND c.indicator_id = %s
+                          AND (ab.adm1_pcode = %s OR ab.adm2_pcode = %s OR ab.adm3_pcode = %s OR ab.adm4_pcode = %s)
+                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                else:
+                    cursor.execute("""
+                        SELECT
+                            c.id as coverage_id,
+                            c.location_id,
+                            ST_AsGeoJSON(l.geometry) as geometry,
+                            l.latitude, l.longitude,
+                            c.exceedance_probability, c.exceedance_uncertainty,
+                            c.prevalence_bci_width, c.prevalence_prediction,
+                            l.properties, l.external_id
+                        FROM coverage c
+                        LEFT JOIN locations l ON c.location_id = l.id
+                        WHERE c.area_id = %s AND c.indicator_id = %s
+                    """, (area_id, indicator_id))
             else:
                 # Only include locations that have NOT been visited in any round
-                cursor.execute("""
-                    SELECT
-                        c.id as coverage_id,
-                        c.location_id,
-                        ST_AsGeoJSON(l.geometry) as geometry,
-                        l.latitude, l.longitude,
-                        c.exceedance_probability, c.exceedance_uncertainty,
-                        c.prevalence_bci_width, c.prevalence_prediction,
-                        l.properties, l.external_id
-                    FROM coverage c
-                    LEFT JOIN locations l ON c.location_id = l.id
-                    WHERE c.area_id = %s AND c.indicator_id = %s
-                      AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
-                """, (area_id, indicator_id))
+                if admin_pcode:
+                    cursor.execute("""
+                        SELECT DISTINCT
+                            c.id as coverage_id,
+                            c.location_id,
+                            ST_AsGeoJSON(l.geometry) as geometry,
+                            l.latitude, l.longitude,
+                            c.exceedance_probability, c.exceedance_uncertainty,
+                            c.prevalence_bci_width, c.prevalence_prediction,
+                            l.properties, l.external_id
+                        FROM coverage c
+                        LEFT JOIN locations l ON c.location_id = l.id
+                        LEFT JOIN admin_boundaries ab ON ST_Contains(ab.geometry, l.geometry)
+                        WHERE c.area_id = %s AND c.indicator_id = %s
+                          AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
+                          AND (ab.adm1_pcode = %s OR ab.adm2_pcode = %s OR ab.adm3_pcode = %s OR ab.adm4_pcode = %s)
+                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                else:
+                    cursor.execute("""
+                        SELECT
+                            c.id as coverage_id,
+                            c.location_id,
+                            ST_AsGeoJSON(l.geometry) as geometry,
+                            l.latitude, l.longitude,
+                            c.exceedance_probability, c.exceedance_uncertainty,
+                            c.prevalence_bci_width, c.prevalence_prediction,
+                            l.properties, l.external_id
+                        FROM coverage c
+                        LEFT JOIN locations l ON c.location_id = l.id
+                        WHERE c.area_id = %s AND c.indicator_id = %s
+                          AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
+                    """, (area_id, indicator_id))
 
         locations = cursor.fetchall()
 

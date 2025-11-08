@@ -12,6 +12,8 @@ interface CreateRoundModalProps {
   areaId: string;
   projectId: string;
   onRoundCreated: () => void;
+  adminBoundaryPcode?: string;
+  adminBoundaryName?: string;
 }
 
 const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
@@ -20,6 +22,8 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   areaId,
   projectId,
   onRoundCreated,
+  adminBoundaryPcode,
+  adminBoundaryName,
 }) => {
   const { getToken } = useAuth();
   const { data: indicators } = useIndicators(projectId);
@@ -79,6 +83,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           uncertainty_field: uncertaintyField,
           allow_revisit: allowRevisit,
           sampling_target: samplingTarget,
+          admin_pcode: adminBoundaryPcode || null,
         },
         {
           headers: {
@@ -130,6 +135,21 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Admin Boundary Filter Indicator */}
+        {adminBoundaryPcode && adminBoundaryName && (
+          <div className="p-3 border border-tactical-accent-blue bg-tactical-accent-blue/10">
+            <p className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-1">
+              Filtering to Admin Boundary
+            </p>
+            <p className="text-sm font-mono text-tactical-text-secondary">
+              {adminBoundaryName} ({adminBoundaryPcode})
+            </p>
+            <p className="text-xs font-mono text-tactical-text-muted mt-1">
+              This round will only include {samplingTarget === 'locations' ? 'locations' : 'pixels'} within this administrative boundary.
+            </p>
+          </div>
+        )}
+
         <TacticalInput
           label="Round Name"
           value={name}
