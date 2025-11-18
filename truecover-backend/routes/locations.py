@@ -469,8 +469,8 @@ def upload_locations(user, area_id):
                             geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"
 
                             pixel_data.append((
-                                quadkey,
                                 area_id,
+                                quadkey,
                                 geometry_wkt,
                                 centroid_lat,
                                 centroid_lng,
@@ -479,15 +479,9 @@ def upload_locations(user, area_id):
 
                         # Batch insert pixels (upsert to handle any race conditions)
                         cursor.executemany("""
-                            INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level)
+                            INSERT INTO pixels (area_id, quadkey, geometry, latitude, longitude, level)
                             VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
-                            ON CONFLICT (quadkey) DO UPDATE SET
-                                area_id = EXCLUDED.area_id,
-                                geometry = EXCLUDED.geometry,
-                                latitude = EXCLUDED.latitude,
-                                longitude = EXCLUDED.longitude,
-                                level = EXCLUDED.level,
-                                updated_at = NOW()
+                            ON CONFLICT ON CONSTRAINT pixels_area_quadkey_unique DO NOTHING
                         """, pixel_data)
 
                         print(f"Auto-generated {len(pixel_data)} pixels for uploaded locations")
