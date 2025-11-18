@@ -1,7 +1,7 @@
 // ABOUTME: React Query hooks for managing coverage data
 // ABOUTME: Provides hooks for fetching location and pixel coverage data with caching and pagination
 
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
 import { CoverageRecord, CoveragePixelRecord } from './useCoverage';
@@ -145,6 +145,55 @@ export function useAllCoverageData(
       return hasMore ? allPages.length * 10000 : undefined;
     },
     initialPageParam: 0,
+    enabled: !!areaId && !!indicatorId && isSignedIn,
+  });
+}
+
+/**
+ * Hook to fetch histogram data for coverage (server-side aggregated)
+ */
+export function useCoverageHistogram(
+  areaId: string | undefined,
+  indicatorId: string | undefined,
+  mode: 'coverage' | 'uncertainty',
+  dataType: 'locations' | 'pixels',
+  numBins: number = 12,
+  roundId?: string | undefined,
+  refreshKey?: number
+) {
+  const { getToken, isSignedIn } = useAuth();
+
+  return useQuery({
+    queryKey: ['coverageHistogram', areaId, indicatorId, mode, dataType, numBins, roundId, refreshKey],
+    queryFn: async () => {
+      if (!areaId || !indicatorId) {
+        throw new Error('Area ID and Indicator ID are required');
+      }
+
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+
+      // Build query string
+      const queryParams = new URLSearchParams();
+      queryParams.append('indicator_id', indicatorId);
+      queryParams.append('mode', mode);
+      queryParams.append('data_type', dataType);
+      queryParams.append('bins', String(numBins));
+      if (roundId) {
+        queryParams.append('round_id', roundId);
+      }
+
+      const response = await axios.get(
+        `${API_URL}/api/areas/${areaId}/coverage/histogram?${queryParams.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      return response.data;
+    },
     enabled: !!areaId && !!indicatorId && isSignedIn,
   });
 }

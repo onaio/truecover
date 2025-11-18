@@ -4,7 +4,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../contexts/AppContext';
 import { useLocationsData } from '../hooks/useLocationsData';
 import { useInfiniteLocations } from '../hooks/useLocations';
-import { useCoverageData, useAllCoverageData } from '../hooks/useCoverageData';
+import { useCoverageData, useCoverageHistogram } from '../hooks/useCoverageData';
 import { useIndicators } from '../hooks/useIndicators';
 import { useRounds } from '../hooks/useRounds';
 import { usePixelStats, useDeletePixels, usePixelMetadataStats } from '../hooks/usePixels';
@@ -112,16 +112,6 @@ const LocationsPage: React.FC = () => {
     refreshKey
   );
 
-  // Use separate hook to fetch ALL coverage data for histogram (no pagination limit)
-  const {
-    data: allCoverageDataResult,
-  } = useAllCoverageData(
-    selectedArea?.id,
-    selectedIndicatorId,
-    coverageRoundId,
-    refreshKey
-  );
-
   // Flatten all pages of data
   const coverageData = React.useMemo(() => {
     if (!coverageDataResult?.pages) return [];
@@ -133,16 +123,16 @@ const LocationsPage: React.FC = () => {
     return coverageDataResult.pages.flatMap(page => page.pixelData);
   }, [coverageDataResult]);
 
-  // Flatten all pages of data for histogram
-  const allCoverageData = React.useMemo(() => {
-    if (!allCoverageDataResult?.pages) return [];
-    return allCoverageDataResult.pages.flatMap(page => page.locationData);
-  }, [allCoverageDataResult]);
-
-  const allCoveragePixelData = React.useMemo(() => {
-    if (!allCoverageDataResult?.pages) return [];
-    return allCoverageDataResult.pages.flatMap(page => page.pixelData);
-  }, [allCoverageDataResult]);
+  // Use histogram hook for aggregated data (replaces loading all coverage data)
+  const { data: histogramData } = useCoverageHistogram(
+    selectedArea?.id,
+    selectedIndicatorId,
+    interpolationMode === 'uncertainty' ? 'uncertainty' : 'coverage',
+    histogramTab,
+    12,
+    coverageRoundId,
+    refreshKey
+  );
 
   // Use infinite query for locations table
   const {
@@ -615,7 +605,7 @@ const LocationsPage: React.FC = () => {
                     }`}
                     onClick={() => setHistogramTab('locations')}
                   >
-                    Locations ({allCoverageData.length})
+                    Locations ({locationTotalCount})
                   </button>
                   <button
                     className={`px-4 py-2 font-medium transition-colors ${
@@ -625,13 +615,13 @@ const LocationsPage: React.FC = () => {
                     }`}
                     onClick={() => setHistogramTab('pixels')}
                   >
-                    Pixels ({allCoveragePixelData.length})
+                    Pixels ({pixelTotalCount})
                   </button>
                 </div>
 
                 {/* Histogram */}
                 <DistributionHistogram
-                  data={histogramTab === 'locations' ? allCoverageData : allCoveragePixelData}
+                  histogramData={histogramData}
                   mode={interpolationMode === 'coverage' ? 'coverage' : 'uncertainty'}
                   visible={true}
                   indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}

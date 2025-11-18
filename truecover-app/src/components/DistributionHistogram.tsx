@@ -6,8 +6,24 @@ import * as Plot from '@observablehq/plot';
 import { calculateJenksBreaks, PREVALENCE_COLORS, UNCERTAINTY_COLORS } from '../utils/jenksBreaks';
 import BCIExplanationModal from './BCIExplanationModal';
 
+interface HistogramBin {
+  bucket: number;
+  count: number;
+  min: number | null;
+  max: number | null;
+}
+
+interface HistogramData {
+  bins: HistogramBin[];
+  overall_min: number | null;
+  overall_max: number | null;
+  num_bins: number;
+  mode: string;
+  data_type: string;
+}
+
 interface DistributionHistogramProps {
-  data: any[];
+  histogramData?: HistogramData;
   mode: 'coverage' | 'uncertainty';
   visible: boolean;
   indicatorName?: string;
@@ -15,7 +31,7 @@ interface DistributionHistogramProps {
   dataType?: 'locations' | 'pixels';
 }
 
-const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mode, visible, indicatorName, onBrushChange, dataType = 'locations' }) => {
+const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ histogramData, mode, visible, indicatorName, onBrushChange, dataType = 'locations' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [numBins, setNumBins] = useState<number>(12);
@@ -26,28 +42,21 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
   const [isBCIModalOpen, setIsBCIModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || !visible || !data || data.length === 0) {
+    if (!containerRef.current || !visible || !histogramData || !histogramData.bins || histogramData.bins.length === 0) {
       return;
     }
 
-    // Extract values based on mode
-    const values: number[] = [];
-    const property = mode === 'coverage' ? 'prevalence_prediction' : 'prevalence_bci_width';
-
-    data.forEach(record => {
-      const value = record[property];
-      if (typeof value === 'number' && !isNaN(value)) {
-        values.push(value);
-      }
-    });
-
-    if (values.length === 0) {
-      return;
-    }
+    const { bins, overall_min, overall_max } = histogramData;
 
     // Calculate mean BCI and confidence level (for uncertainty mode)
     if (mode === 'uncertainty') {
-      const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+      // Calculate weighted mean from bins
+      const totalCount = bins.reduce((sum, bin) => sum + bin.count, 0);
+      const weightedSum = bins.reduce((sum, bin) => {
+        const binMidpoint = ((bin.min || 0) + (bin.max || 0)) / 2;
+        return sum + (binMidpoint * bin.count);
+      }, 0);
+      const mean = totalCount > 0 ? weightedSum / totalCount : 0;
       setMeanBCI(mean);
 
       if (mean <= 0.05) {
@@ -64,14 +73,25 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       setConfidenceLevel(null);
     }
 
-    // Calculate equal-width bins
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    const min = overall_min || 0;
+    const max = overall_max || 1;
     const binWidth = (max - min) / numBins;
+
+    // Reconstruct approximate values for Jenks breaks calculation
+    const reconstructedValues: number[] = [];
+    bins.forEach(bin => {
+      const binMidpoint = ((bin.min || 0) + (bin.max || 0)) / 2;
+      // Add the midpoint value 'count' times (approximate distribution)
+      for (let i = 0; i < bin.count; i++) {
+        reconstructedValues.push(binMidpoint);
+      }
+    });
 
     // Calculate Jenks breaks for coloring
     const colorPalette = mode === 'coverage' ? PREVALENCE_COLORS : UNCERTAINTY_COLORS;
-    const jenksBreaks = showColors ? calculateJenksBreaks(values, colorPalette.length) : [];
+    const jenksBreaks = showColors && reconstructedValues.length > 0
+      ? calculateJenksBreaks(reconstructedValues, colorPalette.length)
+      : [];
 
     // Helper function to get color for a bin based on Jenks breaks
     const getBinColor = (binMin: number, binMax: number): string => {
@@ -95,25 +115,27 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       return colorPalette[colorPalette.length - 1] || '#ffffff';
     };
 
-    // Create bins
-    const bins: { x0: number; x1: number; count: number; color: string }[] = [];
+    // Use pre-calculated bins from backend
+    const plotBins: { x0: number; x1: number; count: number; color: string }[] = [];
     const boundaries: number[] = [];
 
+    // Create boundaries from min to max
     for (let i = 0; i <= numBins; i++) {
       boundaries.push(min + i * binWidth);
     }
 
-    for (let i = 0; i < numBins; i++) {
-      const x0 = boundaries[i];
-      const x1 = boundaries[i + 1];
-      const count = values.filter(v => v >= x0 && (i === numBins - 1 ? v <= x1 : v < x1)).length;
+    // Convert backend bins to plot format using bucket boundaries
+    bins.forEach((bin) => {
+      // Calculate bin edges from bucket number (1-indexed)
+      const x0 = min + (bin.bucket - 1) * binWidth;
+      const x1 = min + bin.bucket * binWidth;
       const color = getBinColor(x0, x1);
 
-      bins.push({ x0, x1, count, color });
-    }
+      plotBins.push({ x0, x1, count: bin.count, color });
+    });
 
     // Calculate max count for positioning labels at top
-    const maxCount = Math.max(...bins.map(b => b.count));
+    const maxCount = Math.max(...plotBins.map(b => b.count));
 
     // Create the plot
     const plot = Plot.plot({
@@ -145,7 +167,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
         line: true
       },
       marks: [
-        Plot.rectY(bins, {
+        Plot.rectY(plotBins, {
           x1: 'x0',
           x2: 'x1',
           y: 'count',
@@ -196,9 +218,13 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       if (index < bins.length) {
         const bin = bins[index];
 
+        // Calculate x0 and x1 from bin.min and bin.max (same logic as plotBins creation)
+        const x0 = bin.min || (min + index * binWidth);
+        const x1 = bin.max || (min + (index + 1) * binWidth);
+
         // Check if this bin is in the selected ranges
         const isSelected = selectedRanges.some(range =>
-          bin.x0 === range[0] && bin.x1 === range[1]
+          x0 === range[0] && x1 === range[1]
         );
 
         // Add visual indicator for selected bins
@@ -214,7 +240,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           if (tooltipRef.current) {
             const action = isSelected ? 'click to unselect' : 'click to select';
             const itemType = dataType === 'pixels' ? 'pixels' : 'locations';
-            tooltipRef.current.innerHTML = `${bin.x0.toFixed(3)} - ${bin.x1.toFixed(3)}<br/>${bin.count} ${itemType}<br/><i>(${action})</i>`;
+            tooltipRef.current.innerHTML = `${x0.toFixed(3)} - ${x1.toFixed(3)}<br/>${bin.count} ${itemType}<br/><i>(${action})</i>`;
             tooltipRef.current.style.display = 'block';
             tooltipRef.current.style.left = `${e.clientX + 10}px`;
             tooltipRef.current.style.top = `${e.clientY + 10}px`;
@@ -232,7 +258,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
           }
         });
         rect.addEventListener('click', () => {
-          const range: [number, number] = [bin.x0, bin.x1];
+          const range: [number, number] = [x0, x1];
 
           // Toggle selection
           setSelectedRanges(prev => {
@@ -264,7 +290,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
         containerRef.current.innerHTML = '';
       }
     };
-  }, [data, mode, visible, numBins, showColors, selectedRanges, dataType]);
+  }, [histogramData, mode, visible, numBins, showColors, selectedRanges, dataType]);
 
   if (!visible) {
     return null;
@@ -344,7 +370,7 @@ const DistributionHistogram: React.FC<DistributionHistogramProps> = ({ data, mod
       <BCIExplanationModal
         isOpen={isBCIModalOpen}
         onClose={() => setIsBCIModalOpen(false)}
-        data={data}
+        data={[]}
         indicatorName={indicatorName}
         numBins={numBins}
       />

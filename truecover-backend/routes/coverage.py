@@ -1058,3 +1058,205 @@ def list_area_coverage_pixel(user, area_id):
     finally:
         if conn:
             return_db_connection(conn)
+
+
+@coverage_bp.route('/api/areas/<area_id>/coverage/histogram', methods=['GET'])
+@require_auth
+def get_coverage_histogram(user, area_id):
+    """Get histogram data for coverage using PostgreSQL aggregation"""
+    conn = None
+    try:
+        # Check if user has access to this area
+        if not check_area_access(user['id'], area_id):
+            return jsonify({'error': 'Access denied'}), 403
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get query parameters
+        indicator_id = request.args.get('indicator_id')
+        mode = request.args.get('mode', 'coverage')  # 'coverage' or 'uncertainty'
+        num_bins = request.args.get('bins', type=int, default=12)
+        data_type = request.args.get('data_type', 'locations')  # 'locations' or 'pixels'
+
+        if not indicator_id:
+            return jsonify({'error': 'indicator_id is required'}), 400
+
+        # Determine which column to use based on mode
+        value_column = 'prevalence_prediction' if mode == 'coverage' else 'prevalence_bci_width'
+
+        # First, get the min and max values to check if they're equal
+        table_name = 'coverage' if data_type == 'locations' else 'coverage_pixel'
+        range_query = f"""
+            SELECT MIN({value_column}) as min_val, MAX({value_column}) as max_val, COUNT(*) as count
+            FROM {table_name}
+            WHERE area_id = %s AND indicator_id = %s AND {value_column} IS NOT NULL
+        """
+        cursor.execute(range_query, (area_id, indicator_id))
+        range_result = cursor.fetchone()
+        min_val, max_val, count = range_result
+
+        # Handle edge cases
+        if count == 0 or min_val is None or max_val is None:
+            # No data
+            cursor.close()
+            return jsonify({
+                'bins': [],
+                'overall_min': None,
+                'overall_max': None,
+                'num_bins': num_bins,
+                'mode': mode,
+                'data_type': data_type
+            }), 200
+
+        if min_val == max_val:
+            # All values are the same - return a single bin
+            cursor.close()
+            return jsonify({
+                'bins': [{
+                    'bucket': 1,
+                    'count': count,
+                    'min': float(min_val),
+                    'max': float(max_val)
+                }],
+                'overall_min': float(min_val),
+                'overall_max': float(max_val),
+                'num_bins': 1,
+                'mode': mode,
+                'data_type': data_type
+            }), 200
+
+        # Build query based on data type
+        if data_type == 'locations':
+            # Use coverage table
+            query = f"""
+                WITH value_range AS (
+                    SELECT
+                        MIN({value_column}) as min_val,
+                        MAX({value_column}) as max_val
+                    FROM coverage
+                    WHERE area_id = %s
+                        AND indicator_id = %s
+                        AND {value_column} IS NOT NULL
+                ),
+                histogram AS (
+                    SELECT
+                        width_bucket({value_column},
+                            (SELECT min_val FROM value_range),
+                            (SELECT max_val FROM value_range),
+                            %s
+                        ) as bucket,
+                        COUNT(*) as count,
+                        MIN({value_column}) as bin_min,
+                        MAX({value_column}) as bin_max
+                    FROM coverage
+                    WHERE area_id = %s
+                        AND indicator_id = %s
+                        AND {value_column} IS NOT NULL
+                    GROUP BY bucket
+                    ORDER BY bucket
+                )
+                SELECT
+                    bucket,
+                    count,
+                    bin_min,
+                    bin_max,
+                    (SELECT min_val FROM value_range) as overall_min,
+                    (SELECT max_val FROM value_range) as overall_max
+                FROM histogram
+            """
+            params = (area_id, indicator_id, num_bins, area_id, indicator_id)
+        else:
+            # Use coverage_pixel table
+            query = f"""
+                WITH value_range AS (
+                    SELECT
+                        MIN({value_column}) as min_val,
+                        MAX({value_column}) as max_val
+                    FROM coverage_pixel
+                    WHERE area_id = %s
+                        AND indicator_id = %s
+                        AND {value_column} IS NOT NULL
+                ),
+                histogram AS (
+                    SELECT
+                        width_bucket({value_column},
+                            (SELECT min_val FROM value_range),
+                            (SELECT max_val FROM value_range),
+                            %s
+                        ) as bucket,
+                        COUNT(*) as count,
+                        MIN({value_column}) as bin_min,
+                        MAX({value_column}) as bin_max
+                    FROM coverage_pixel
+                    WHERE area_id = %s
+                        AND indicator_id = %s
+                        AND {value_column} IS NOT NULL
+                    GROUP BY bucket
+                    ORDER BY bucket
+                )
+                SELECT
+                    bucket,
+                    count,
+                    bin_min,
+                    bin_max,
+                    (SELECT min_val FROM value_range) as overall_min,
+                    (SELECT max_val FROM value_range) as overall_max
+                FROM histogram
+            """
+            params = (area_id, indicator_id, num_bins, area_id, indicator_id)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        # Create a map of bucket number to bin data
+        bin_map = {}
+        overall_min = None
+        overall_max = None
+
+        for row in rows:
+            bucket, count, bin_min, bin_max, o_min, o_max = row
+            bin_map[bucket] = {
+                'bucket': bucket,
+                'count': count,
+                'min': float(bin_min) if bin_min is not None else None,
+                'max': float(bin_max) if bin_max is not None else None
+            }
+            if overall_min is None:
+                overall_min = float(o_min) if o_min is not None else None
+                overall_max = float(o_max) if o_max is not None else None
+
+        # Fill in missing bins with count=0
+        bins = []
+        bin_width = (overall_max - overall_min) / num_bins if overall_max and overall_min else 0
+
+        for bucket_num in range(1, num_bins + 1):
+            if bucket_num in bin_map:
+                bins.append(bin_map[bucket_num])
+            else:
+                # Empty bin
+                bins.append({
+                    'bucket': bucket_num,
+                    'count': 0,
+                    'min': None,
+                    'max': None
+                })
+
+        cursor.close()
+        return jsonify({
+            'bins': bins,
+            'overall_min': overall_min,
+            'overall_max': overall_max,
+            'num_bins': num_bins,
+            'mode': mode,
+            'data_type': data_type
+        }), 200
+
+    except Exception as e:
+        print(f"Error getting coverage histogram: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get histogram', 'details': str(e)}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)
