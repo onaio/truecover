@@ -12,7 +12,11 @@ enrichment_bp = Blueprint('enrichment', __name__)
 @enrichment_bp.route('/api/areas/<area_id>/enrich-pixels', methods=['POST'])
 @require_auth
 def create_enrichment_job(user, area_id):
-    """Create a new pixel enrichment job"""
+    """Create a new pixel enrichment job and start workflow"""
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.pixel_enrichment import PixelEnrichmentWorkflow
+
     conn = None
     try:
         check_area_access(user['id'], area_id)
@@ -51,27 +55,51 @@ def create_enrichment_job(user, area_id):
             cursor.close()
             return jsonify({'error': 'No pixels found for this area. Generate pixels first.'}), 400
 
-        # Create job
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"pixel-enrichment-{area_id}-{data_source_id}-{timestamp}"
+
+        # Create job with workflow_id
         cursor.execute("""
             INSERT INTO enrichment_jobs (
                 area_id,
                 data_source_id,
                 statistic,
                 status,
-                pixels_total
+                pixels_total,
+                workflow_id
             )
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id, area_id, data_source_id, statistic, status,
                       pixels_processed, pixels_total, error_message,
                       retry_count, last_attempted_at,
-                      created_at, updated_at
-        """, (area_id, data_source_id, statistic, 'pending', pixels_total))
+                      created_at, updated_at, workflow_id
+        """, (area_id, data_source_id, statistic, 'pending', pixels_total, workflow_id))
 
         row = cursor.fetchone()
+        job_id = str(row[0])
         conn.commit()
+        cursor.close()
+        return_db_connection(conn)
+        conn = None
+
+        # Start workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                PixelEnrichmentWorkflow.run,
+                args=[job_id],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        print(f"Started pixel enrichment workflow: {workflow_id} for job {job_id}")
 
         job = {
-            'id': str(row[0]),
+            'id': job_id,
             'area_id': str(row[1]),
             'data_source_id': str(row[2]),
             'statistic': row[3],
@@ -82,16 +110,18 @@ def create_enrichment_job(user, area_id):
             'retry_count': row[8],
             'last_attempted_at': row[9].isoformat() if row[9] else None,
             'created_at': row[10].isoformat() if row[10] else None,
-            'updated_at': row[11].isoformat() if row[11] else None
+            'updated_at': row[11].isoformat() if row[11] else None,
+            'workflow_id': workflow_id
         }
 
-        cursor.close()
         return jsonify(job), 201
 
     except Exception as e:
         if conn:
             conn.rollback()
         print(f"Error creating enrichment job: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Failed to create enrichment job', 'details': str(e)}), 500
     finally:
         if conn:

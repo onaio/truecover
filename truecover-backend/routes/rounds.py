@@ -12,6 +12,150 @@ rounds_bp = Blueprint('rounds', __name__)
 SAMPLING_URL = os.getenv('DOCKER_FN_SAMPLING_URL', 'http://localhost:8083')
 
 
+@rounds_bp.route('/api/areas/<area_id>/rounds/workflow', methods=['POST'])
+@require_auth
+def create_round_workflow(user, area_id):
+    """Create a new round using Temporal workflow"""
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.round_generation import RoundGenerationWorkflow
+
+    try:
+        # Check if user has access to this area
+        if not check_area_access(user['id'], area_id):
+            return jsonify({'error': 'Access denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        name = data.get('name')
+        description = data.get('description', '')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        indicator_id = data.get('indicator_id')
+        batch_size = data.get('batch_size', 10)
+        uncertainty_field = data.get('uncertainty_field', 'exceedance_uncertainty')
+        allow_revisit = data.get('allow_revisit', False)
+        sampling_target = data.get('sampling_target', 'locations')
+        admin_pcode = data.get('admin_pcode')
+
+        if not name:
+            return jsonify({'error': 'Round name is required'}), 400
+
+        if not indicator_id:
+            return jsonify({'error': 'Indicator ID is required'}), 400
+
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"round-generation-{area_id}-{indicator_id}-{timestamp}"
+
+        # Start workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                RoundGenerationWorkflow.run,
+                args=[
+                    area_id,
+                    name,
+                    description,
+                    start_date,
+                    end_date,
+                    indicator_id,
+                    batch_size,
+                    uncertainty_field,
+                    allow_revisit,
+                    sampling_target,
+                    admin_pcode
+                ],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        print(f"Started round generation workflow: {workflow_id}")
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'status': 'started',
+            'message': 'Round generation started. Use the workflow_id to check progress.'
+        }), 202
+
+    except Exception as e:
+        print(f"Error starting round generation workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start round generation', 'details': str(e)}), 500
+
+
+@rounds_bp.route('/api/rounds/workflow/<workflow_id>/status', methods=['GET'])
+@require_auth
+def get_round_workflow_status(user, workflow_id):
+    """Get status of round generation workflow"""
+    import asyncio
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.round_generation import RoundGenerationWorkflow
+    from temporalio.client import WorkflowExecutionStatus
+
+    try:
+        async def get_status():
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            # Check workflow status
+            try:
+                desc = await handle.describe()
+
+                if desc.status == WorkflowExecutionStatus.RUNNING:
+                    # Try to query progress
+                    try:
+                        progress = await handle.query(RoundGenerationWorkflow.get_progress)
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": progress
+                        }
+                    except Exception:
+                        # Query failed, return running without progress
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": None
+                        }
+                elif desc.status == WorkflowExecutionStatus.COMPLETED:
+                    # Get result
+                    result = await handle.result()
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "completed",
+                        "result": result
+                    }
+                else:
+                    # Failed/cancelled
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": desc.status.name.lower()
+                    }
+            except Exception as e:
+                # Workflow not found
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "failed",
+                    "error": str(e)
+                }
+
+        status = run_async(get_status())
+        return jsonify(status), 200
+
+    except Exception as e:
+        print(f"Error getting workflow status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get workflow status', 'details': str(e)}), 500
+
+
 @rounds_bp.route('/api/areas/<area_id>/rounds', methods=['POST'])
 @require_auth
 def create_round(user, area_id):

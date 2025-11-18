@@ -10,19 +10,22 @@ import mercantile
 pixels_bp = Blueprint('pixels', __name__)
 
 
-@pixels_bp.route('/api/areas/<area_id>/pixels/generate', methods=['POST'])
+@pixels_bp.route('/api/areas/<area_id>/pixels/generate/workflow', methods=['POST'])
 @require_auth
-def generate_pixels(user, area_id):
-    """Generate quadkey pixels for a given bounding box and zoom level"""
-    check_area_access(user['id'], area_id)
+def generate_pixels_workflow(user, area_id):
+    """Generate quadkey pixels using Temporal workflow"""
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.pixel_generation import PixelGenerationWorkflow
 
-    conn = None
     try:
+        check_area_access(user['id'], area_id)
+
         data = request.get_json()
         bbox = data.get('bbox')  # [minLng, minLat, maxLng, maxLat]
         level = data.get('level', 18)
-        append = data.get('append', False)  # If True, add to existing pixels instead of replacing
-        admin_pcode = data.get('admin_pcode')  # Optional: filter pixels by admin boundary
+        append = data.get('append', False)
+        admin_pcode = data.get('admin_pcode')
 
         if not bbox or len(bbox) != 4:
             return jsonify({'error': 'Invalid bbox. Expected [minLng, minLat, maxLng, maxLat]'}), 400
@@ -41,153 +44,168 @@ def generate_pixels(user, area_id):
         if not (0 <= level <= 24):
             return jsonify({'error': 'Zoom level must be between 0 and 24'}), 400
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"pixel-generation-{area_id}-{level}-{timestamp}"
 
-        # Get admin boundary geometry if PCODE is provided
-        admin_geometry = None
-        if admin_pcode:
-            cursor.execute("""
-                SELECT geometry
-                FROM admin_boundaries
-                WHERE adm0_pcode = %s
-                   OR adm1_pcode = %s
-                   OR adm2_pcode = %s
-                   OR adm3_pcode = %s
-                   OR adm4_pcode = %s
-                LIMIT 1
-            """, (admin_pcode, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
-            result = cursor.fetchone()
-            if result:
-                admin_geometry = result[0]  # PostGIS geometry object
+        # Start workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                PixelGenerationWorkflow.run,
+                args=[area_id, bbox, level, append, admin_pcode],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
 
-        # Delete existing pixels for this area (only if not appending)
-        if not append:
-            cursor.execute("""
-                DELETE FROM pixels WHERE area_id = %s
-            """, (area_id,))
+        run_async(start_workflow())
 
-        # Generate tiles using mercantile
-        tiles = list(mercantile.tiles(min_lng, min_lat, max_lng, max_lat, zooms=[level]))
-
-        # Prepare batch insert data
-        pixel_data = []
-        for tile in tiles:
-            quadkey = mercantile.quadkey(tile)
-            bounds = mercantile.bounds(tile)
-
-            # Calculate centroid
-            centroid_lng = (bounds.west + bounds.east) / 2
-            centroid_lat = (bounds.south + bounds.north) / 2
-
-            # If admin boundary is provided, check if centroid is within it
-            if admin_geometry:
-                cursor.execute("""
-                    SELECT ST_Contains(%s::geometry, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
-                """, (admin_geometry, centroid_lng, centroid_lat))
-                is_within = cursor.fetchone()[0]
-                if not is_within:
-                    continue  # Skip this pixel
-
-            # Create polygon geometry WKT
-            geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"
-
-            pixel_data.append((
-                quadkey,
-                area_id,
-                geometry_wkt,
-                centroid_lat,
-                centroid_lng,
-                level
-            ))
-
-        # Batch insert/update pixels with admin boundary pcodes (upsert to avoid duplicates)
-        if pixel_data:
-            # Extract data into separate lists for unnest
-            quadkeys = [p[0] for p in pixel_data]
-            area_ids = [p[1] for p in pixel_data]
-            geometries = [p[2] for p in pixel_data]
-            latitudes = [p[3] for p in pixel_data]
-            longitudes = [p[4] for p in pixel_data]
-            levels = [p[5] for p in pixel_data]
-
-            cursor.execute("""
-                WITH pixel_data AS (
-                    SELECT
-                        unnest(%s::text[]) as quadkey,
-                        unnest(%s::uuid[]) as area_id,
-                        unnest(%s::text[]) as geometry_wkt,
-                        unnest(%s::decimal[]) as latitude,
-                        unnest(%s::decimal[]) as longitude,
-                        unnest(%s::integer[]) as level
-                ),
-                pixels_with_admin AS (
-                    SELECT
-                        pd.quadkey,
-                        pd.area_id,
-                        pd.geometry_wkt,
-                        pd.latitude,
-                        pd.longitude,
-                        pd.level,
-                        ab.adm1_pcode,
-                        ab.adm2_pcode,
-                        ab.adm3_pcode,
-                        ab.adm4_pcode
-                    FROM pixel_data pd
-                    LEFT JOIN LATERAL (
-                        SELECT adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
-                        FROM admin_boundaries
-                        WHERE ST_Contains(geometry, ST_SetSRID(ST_MakePoint(pd.longitude, pd.latitude), 4326))
-                        ORDER BY level DESC
-                        LIMIT 1
-                    ) ab ON true
-                )
-                INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode)
-                SELECT
-                    quadkey,
-                    area_id,
-                    ST_GeomFromText(geometry_wkt, 4326),
-                    latitude,
-                    longitude,
-                    level,
-                    adm1_pcode,
-                    adm2_pcode,
-                    adm3_pcode,
-                    adm4_pcode
-                FROM pixels_with_admin
-                ON CONFLICT (area_id, quadkey) DO UPDATE SET
-                    area_id = EXCLUDED.area_id,
-                    geometry = EXCLUDED.geometry,
-                    latitude = EXCLUDED.latitude,
-                    longitude = EXCLUDED.longitude,
-                    level = EXCLUDED.level,
-                    adm1_pcode = EXCLUDED.adm1_pcode,
-                    adm2_pcode = EXCLUDED.adm2_pcode,
-                    adm3_pcode = EXCLUDED.adm3_pcode,
-                    adm4_pcode = EXCLUDED.adm4_pcode,
-                    updated_at = NOW()
-            """, (quadkeys, area_ids, geometries, latitudes, longitudes, levels))
-
-            # Create default coverage_pixel records for the new pixels
-            from routes.coverage import create_default_coverage_pixels
-            quadkeys = [p[0] for p in pixel_data]
-            create_default_coverage_pixels(cursor, area_id, quadkeys)
-
-        conn.commit()
+        print(f"Started pixel generation workflow: {workflow_id}")
 
         return jsonify({
-            'count': len(pixel_data),
-            'level': level
-        }), 200
+            'workflow_id': workflow_id,
+            'status': 'started',
+            'message': 'Pixel generation started. Use the workflow_id to check progress.'
+        }), 202
 
     except Exception as e:
-        if conn:
-            conn.rollback()
-        print(f"Error generating pixels: {e}")
-        return jsonify({'error': str(e)}), 500
-    finally:
-        if conn:
-            return_db_connection(conn)
+        print(f"Error starting pixel generation workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start pixel generation', 'details': str(e)}), 500
+
+
+@pixels_bp.route('/api/pixels/generate/workflow/<workflow_id>/status', methods=['GET'])
+@require_auth
+def get_pixel_generation_status(user, workflow_id):
+    """Get status of pixel generation workflow"""
+    import asyncio
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.pixel_generation import PixelGenerationWorkflow
+    from temporalio.client import WorkflowExecutionStatus
+
+    try:
+        async def get_status():
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            # Check workflow status
+            try:
+                desc = await handle.describe()
+
+                if desc.status == WorkflowExecutionStatus.RUNNING:
+                    # Try to query progress
+                    try:
+                        progress = await handle.query(PixelGenerationWorkflow.get_progress)
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": progress
+                        }
+                    except Exception:
+                        # Query failed, return running without progress
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": None
+                        }
+                elif desc.status == WorkflowExecutionStatus.COMPLETED:
+                    # Get result
+                    result = await handle.result()
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "completed",
+                        "result": result
+                    }
+                else:
+                    # Failed/cancelled
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": desc.status.name.lower()
+                    }
+            except Exception as e:
+                # Workflow not found
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "failed",
+                    "error": str(e)
+                }
+
+        status = run_async(get_status())
+        return jsonify(status), 200
+
+    except Exception as e:
+        print(f"Error getting workflow status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get workflow status', 'details': str(e)}), 500
+
+
+@pixels_bp.route('/api/areas/<area_id>/pixels/generate', methods=['POST'])
+@require_auth
+def generate_pixels(user, area_id):
+    """Generate quadkey pixels using Temporal workflow (automatically starts workflow)"""
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.pixel_generation import PixelGenerationWorkflow
+
+    try:
+        check_area_access(user['id'], area_id)
+
+        data = request.get_json()
+        bbox = data.get('bbox')  # [minLng, minLat, maxLng, maxLat]
+        level = data.get('level', 18)
+        append = data.get('append', False)
+        admin_pcode = data.get('admin_pcode')
+
+        if not bbox or len(bbox) != 4:
+            return jsonify({'error': 'Invalid bbox. Expected [minLng, minLat, maxLng, maxLat]'}), 400
+
+        min_lng, min_lat, max_lng, max_lat = bbox
+
+        # Validate bbox
+        if not (-180 <= min_lng <= 180 and -180 <= max_lng <= 180):
+            return jsonify({'error': 'Longitude must be between -180 and 180'}), 400
+        if not (-90 <= min_lat <= 90 and -90 <= max_lat <= 90):
+            return jsonify({'error': 'Latitude must be between -90 and 90'}), 400
+        if min_lng >= max_lng or min_lat >= max_lat:
+            return jsonify({'error': 'Invalid bounding box coordinates'}), 400
+
+        # Validate level
+        if not (0 <= level <= 24):
+            return jsonify({'error': 'Zoom level must be between 0 and 24'}), 400
+
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"pixel-generation-{area_id}-{level}-{timestamp}"
+
+        # Start workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                PixelGenerationWorkflow.run,
+                args=[area_id, bbox, level, append, admin_pcode],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        print(f"Started pixel generation workflow: {workflow_id}")
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'status': 'started',
+            'message': 'Pixel generation started. Use the workflow_id to check progress.'
+        }), 202
+
+    except Exception as e:
+        print(f"Error starting pixel generation workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start pixel generation', 'details': str(e)}), 500
 
 
 @pixels_bp.route('/api/areas/<area_id>/pixels/stats', methods=['GET'])

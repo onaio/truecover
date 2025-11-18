@@ -10,9 +10,13 @@ from temporalio.worker import Worker
 # Import workflows
 from temporal.workflows.location_upload import LocationUploadWorkflow
 from temporal.workflows.overture_import import OvertureImportWorkflow
+from temporal.workflows.coverage_prediction import CoveragePredictionWorkflow
+from temporal.workflows.pixel_enrichment import PixelEnrichmentWorkflow
+from temporal.workflows.round_generation import RoundGenerationWorkflow
+from temporal.workflows.pixel_generation import PixelGenerationWorkflow
 
 # Import activities
-from temporal.activities import locations, overture
+from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels
 
 
 logging.basicConfig(level=logging.INFO)
@@ -57,6 +61,10 @@ async def main():
     all_activities = [
         *discover_activities(locations),
         *discover_activities(overture),
+        *discover_activities(coverage),
+        *discover_activities(enrichment),
+        *discover_activities(rounds),
+        *discover_activities(pixels),
     ]
 
     logger.info(f"Registered {len(all_activities)} activities")
@@ -68,6 +76,10 @@ async def main():
         workflows=[
             LocationUploadWorkflow,
             OvertureImportWorkflow,
+            CoveragePredictionWorkflow,
+            PixelEnrichmentWorkflow,
+            RoundGenerationWorkflow,
+            PixelGenerationWorkflow,
         ],
         activities=all_activities,
     )

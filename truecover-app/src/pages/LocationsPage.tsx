@@ -582,7 +582,10 @@ const LocationsPage: React.FC = () => {
                 indicatorId={selectedIndicatorId}
                 pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
                 pixelCount={pixelStats?.count || 0}
-                onGeneratePixels={() => setIsGeneratePixelsModalOpen(true)}
+                onGeneratePixels={() => {
+                  refetchPixelStats();
+                  setRefreshKey(prev => prev + 1);
+                }}
                 histogramBrushRanges={histogramBrushRanges}
                 histogramDataType={histogramTab}
                 sampledItemsCount={sampledItemsCount}

@@ -1,0 +1,18 @@
+
+> truecover-app@0.1.0 start
+> vite
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+  VITE v6.3.6  ready in 130 ms
+
+  ➜  Local:   http://localhost:3050/
+  ➜  Network: use --host to expose
+3:57:56 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+4:30:05 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+4:57:53 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+4:59:30 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+4:59:52 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+5:04:00 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+5:04:16 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+5:09:34 PM [vite] (client) hmr update /src/pages/LocationsPage.tsx, /src/index.css

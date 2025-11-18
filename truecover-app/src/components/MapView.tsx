@@ -7,8 +7,9 @@ import { Geocoder } from '@mapbox/search-js-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useAuth } from '@clerk/clerk-react';
-import { adminBoundariesApi } from '../services/api';
+import { adminBoundariesApi, pixelsApi } from '../services/api';
 import { useGeneratePixels } from '../hooks/usePixels';
+import { tacticalToast } from '../tactical-ui';
 
 interface MapViewProps {
   data: GeoJSONFeatureCollection;
@@ -738,19 +739,69 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     if (!pendingAdminPixelGen || !areaId) return;
 
     try {
-      await generatePixelsMutation.mutateAsync({
-        areaId,
-        bbox: pendingAdminPixelGen.bbox,
-        level: 18,
-        append: true,
-        admin_pcode: pendingAdminPixelGen.pcode
-      });
+      const token = await getToken();
+      if (!token) {
+        tacticalToast.error('Authentication Required', 'Please sign in to generate pixels');
+        return;
+      }
 
+      // Start the workflow
+      const response = await pixelsApi.generate(
+        areaId,
+        pendingAdminPixelGen.bbox,
+        18,
+        token,
+        true, // append
+        pendingAdminPixelGen.pcode
+      );
+
+      // Close modal immediately
       setShowPixelGenerateModal(false);
       setPendingAdminPixelGen(null);
       setPopupInfo(null);
-    } catch (error) {
-      console.error('Failed to generate pixels:', error);
+
+      // Show info toast that generation started
+      tacticalToast.info(
+        'Pixel Generation Started',
+        `Generating pixels for ${pendingAdminPixelGen.name}...`
+      );
+
+      // Poll for completion
+      const pollInterval = setInterval(async () => {
+        try {
+          const status = await pixelsApi.getGenerationStatus(response.workflow_id, token);
+
+          if (status.status === 'completed' && status.result) {
+            clearInterval(pollInterval);
+            tacticalToast.success(
+              'Pixels Generated',
+              `Created ${status.result.count.toLocaleString()} pixels for ${pendingAdminPixelGen.name}`
+            );
+            // Trigger parent refresh
+            if (onGeneratePixels) {
+              onGeneratePixels();
+            }
+          } else if (status.status === 'failed') {
+            clearInterval(pollInterval);
+            tacticalToast.error(
+              'Generation Failed',
+              status.error || 'Pixel generation failed'
+            );
+          }
+        } catch (err) {
+          console.error('Failed to check workflow status:', err);
+        }
+      }, 2000);
+
+      // Clean up interval after 10 minutes (failsafe)
+      setTimeout(() => clearInterval(pollInterval), 600000);
+
+    } catch (error: any) {
+      console.error('Failed to start pixel generation:', error);
+      tacticalToast.error(
+        'Generation Failed',
+        error.response?.data?.error || 'Failed to start pixel generation'
+      );
     }
   };
 

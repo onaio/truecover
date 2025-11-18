@@ -426,7 +426,7 @@ export const pixelsApi = {
     token: string,
     append?: boolean,
     admin_pcode?: string
-  ): Promise<{ count: number; level: number }> {
+  ): Promise<{ workflow_id: string; status: string; message: string }> {
     const response = await axios.post(
       `${API_URL}/api/areas/${areaId}/pixels/generate`,
       { bbox, level, append, admin_pcode },
@@ -434,6 +434,27 @@ export const pixelsApi = {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getGenerationStatus(
+    workflowId: string,
+    token: string
+  ): Promise<{
+    workflow_id: string;
+    status: string;
+    progress?: { pixels_inserted: number; total_pixels?: number };
+    result?: { count: number; level: number };
+    error?: string;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/pixels/generate/workflow/${workflowId}/status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
       }
     );

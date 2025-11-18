@@ -1,9 +1,10 @@
 // ABOUTME: Modal for generating quadkey pixel grids at specified zoom levels
 // ABOUTME: Displays zoom level reference table and estimates grid count based on viewport bounds
 
-import React, { useState, useMemo } from 'react';
-import { TacticalModal, TacticalButton, TacticalSelect } from '../tactical-ui';
-import { useGeneratePixels } from '../hooks/usePixels';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { TacticalModal, TacticalButton, TacticalSelect, TacticalBadge, tacticalToast } from '../tactical-ui';
+import { useAuth } from '@clerk/clerk-react';
+import { pixelsApi } from '../services/api';
 
 interface GeneratePixelsModalProps {
   isOpen: boolean;
@@ -48,8 +49,17 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
   currentBounds,
   onGenerated
 }) => {
+  console.log('🔥 NEW GeneratePixelsModal code loaded with polling!');
+  const { getToken } = useAuth();
   const [selectedLevel, setSelectedLevel] = useState<number>(18);
-  const generatePixels = useGeneratePixels();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  console.log('📊 State:', { isGenerating, isOpen, currentBounds });
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ pixels_inserted: number; total_pixels?: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const shouldPollRef = useRef(false);
 
   // Rough estimate of tile count based on bbox and level
   const estimatedCount = useMemo(() => {
@@ -66,41 +76,172 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
     return Math.ceil(tilesX * tilesY);
   }, [currentBounds, selectedLevel]);
 
+  // Poll for workflow status
+  const pollWorkflowStatus = async (wfId: string, token: string) => {
+    if (!shouldPollRef.current) return;
+
+    try {
+      const status = await pixelsApi.getGenerationStatus(wfId, token);
+
+      if (status.status === 'running' && status.progress) {
+        setProgress(status.progress);
+      } else if (status.status === 'completed' && status.result) {
+        // Workflow completed
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        shouldPollRef.current = false;
+        setProgress(null);
+        setIsGenerating(false);
+
+        // Show success toast
+        tacticalToast.success(
+          'Pixels Generated',
+          `Created ${status.result.count.toLocaleString()} pixels at level ${status.result.level}`
+        );
+
+        // Notify parent to refresh
+        onGenerated();
+
+        // Reset and close
+        setTimeout(() => {
+          handleClose();
+        }, 1000);
+      } else if (status.status === 'failed') {
+        // Workflow failed
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        shouldPollRef.current = false;
+        setError(status.error || 'Workflow failed');
+        setIsGenerating(false);
+        setProgress(null);
+        tacticalToast.error('Generation Failed', status.error || 'Pixel generation failed');
+      }
+    } catch (err: any) {
+      console.error('Failed to get workflow status:', err);
+    }
+  };
+
   const handleGenerate = async () => {
+    console.log('🚀 handleGenerate called');
     if (!currentBounds) {
-      alert('No viewport bounds available. Please move the map first.');
+      console.log('❌ No bounds');
+      setError('No viewport bounds available. Please move the map first.');
       return;
     }
 
-    try {
-      await generatePixels.mutateAsync({
-        areaId,
-        bbox: currentBounds,
-        level: selectedLevel
-      });
+    console.log('✅ Setting isGenerating to true');
+    setIsGenerating(true);
+    setError(null);
+    setProgress(null);
 
-      onGenerated();
-      onClose();
-    } catch (error: any) {
-      console.error('Error generating pixels:', error);
-      alert(`Error generating pixels: ${error.message || 'Unknown error'}`);
+    try {
+      console.log('🔑 Getting auth token...');
+      const token = await getToken();
+      if (!token) {
+        console.log('❌ No token');
+        setError('Authentication required');
+        setIsGenerating(false);
+        return;
+      }
+
+      console.log('📡 Starting workflow...', { areaId, bounds: currentBounds, level: selectedLevel });
+      // Start the workflow
+      const response = await pixelsApi.generate(
+        areaId,
+        currentBounds,
+        selectedLevel,
+        token
+      );
+
+      console.log('✅ Workflow started:', response);
+      setWorkflowId(response.workflow_id);
+      shouldPollRef.current = true;
+
+      // Start polling for status
+      pollIntervalRef.current = setInterval(() => {
+        pollWorkflowStatus(response.workflow_id, token);
+      }, 2000); // Poll every 2 seconds
+
+      // Do first poll immediately
+      pollWorkflowStatus(response.workflow_id, token);
+
+    } catch (err: any) {
+      console.error('❌ Failed to start pixel generation:', err);
+      setError(err.response?.data?.error || 'Failed to start pixel generation');
+      setIsGenerating(false);
+      tacticalToast.error('Generation Failed', err.response?.data?.error || 'Failed to start pixel generation');
     }
   };
 
   const handleClose = () => {
-    if (!generatePixels.isPending) {
+    // Stop polling but don't clear the interval if still generating
+    // This allows the workflow to continue in background
+    if (!isGenerating) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      shouldPollRef.current = false;
+      setWorkflowId(null);
+      setProgress(null);
+      setError(null);
       onClose();
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      shouldPollRef.current = false;
+    };
+  }, []);
 
   return (
     <TacticalModal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Generate Pixels"
+      title="Generate Pixels [UPDATED]"
       size="lg"
     >
       <div className="space-y-6">
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-start gap-3 p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
+            <TacticalBadge variant="danger">ERROR</TacticalBadge>
+            <span className="text-sm text-tactical-accent-red">{error}</span>
+          </div>
+        )}
+
+        {/* Progress Message */}
+        {isGenerating && (
+          <div className="p-3 border border-tactical-accent-orange bg-tactical-bg-secondary space-y-2">
+            <div className="flex items-center gap-3">
+              <TacticalBadge variant="warning">GENERATING</TacticalBadge>
+              <span className="text-sm text-tactical-accent-orange font-bold tactical-loading-dots">
+                Generating pixels<span>.</span><span>.</span><span>.</span>
+              </span>
+            </div>
+            {progress && (
+              <div className="text-xs text-tactical-text-secondary ml-[76px]">
+                <div>Pixels Inserted: {progress.pixels_inserted.toLocaleString()}</div>
+                {progress.total_pixels && (
+                  <div>Total: {progress.total_pixels.toLocaleString()}</div>
+                )}
+              </div>
+            )}
+            <div className="text-xs text-tactical-text-dim ml-[76px] mt-2">
+              You can close this modal - pixels will continue generating in the background.
+            </div>
+          </div>
+        )}
+
         {/* Current Viewport Bounds */}
         <div>
           <div className="mb-2 font-mono font-bold text-xs text-tactical-text-muted uppercase tracking-wider">
@@ -187,16 +328,26 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
           <TacticalButton
             variant="secondary"
             onClick={handleClose}
-            disabled={generatePixels.isPending}
+            disabled={false}
           >
-            Cancel
+            {isGenerating ? 'Close (continues in background)' : 'Cancel'}
           </TacticalButton>
           <TacticalButton
             variant="primary"
-            onClick={handleGenerate}
-            disabled={!currentBounds || generatePixels.isPending}
+            onClick={() => {
+              console.log('🖱️ Button clicked!');
+              alert('Button was clicked!');
+              handleGenerate();
+            }}
+            disabled={!currentBounds || isGenerating}
           >
-            {generatePixels.isPending ? 'Generating...' : 'Generate Pixels'}
+            {isGenerating ? (
+              <span className="tactical-loading-dots">
+                GENERATING<span>.</span><span>.</span><span>.</span>
+              </span>
+            ) : (
+              'Generate Pixels'
+            )}
           </TacticalButton>
         </div>
       </div>

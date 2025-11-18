@@ -1260,3 +1260,124 @@ def get_coverage_histogram(user, area_id):
     finally:
         if conn:
             return_db_connection(conn)
+
+
+@coverage_bp.route('/api/coverage/predict/workflow', methods=['POST'])
+@require_auth
+def predict_coverage_workflow(user):
+    """Start coverage prediction workflow using Temporal"""
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.coverage_prediction import CoveragePredictionWorkflow
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        area_id = data.get('area_id')
+        indicator_id = data.get('indicator_id')
+
+        if not area_id or not indicator_id:
+            return jsonify({'error': 'area_id and indicator_id are required'}), 400
+
+        # Check if user has access to this area
+        if not check_area_access(user['id'], area_id):
+            return jsonify({'error': 'Access denied'}), 403
+
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"coverage-prediction-{area_id}-{indicator_id}-{timestamp}"
+
+        # Start workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                CoveragePredictionWorkflow.run,
+                args=[area_id, indicator_id],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        print(f"Started coverage prediction workflow: {workflow_id}")
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'status': 'started',
+            'message': 'Coverage prediction started. Use the workflow_id to check progress.'
+        }), 202
+
+    except Exception as e:
+        print(f"Error starting coverage prediction workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start coverage prediction', 'details': str(e)}), 500
+
+
+@coverage_bp.route('/api/coverage/predict/workflow/<workflow_id>/status', methods=['GET'])
+@require_auth
+def get_coverage_prediction_status(user, workflow_id):
+    """Get status of coverage prediction workflow"""
+    import asyncio
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.coverage_prediction import CoveragePredictionWorkflow
+    from temporalio.client import WorkflowExecutionStatus
+
+    try:
+        async def get_status():
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            # Check workflow status
+            try:
+                desc = await handle.describe()
+
+                if desc.status == WorkflowExecutionStatus.RUNNING:
+                    # Try to query progress
+                    try:
+                        progress = await handle.query(CoveragePredictionWorkflow.get_progress)
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": progress
+                        }
+                    except Exception:
+                        # Query failed, return running without progress
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": None
+                        }
+                elif desc.status == WorkflowExecutionStatus.COMPLETED:
+                    # Get result
+                    result = await handle.result()
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "completed",
+                        "result": result
+                    }
+                else:
+                    # Failed/cancelled
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": desc.status.name.lower()
+                    }
+            except Exception as e:
+                # Workflow not found
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "failed",
+                    "error": str(e)
+                }
+
+        status = run_async(get_status())
+        return jsonify(status), 200
+
+    except Exception as e:
+        print(f"Error getting workflow status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get workflow status', 'details': str(e)}), 500
