@@ -20,6 +20,7 @@ dependencies = [
     "pyarrow>=22.0.0",
     "overturemaps>=0.17.0",
     "duckdb>=1.0.0",
+    "temporalio>=1.6.0",
 ]
 
 [project.optional-dependencies]

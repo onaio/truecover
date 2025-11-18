@@ -25,8 +25,10 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
   const [availableFields, setAvailableFields] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ inserted: number; updated: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ inserted: number; updated: number; errors: string[]; pixels_created?: number } | null>(null);
+  const [progress, setProgress] = useState<{ total_features: number; processed_features: number; inserted_count: number; updated_count: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const parseFileFields = async (selectedFile: File) => {
     try {
@@ -78,6 +80,55 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
     }
   };
 
+  const pollWorkflowStatus = async (workflowId: string, token: string) => {
+    try {
+      const status = await locationsApi.getUploadStatus(workflowId, token);
+
+      if (status.status === 'running' && status.progress) {
+        setProgress(status.progress);
+      } else if (status.status === 'completed' && status.result) {
+        // Workflow completed
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setResult(status.result);
+        setProgress(null);
+        setIsLoading(false);
+
+        // If successful, notify parent to refresh
+        if (status.result.inserted > 0 || status.result.updated > 0) {
+          onLocationsUploaded();
+        }
+
+        // Reset form if fully successful
+        if (status.result.errors.length === 0) {
+          setTimeout(() => {
+            handleClose();
+          }, 2000);
+        }
+      } else if (status.status === 'failed') {
+        // Workflow failed
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setError(status.error || 'Workflow failed');
+        setIsLoading(false);
+        setProgress(null);
+      }
+    } catch (err: any) {
+      console.error('Failed to get workflow status:', err);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      setError('Failed to check upload status');
+      setIsLoading(false);
+      setProgress(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -107,11 +158,13 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setProgress(null);
 
     try {
       const token = await getToken();
       if (!token) {
         setError('Authentication required');
+        setIsLoading(false);
         return;
       }
 
@@ -121,35 +174,37 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
         externalIdColumn: externalIdColumn.trim() || undefined
       };
 
-      const uploadResult = await locationsApi.upload(area.id, file, config, token);
-      setResult(uploadResult);
+      // Start the async workflow
+      const uploadResponse = await locationsApi.upload(area.id, file, config, token);
 
-      // If successful, notify parent to refresh
-      if (uploadResult.inserted > 0 || uploadResult.updated > 0) {
-        onLocationsUploaded();
-      }
+      // Start polling for status
+      pollIntervalRef.current = setInterval(() => {
+        pollWorkflowStatus(uploadResponse.workflow_id, token);
+      }, 2000); // Poll every 2 seconds
 
-      // Reset form if fully successful
-      if (uploadResult.errors.length === 0) {
-        setTimeout(() => {
-          handleClose();
-        }, 2000);
-      }
+      // Do first poll immediately
+      pollWorkflowStatus(uploadResponse.workflow_id, token);
+
     } catch (err: any) {
       console.error('Failed to upload locations:', err);
-      setError(err.response?.data?.error || 'Failed to upload locations');
-    } finally {
+      setError(err.response?.data?.error || 'Failed to start upload');
       setIsLoading(false);
     }
   };
 
   const handleClose = () => {
+    // Clean up polling interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
     setFile(null);
     setLatColumn('');
     setLngColumn('');
     setExternalIdColumn('');
     setError(null);
     setResult(null);
+    setProgress(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -174,6 +229,25 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
           </div>
         )}
 
+        {progress && (
+          <div className="p-3 border border-tactical-accent-orange bg-tactical-bg-secondary space-y-2">
+            <div className="flex items-center gap-3">
+              <TacticalBadge variant="warning">PROCESSING</TacticalBadge>
+              <span className="text-sm text-tactical-accent-orange font-bold tactical-loading-dots">
+                Uploading<span>.</span><span>.</span><span>.</span>
+              </span>
+            </div>
+            <div className="text-xs text-tactical-text-secondary space-y-1 ml-[76px]">
+              <div>Features: {progress.processed_features} / {progress.total_features}</div>
+              <div>Inserted: {progress.inserted_count}</div>
+              <div>Updated: {progress.updated_count}</div>
+              {progress.error_count > 0 && (
+                <div className="text-tactical-accent-red">Errors: {progress.error_count}</div>
+              )}
+            </div>
+          </div>
+        )}
+
         {result && (
           <div className="p-3 border border-tactical-accent-green bg-tactical-bg-secondary space-y-2">
             <div className="flex items-center gap-3">
@@ -183,6 +257,9 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
             <div className="text-xs text-tactical-text-secondary space-y-1 ml-[76px]">
               <div>Inserted: {result.inserted}</div>
               <div>Updated: {result.updated}</div>
+              {result.pixels_created !== undefined && result.pixels_created > 0 && (
+                <div>Pixels Created: {result.pixels_created}</div>
+              )}
               {result.errors.length > 0 && (
                 <div className="text-tactical-accent-red">
                   Errors: {result.errors.length}

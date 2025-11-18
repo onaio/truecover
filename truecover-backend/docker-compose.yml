@@ -33,5 +33,21 @@ services:
       postgres:
         condition: service_healthy
 
+  temporal:
+    image: temporalio/auto-setup:1.24.2
+    container_name: truecover-temporal
+    ports:
+      - "7233:7233"  # gRPC
+      - "8088:8088"  # Web UI
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=truecover
+      - POSTGRES_PWD=truecover
+      - POSTGRES_SEEDS=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:

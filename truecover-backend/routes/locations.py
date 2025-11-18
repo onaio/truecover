@@ -697,3 +697,133 @@ def delete_location(user, area_id, location_id):
     finally:
         if conn:
             return_db_connection(conn)
+
+
+@locations_bp.route('/api/areas/<area_id>/locations/upload/async', methods=['POST'])
+@require_auth
+def upload_locations_async(user, area_id):
+    """Upload locations using Temporal workflow (async)"""
+    import os
+    import tempfile
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.location_upload import LocationUploadWorkflow
+
+    print(f"===== ASYNC LOCATION UPLOAD STARTED =====")
+    print(f"Area ID: {area_id}")
+    print(f"User ID: {user.get('id')}")
+
+    try:
+        # Check if user has access to this area
+        if not check_area_access(user['id'], area_id):
+            print(f"ERROR: Access denied for user {user.get('id')} to area {area_id}")
+            return jsonify({'error': 'Access denied'}), 403
+
+        # Check for file
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        # Get configuration from form data
+        config = {}
+        if request.form.get('latColumn'):
+            config['latColumn'] = request.form.get('latColumn')
+        if request.form.get('lngColumn'):
+            config['lngColumn'] = request.form.get('lngColumn')
+        if request.form.get('externalIdColumn'):
+            config['externalIdColumn'] = request.form.get('externalIdColumn')
+
+        # Save file to temporary location
+        filename = file.filename.lower()
+        file_type = 'geojson' if filename.endswith(('.geojson', '.json')) else 'csv'
+
+        # Create temporary file
+        suffix = '.geojson' if file_type == 'geojson' else '.csv'
+        with tempfile.NamedTemporaryFile(mode='wb', suffix=suffix, delete=False) as temp_file:
+            file.save(temp_file.name)
+            temp_path = temp_file.name
+
+        print(f"Saved file to temporary path: {temp_path}")
+
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"location-upload-{area_id}-{timestamp}"
+
+        # Start workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                LocationUploadWorkflow.run,
+                args=[area_id, temp_path, file_type, config],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        print(f"Started workflow: {workflow_id}")
+        print(f"===== ASYNC LOCATION UPLOAD INITIATED =====")
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'status': 'started',
+            'message': 'Location upload started. Use the workflow_id to check progress.'
+        }), 202
+
+    except Exception as e:
+        print(f"===== ASYNC LOCATION UPLOAD FAILED =====")
+        print(f"Error starting upload workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start upload workflow', 'details': str(e)}), 500
+
+
+@locations_bp.route('/api/locations/upload/<workflow_id>/status', methods=['GET'])
+@require_auth
+def get_upload_status(user, workflow_id):
+    """Get status of location upload workflow"""
+    import asyncio
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.location_upload import LocationUploadWorkflow
+
+    try:
+        async def get_status():
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            # Try to get result (non-blocking)
+            try:
+                result = await asyncio.wait_for(handle.result(), timeout=0.1)
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "completed",
+                    "result": result
+                }
+            except asyncio.TimeoutError:
+                # Workflow still running, query progress
+                progress = await handle.query(LocationUploadWorkflow.get_progress)
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "running",
+                    "progress": progress
+                }
+            except Exception as e:
+                # Check if workflow failed
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "failed",
+                    "error": str(e)
+                }
+
+        status = run_async(get_status())
+        return jsonify(status), 200
+
+    except Exception as e:
+        print(f"Error getting workflow status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get workflow status', 'details': str(e)}), 500

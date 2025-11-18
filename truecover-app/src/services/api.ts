@@ -315,7 +315,7 @@ export const locationsApi = {
       externalIdColumn?: string;
     },
     token: string
-  ): Promise<{ inserted: number; updated: number; errors: string[] }> {
+  ): Promise<{ workflow_id: string; status: string }> {
     const formData = new FormData();
     formData.append('file', file);
     if (config.latColumn) formData.append('latColumn', config.latColumn);
@@ -323,12 +323,45 @@ export const locationsApi = {
     if (config.externalIdColumn) formData.append('externalIdColumn', config.externalIdColumn);
 
     const response = await axios.post(
-      `${API_URL}/api/areas/${areaId}/locations/upload`,
+      `${API_URL}/api/areas/${areaId}/locations/upload/async`,
       formData,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getUploadStatus(
+    workflowId: string,
+    token: string
+  ): Promise<{
+    workflow_id: string;
+    status: 'running' | 'completed' | 'failed';
+    progress?: {
+      total_features: number;
+      processed_features: number;
+      inserted_count: number;
+      updated_count: number;
+      error_count: number;
+    };
+    result?: {
+      success: boolean;
+      inserted: number;
+      updated: number;
+      pixels_created: number;
+      errors: string[];
+    };
+    error?: string;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/locations/upload/${workflowId}/status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
       }
     );
