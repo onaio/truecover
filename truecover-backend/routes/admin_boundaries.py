@@ -5,9 +5,14 @@ from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
 from auth.helpers import check_area_access
 from db.connection import get_db_connection, return_db_connection
+from temporal.client import get_temporal_client, run_async
+from temporal.workflows.overture_import import OvertureImportWorkflow
+from temporalio.client import WorkflowExecutionStatus
+import asyncio
 import json
 import duckdb
 import time
+from datetime import datetime
 
 admin_boundaries_bp = Blueprint('admin_boundaries', __name__)
 
@@ -552,3 +557,106 @@ def import_overture_buildings(user, pcode):
             con.close()
         if conn:
             return_db_connection(conn)
+
+
+@admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/import-overture-buildings/async', methods=['POST'])
+@require_auth
+def import_overture_buildings_async(user, pcode):
+    """Start async Overture Maps building import workflow"""
+    data = request.get_json()
+    area_id = data.get('area_id')
+
+    if not area_id:
+        return jsonify({'error': 'area_id is required'}), 400
+
+    check_area_access(user['id'], area_id)
+
+    try:
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"overture-import-{pcode}-{area_id}-{timestamp}"
+
+        # Start the workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                OvertureImportWorkflow.run,
+                args=[pcode, area_id],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+
+        run_async(start_workflow())
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'status': 'started'
+        }), 202
+
+    except Exception as e:
+        print(f"Error starting Overture import workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to start import: {str(e)}'}), 500
+
+
+@admin_boundaries_bp.route('/api/overture/import/<workflow_id>/status', methods=['GET'])
+@require_auth
+def get_overture_import_status(user, workflow_id):
+    """Get status of Overture import workflow"""
+    try:
+        async def get_status():
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            # Check workflow status
+            try:
+                desc = await handle.describe()
+
+                if desc.status == WorkflowExecutionStatus.RUNNING:
+                    # Workflow is running, try to get progress
+                    try:
+                        progress = await handle.query(OvertureImportWorkflow.get_progress)
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": progress
+                        }
+                    except Exception as query_error:
+                        # Query failed (timeout/expired), but workflow is still running
+                        # Return running status without progress
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": None
+                        }
+                elif desc.status == WorkflowExecutionStatus.COMPLETED:
+                    # Workflow completed, get result
+                    result = await handle.result()
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "completed",
+                        "result": result
+                    }
+                else:
+                    # Workflow failed/cancelled
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": desc.status.name.lower()
+                    }
+            except Exception as e:
+                # Workflow not found or other error
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "failed",
+                    "error": str(e)
+                }
+
+        status = run_async(get_status())
+        return jsonify(status), 200
+
+    except Exception as e:
+        print(f"Error getting workflow status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to get status: {str(e)}'}), 500
