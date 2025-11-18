@@ -262,9 +262,22 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_pixels_area_id ON pixels(area_id);
         """)
 
-        # Create unique index on quadkey to prevent duplicates
+        # Drop old unique index on quadkey alone (pixels can exist in multiple areas)
         cursor.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_pixels_quadkey_unique ON pixels(quadkey);
+            DROP INDEX IF EXISTS idx_pixels_quadkey_unique;
+        """)
+
+        # Create unique constraint on (area_id, quadkey) to allow same quadkey in different areas
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'pixels_area_quadkey_unique'
+                ) THEN
+                    ALTER TABLE pixels ADD CONSTRAINT pixels_area_quadkey_unique UNIQUE (area_id, quadkey);
+                END IF;
+            END $$;
         """)
 
         # Create indexes on admin pcode columns for faster filtering
@@ -909,6 +922,64 @@ def run_migrations():
             print(f"Backfilled {len(coverage_updates)} coverage quadkeys")
         else:
             print("No coverage records to backfill")
+
+        # Backfill missing coverage records for locations without them
+        print("Creating missing coverage records for locations...")
+        cursor.execute("""
+            INSERT INTO coverage (location_id, area_id, indicator_id, version, n_trials, n_covered, quadkey)
+            SELECT
+                l.id as location_id,
+                l.area_id,
+                i.id as indicator_id,
+                0 as version,
+                0 as n_trials,
+                0 as n_covered,
+                l.quadkey
+            FROM locations l
+            CROSS JOIN indicators i
+            JOIN areas a ON l.area_id = a.id
+            JOIN projects p ON a.project_id = p.id
+            WHERE p.id = i.project_id
+              AND NOT EXISTS (
+                SELECT 1 FROM coverage c
+                WHERE c.location_id = l.id
+                  AND c.indicator_id = i.id
+                  AND c.version = 0
+              )
+        """)
+        missing_coverage_count = cursor.rowcount
+        if missing_coverage_count > 0:
+            print(f"Created {missing_coverage_count} missing coverage records")
+        else:
+            print("No missing coverage records to create")
+
+        # Create materialized view for pixel location counts
+        print("Creating materialized view for pixel location counts...")
+        cursor.execute("""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS pixel_location_counts AS
+            SELECT
+                quadkey,
+                area_id,
+                COUNT(*) as location_count
+            FROM locations
+            WHERE quadkey IS NOT NULL
+            GROUP BY quadkey, area_id
+        """)
+
+        # Create indexes on the materialized view
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_pixel_location_counts_quadkey_area
+            ON pixel_location_counts(quadkey, area_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pixel_location_counts_quadkey
+            ON pixel_location_counts(quadkey)
+        """)
+
+        print("Refreshing materialized view...")
+        cursor.execute("REFRESH MATERIALIZED VIEW pixel_location_counts")
+        print("Materialized view created and refreshed")
 
         conn.commit()
         print("Database migrations completed successfully")

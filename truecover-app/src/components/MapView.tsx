@@ -35,6 +35,7 @@ interface MapViewProps {
   sampledItemsCount?: number;
   planningMode?: boolean;
   onAddRoundForAdminBoundary?: (pcode: string, name: string) => void;
+  onAddLocationsForAdminBoundary?: (pcode: string, name: string) => void;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -69,7 +70,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary, onAddLocationsForAdminBoundary }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -79,6 +80,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const [currentZoom, setCurrentZoom] = useState<number>(1.5);
   const [visibleAdminLevels, setVisibleAdminLevels] = useState<number[]>([0, 1, 2, 3, 4]);
   const [hoveredAdminId, setHoveredAdminId] = useState<string | null>(null);
+  const [showBuildings, setShowBuildings] = useState<boolean>(true);
   const [showPixelGenerateModal, setShowPixelGenerateModal] = useState<boolean>(false);
   const [pendingAdminPixelGen, setPendingAdminPixelGen] = useState<{
     pcode: string;
@@ -594,6 +596,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     id: 'all-points',
     type: 'circle',
     filter: ['==', ['geometry-type'], 'Point'],
+    minzoom: 10,
+    maxzoom: 22,
     paint: {
       'circle-radius': 3,
       // When interpolation is active, make fill transparent to see heatmap underneath
@@ -608,6 +612,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     id: 'selected-points',
     type: 'circle',
     filter: ['==', ['geometry-type'], 'Point'],
+    minzoom: 10,
+    maxzoom: 22,
     paint: {
       'circle-radius': 3,
       // When both visit locations AND interpolation are active, make fill transparent
@@ -1002,10 +1008,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         'case',
         shouldShowLocation(),
         '#28a745',
-        '#ffffff'
+        'rgba(255, 255, 255, 0)'
       ];
     }
-    return '#ffffff';
+    return 'rgba(255, 255, 255, 0)';
   };
 
   const getPointStrokeWidth = () => {
@@ -1196,6 +1202,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   id="locations-points"
                   type="circle"
                   source-layer="locations"
+                  minzoom={10}
                   filter={buildHistogramFilter(['==', ['geometry-type'], 'Point'])}
                   paint={{
                     'circle-radius': 3,
@@ -1702,6 +1709,38 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </Source>
           )}
 
+          {/* Buildings Layer from Overture Maps via Martin */}
+          {showBuildings && (
+            <Source
+              id="buildings-source"
+              type="vector"
+              tiles={[`http://localhost:3051/buildings/{z}/{x}/{y}`]}
+              minzoom={3}
+              maxzoom={14}
+            >
+              <Layer
+                id="buildings-fill"
+                type="fill"
+                source-layer="building"
+                minzoom={12}
+                paint={{
+                  'fill-color': '#4393c3',
+                  'fill-opacity': 0.2
+                }}
+              />
+              <Layer
+                id="buildings-outline"
+                type="line"
+                source-layer="building"
+                minzoom={12}
+                paint={{
+                  'line-color': '#2166ac',
+                  'line-width': 1
+                }}
+              />
+            </Source>
+          )}
+
           {/* Popup */}
           {popupInfo && (
             <Popup
@@ -1811,6 +1850,21 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                       className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-green hover:bg-opacity-80 text-black"
                     >
                       Add Round
+                    </button>
+                  )}
+
+                  {/* Add Locations button - only show when planning mode is enabled */}
+                  {planningMode && onAddLocationsForAdminBoundary && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
+                    <button
+                      onClick={() => {
+                        const pcode = popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`];
+                        const name = popupInfo.properties[`ADM${popupInfo.properties.level}_EN`];
+                        onAddLocationsForAdminBoundary(pcode, name);
+                        setPopupInfo(null);
+                      }}
+                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-blue hover:bg-opacity-80 text-black"
+                    >
+                      Add Locations
                     </button>
                   )}
                 </div>
@@ -1924,6 +1978,23 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 </span>
               </label>
             ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-tactical-border-medium">
+            <div className="mb-2 font-mono font-bold text-xs text-tactical-text-muted uppercase tracking-wider">
+              Layers
+            </div>
+            <label className="flex items-center mb-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showBuildings}
+                onChange={(e) => setShowBuildings(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="font-mono text-xs text-tactical-text-primary">
+                Buildings
+              </span>
+            </label>
           </div>
 
           <div className="mt-3 pt-3 border-t border-tactical-border-medium">

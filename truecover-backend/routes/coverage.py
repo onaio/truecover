@@ -617,8 +617,29 @@ def list_area_coverage(user, area_id):
         # Get query parameters for filtering
         indicator_id = request.args.get('indicator_id')
 
-        # Build dynamic query based on filters
-        query = """
+        # Get pagination parameters
+        limit = request.args.get('limit', type=int, default=200)
+        offset = request.args.get('offset', type=int, default=0)
+
+        # Build base WHERE clause for both queries
+        where_clause = "WHERE c.area_id = %s"
+        params = [area_id]
+
+        if indicator_id:
+            where_clause += " AND c.indicator_id = %s"
+            params.append(indicator_id)
+
+        # Get total count first
+        count_query = f"""
+            SELECT COUNT(*)
+            FROM coverage c
+            {where_clause}
+        """
+        cursor.execute(count_query, tuple(params))
+        total_count = cursor.fetchone()[0]
+
+        # Build data query
+        query = f"""
             SELECT
                 c.id, c.location_id, c.area_id, c.indicator_id, c.version,
                 c.n_trials, c.n_covered,
@@ -631,13 +652,10 @@ def list_area_coverage(user, area_id):
             FROM coverage c
             JOIN locations l ON c.location_id = l.id
             JOIN indicators i ON c.indicator_id = i.id
-            WHERE c.area_id = %s
+            {where_clause}
+            ORDER BY c.created_at DESC LIMIT %s OFFSET %s
         """
-        params = [area_id]
-
-        if indicator_id:
-            query += " AND c.indicator_id = %s"
-            params.append(indicator_id)
+        params.extend([limit, offset])
 
         cursor.execute(query, tuple(params))
 
@@ -667,7 +685,10 @@ def list_area_coverage(user, area_id):
             })
 
         cursor.close()
-        return jsonify({'coverage': coverage_records}), 200
+        return jsonify({
+            'coverage': coverage_records,
+            'total_count': total_count
+        }), 200
 
     except Exception as e:
         print(f"Error listing area coverage: {e}")
@@ -943,8 +964,37 @@ def list_area_coverage_pixel(user, area_id):
         indicator_id = request.args.get('indicator_id')
         only_with_locations = request.args.get('only_with_locations', 'false').lower() == 'true'
 
-        # Build dynamic query based on filters
-        query = """
+        # Get pagination parameters
+        limit = request.args.get('limit', type=int, default=200)
+        offset = request.args.get('offset', type=int, default=0)
+
+        # Build base WHERE clause for both queries
+        where_clause = "WHERE cp.area_id = %s"
+        params = [area_id]
+
+        if indicator_id:
+            where_clause += " AND cp.indicator_id = %s"
+            params.append(indicator_id)
+
+        if only_with_locations:
+            where_clause += """
+                AND EXISTS (
+                    SELECT 1 FROM locations l
+                    WHERE l.quadkey = cp.quadkey AND l.area_id = cp.area_id
+                )
+            """
+
+        # Get total count first
+        count_query = f"""
+            SELECT COUNT(*)
+            FROM coverage_pixel cp
+            {where_clause}
+        """
+        cursor.execute(count_query, tuple(params))
+        total_count = cursor.fetchone()[0]
+
+        # Build data query
+        query = f"""
             SELECT
                 cp.id, cp.quadkey, cp.area_id, cp.indicator_id, cp.version,
                 cp.n_trials, cp.n_covered,
@@ -953,25 +1003,16 @@ def list_area_coverage_pixel(user, area_id):
                 cp.created_at, cp.updated_at, cp.last_predicted_at,
                 i.name as indicator_name,
                 cp.rounds,
-                p.latitude, p.longitude
+                p.latitude, p.longitude,
+                COALESCE(plc.location_count, 0) as location_count
             FROM coverage_pixel cp
             JOIN indicators i ON cp.indicator_id = i.id
             LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-            WHERE cp.area_id = %s
+            LEFT JOIN pixel_location_counts plc ON cp.quadkey = plc.quadkey AND cp.area_id = plc.area_id
+            {where_clause}
+            ORDER BY cp.created_at DESC LIMIT %s OFFSET %s
         """
-        params = [area_id]
-
-        if indicator_id:
-            query += " AND cp.indicator_id = %s"
-            params.append(indicator_id)
-
-        if only_with_locations:
-            query += """
-                AND EXISTS (
-                    SELECT 1 FROM locations l
-                    WHERE l.quadkey = cp.quadkey AND l.area_id = cp.area_id
-                )
-            """
+        params.extend([limit, offset])
 
         cursor.execute(query, tuple(params))
 
@@ -995,11 +1036,15 @@ def list_area_coverage_pixel(user, area_id):
                 'indicator_name': row[14],
                 'rounds': list(row[15]) if row[15] else [],
                 'latitude': float(row[16]) if row[16] is not None else None,
-                'longitude': float(row[17]) if row[17] is not None else None
+                'longitude': float(row[17]) if row[17] is not None else None,
+                'location_count': row[18]
             })
 
         cursor.close()
-        return jsonify({'coverage_pixel': coverage_pixel_records}), 200
+        return jsonify({
+            'coverage_pixel': coverage_pixel_records,
+            'total_count': total_count
+        }), 200
 
     except Exception as e:
         print(f"Error listing area coverage_pixel: {e}")

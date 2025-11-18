@@ -544,6 +544,18 @@ def list_locations(user, area_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Get pagination parameters
+        limit = request.args.get('limit', type=int, default=200)
+        offset = request.args.get('offset', type=int, default=0)
+
+        # Get total count first
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM locations
+            WHERE area_id = %s
+        """, (area_id,))
+        total_count = cursor.fetchone()[0]
+
         # Return lightweight list without geometry - map uses vector tiles now
         cursor.execute("""
             SELECT
@@ -554,7 +566,8 @@ def list_locations(user, area_id):
             FROM locations
             WHERE area_id = %s
             ORDER BY created_at DESC
-        """, (area_id,))
+            LIMIT %s OFFSET %s
+        """, (area_id, limit, offset))
 
         locations = []
         for row in cursor.fetchall():
@@ -578,7 +591,10 @@ def list_locations(user, area_id):
 
         cursor.close()
 
-        return jsonify({'locations': locations}), 200
+        return jsonify({
+            'locations': locations,
+            'total_count': total_count
+        }), 200
 
     except Exception as e:
         import traceback

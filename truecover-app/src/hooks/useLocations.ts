@@ -1,6 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import { locationsApi } from '../services/api';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 /**
  * Hook to fetch locations for a specific area
@@ -22,6 +25,45 @@ export function useLocations(areaId: string | undefined) {
 
       return locationsApi.list(areaId, token);
     },
+    enabled: !!areaId && isSignedIn,
+  });
+}
+
+/**
+ * Hook to fetch locations with infinite scroll pagination
+ */
+export function useInfiniteLocations(areaId: string | undefined) {
+  const { getToken, isSignedIn } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: ['locations-infinite', areaId],
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!areaId) {
+        throw new Error('Area ID is required');
+      }
+
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+
+      const response = await axios.get(
+        `${API_URL}/api/areas/${areaId}/locations?limit=200&offset=${pageParam}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      return {
+        locations: response.data.locations || [],
+        total_count: response.data.total_count || 0,
+      };
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      const hasMore = lastPage.locations.length === 200;
+      return hasMore ? allPages.length * 200 : undefined;
+    },
+    initialPageParam: 0,
     enabled: !!areaId && isSignedIn,
   });
 }

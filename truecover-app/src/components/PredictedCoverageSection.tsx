@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TacticalCard, TacticalButton, TacticalCollapsible } from '../tactical-ui';
 import PredictCoverageModal from './PredictCoverageModal';
 import GenerateMockVisitDataModal from './GenerateMockVisitDataModal';
@@ -17,6 +17,12 @@ interface PredictedCoverageSectionProps {
   coveragePixelData: CoveragePixelRecord[];
   isLoadingCoverage: boolean;
   onRefetchCoverage: () => void;
+  onLoadMore: () => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  locationTotalCount: number;
+  pixelTotalCount: number;
+  onRoundClick?: (roundNumber: number) => void;
 }
 
 const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
@@ -30,6 +36,12 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   coveragePixelData,
   isLoadingCoverage,
   onRefetchCoverage,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
+  locationTotalCount,
+  pixelTotalCount,
+  onRoundClick,
 }) => {
   const [isPredictCoverageModalOpen, setIsPredictCoverageModalOpen] = useState(false);
   const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = useState(false);
@@ -37,10 +49,22 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   const [isExportDataModalOpen, setIsExportDataModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'locations' | 'pixels'>('locations');
 
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
   // Reload data when modal closes
   const handleModalClose = () => {
     setIsPredictCoverageModalOpen(false);
     onRefetchCoverage();
+  };
+
+  // Handle scroll to bottom for infinite loading
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrolledToBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 100;
+
+    if (scrolledToBottom && hasMore && !isLoadingMore) {
+      onLoadMore();
+    }
   };
 
   return (
@@ -49,7 +73,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
         <TacticalCollapsible
           title="Predicted Coverage"
           defaultCollapsed={false}
-          collapsedSummary={`(${coverageData.length} Locations, ${coveragePixelData.length} Pixels)`}
+          collapsedSummary={`(${locationTotalCount} Locations, ${pixelTotalCount} Pixels)`}
           actionButton={
             <div className="flex gap-2">
               <TacticalButton
@@ -93,7 +117,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
               }`}
               onClick={() => setActiveTab('locations')}
             >
-              Locations ({coverageData.length})
+              Locations ({locationTotalCount})
             </button>
             <button
               className={`px-4 py-2 font-medium transition-colors ${
@@ -103,7 +127,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
               }`}
               onClick={() => setActiveTab('pixels')}
             >
-              Pixels ({coveragePixelData.length})
+              Pixels ({pixelTotalCount})
             </button>
           </div>
 
@@ -127,7 +151,11 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
               </p>
             </div>
           ) : activeTab === 'locations' ? (
-            <div className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
+            <div
+              ref={tableContainerRef}
+              className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary"
+              onScroll={handleScroll}
+            >
               <table className="tactical-table text-tactical-text-secondary">
                 <thead>
                   <tr className="sticky top-0 z-10">
@@ -161,7 +189,18 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                         </td>
                         <td className={`font-bold ${rowTextColor}`}>
                           {hasRounds
-                            ? record.rounds.sort((a, b) => a - b).join(', ')
+                            ? record.rounds.sort((a, b) => a - b).map((roundNum, idx) => (
+                                <React.Fragment key={roundNum}>
+                                  {idx > 0 && ', '}
+                                  <button
+                                    onClick={() => onRoundClick?.(roundNum)}
+                                    className="hover:underline cursor-pointer hover:text-tactical-accent-blue transition-colors"
+                                    title={`Filter by round ${roundNum}`}
+                                  >
+                                    {roundNum}
+                                  </button>
+                                </React.Fragment>
+                              ))
                             : '-'}
                         </td>
                       <td className={rowTextColor}>
@@ -201,14 +240,23 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   })}
                 </tbody>
               </table>
+              {isLoadingMore && (
+                <div className="py-4 text-center text-tactical-text-dim">
+                  Loading more locations...
+                </div>
+              )}
             </div>
           ) : (
-            <div className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
+            <div
+              className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary"
+              onScroll={handleScroll}
+            >
               <table className="tactical-table text-tactical-text-secondary">
                 <thead>
                   <tr className="sticky top-0 z-10">
                     <th className="bg-tactical-bg-secondary">Coverage ID</th>
                     <th className="bg-tactical-bg-secondary">Quadkey</th>
+                    <th className="bg-tactical-bg-secondary">Locations</th>
                     <th className="bg-tactical-bg-secondary">Rounds</th>
                     <th className="bg-tactical-bg-secondary">N Trials</th>
                     <th className="bg-tactical-bg-secondary">N Covered</th>
@@ -233,9 +281,23 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                         <td className={rowTextColor}>
                           {record.quadkey}
                         </td>
+                        <td className={rowTextColor}>
+                          {record.location_count}
+                        </td>
                         <td className={`font-bold ${rowTextColor}`}>
                           {hasRounds
-                            ? record.rounds.sort((a, b) => a - b).join(', ')
+                            ? record.rounds.sort((a, b) => a - b).map((roundNum, idx) => (
+                                <React.Fragment key={roundNum}>
+                                  {idx > 0 && ', '}
+                                  <button
+                                    onClick={() => onRoundClick?.(roundNum)}
+                                    className="hover:underline cursor-pointer hover:text-tactical-accent-blue transition-colors"
+                                    title={`Filter by round ${roundNum}`}
+                                  >
+                                    {roundNum}
+                                  </button>
+                                </React.Fragment>
+                              ))
                             : '-'}
                         </td>
                         <td className={rowTextColor}>{record.n_trials}</td>
@@ -265,6 +327,11 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   })}
                 </tbody>
               </table>
+              {isLoadingMore && (
+                <div className="py-4 text-center text-tactical-text-dim">
+                  Loading more pixels...
+                </div>
+              )}
             </div>
           )}
         </TacticalCollapsible>

@@ -4,10 +4,31 @@ import { TacticalBadge, TacticalButton } from '../tactical-ui';
 interface LocationsTableProps {
   locations: any;
   onEditLocation?: (location: any) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
-const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocation }) => {
+const LocationsTable: React.FC<LocationsTableProps> = ({
+  locations,
+  onEditLocation,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false
+}) => {
   const locationList = locations?.locations || [];
+
+  // Handle scroll to bottom for infinite loading
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!onLoadMore || !hasMore || isLoadingMore) return;
+
+    const target = e.currentTarget;
+    const scrolledToBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 100;
+
+    if (scrolledToBottom) {
+      onLoadMore();
+    }
+  };
 
   if (locationList.length === 0) {
     return (
@@ -34,7 +55,10 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
   ];
 
   return (
-    <div className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
+    <div
+      className="w-full h-[400px] overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary"
+      onScroll={handleScroll}
+    >
       <table className="tactical-table text-tactical-text-secondary">
         <thead>
           <tr className="sticky top-0 z-10">
@@ -100,6 +124,11 @@ const LocationsTable: React.FC<LocationsTableProps> = ({ locations, onEditLocati
           })}
         </tbody>
       </table>
+      {isLoadingMore && (
+        <div className="py-4 text-center text-tactical-text-dim">
+          Loading more locations...
+        </div>
+      )}
     </div>
   );
 };

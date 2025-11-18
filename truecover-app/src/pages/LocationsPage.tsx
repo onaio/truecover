@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../contexts/AppContext';
 import { useLocationsData } from '../hooks/useLocationsData';
+import { useInfiniteLocations } from '../hooks/useLocations';
 import { useCoverageData } from '../hooks/useCoverageData';
 import { useIndicators } from '../hooks/useIndicators';
 import { useRounds } from '../hooks/useRounds';
@@ -12,6 +13,7 @@ import LocationUploadModal from '../components/LocationUploadModal';
 import LocationEditModal from '../components/LocationEditModal';
 import GeneratePixelsModal from '../components/GeneratePixelsModal';
 import EnrichPixelsModal from '../components/EnrichPixelsModal';
+import AddOvertureLocationsModal from '../components/AddOvertureLocationsModal';
 import LocationsTable from '../components/LocationsTable';
 import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
@@ -74,6 +76,7 @@ const LocationsPage: React.FC = () => {
   const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
   const [planningMode, setPlanningMode] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
+  const [selectedAdminBoundaryForLocations, setSelectedAdminBoundaryForLocations] = useState<{ pcode: string; name: string } | null>(null);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
   const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedArea?.id);
@@ -94,16 +97,49 @@ const LocationsPage: React.FC = () => {
     return undefined;
   }, [selectedRoundIds]);
 
-  // Use React Query hook to fetch coverage data
-  const { data: coverageDataResult, isLoading: isLoadingCoverage, refetch: refetchCoverage } = useCoverageData(
+  // Use React Query hook to fetch coverage data with infinite scroll
+  const {
+    data: coverageDataResult,
+    isLoading: isLoadingCoverage,
+    refetch: refetchCoverage,
+    fetchNextPage: fetchNextCoveragePage,
+    hasNextPage: hasNextCoveragePage,
+    isFetchingNextPage: isFetchingNextCoveragePage,
+  } = useCoverageData(
     selectedArea?.id,
     selectedIndicatorId,
     coverageRoundId,
     refreshKey
   );
 
-  const coverageData = coverageDataResult?.locationData || [];
-  const coveragePixelData = coverageDataResult?.pixelData || [];
+  // Flatten all pages of data
+  const coverageData = React.useMemo(() => {
+    if (!coverageDataResult?.pages) return [];
+    return coverageDataResult.pages.flatMap(page => page.locationData);
+  }, [coverageDataResult]);
+
+  const coveragePixelData = React.useMemo(() => {
+    if (!coverageDataResult?.pages) return [];
+    return coverageDataResult.pages.flatMap(page => page.pixelData);
+  }, [coverageDataResult]);
+
+  // Use infinite query for locations table
+  const {
+    data: locationsResult,
+    fetchNextPage: fetchNextLocationsPage,
+    hasNextPage: hasNextLocationsPage,
+    isFetchingNextPage: isFetchingNextLocationsPage,
+  } = useInfiniteLocations(selectedArea?.id);
+
+  // Flatten all pages of location data
+  const locationsFlattened = React.useMemo(() => {
+    if (!locationsResult?.pages) return [];
+    return locationsResult.pages.flatMap(page => page.locations);
+  }, [locationsResult]);
+
+  // Get total counts from first page (they're the same across all pages)
+  const locationTotalCount = locationsResult?.pages?.[0]?.total_count || locations?.total_count || locations?.locations?.length || 0;
+  const pixelTotalCount = coverageDataResult?.pages?.[0]?.pixelTotalCount || 0;
 
   // Set default indicator to first one when indicators load
   useEffect(() => {
@@ -304,7 +340,7 @@ const LocationsPage: React.FC = () => {
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {locations.locations.length}
+                  {locations.total_count || locations.locations.length}
                 </p>
               </div>
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
@@ -541,6 +577,7 @@ const LocationsPage: React.FC = () => {
                 sampledItemsCount={sampledItemsCount}
                 planningMode={planningMode}
                 onAddRoundForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundary({ pcode, name })}
+                onAddLocationsForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundaryForLocations({ pcode, name })}
               />
             </TacticalCard>
 
@@ -595,6 +632,17 @@ const LocationsPage: React.FC = () => {
               coveragePixelData={coveragePixelData}
               isLoadingCoverage={isLoadingCoverage}
               onRefetchCoverage={refetchCoverage}
+              onLoadMore={fetchNextCoveragePage}
+              hasMore={hasNextCoveragePage || false}
+              isLoadingMore={isFetchingNextCoveragePage}
+              locationTotalCount={locationTotalCount}
+              pixelTotalCount={pixelTotalCount}
+              onRoundClick={(roundNumber) => {
+                const round = rounds?.find(r => r.round_number === roundNumber);
+                if (round) {
+                  setSelectedRoundIds([round.id]);
+                }
+              }}
             />
 
             {/* Rounds Manager */}
@@ -616,10 +664,10 @@ const LocationsPage: React.FC = () => {
                 title="Locations"
                 defaultCollapsed={true}
                 collapsedSummary={(() => {
-                  if (!locations || !locations.locations) {
+                  if (!locationsResult) {
                     return '(Loading...)';
                   }
-                  const count = locations.locations.length;
+                  const count = locationTotalCount;
                   return `(${count} ${count === 1 ? 'Location' : 'Locations'})`;
                 })()}
                 actionButton={
@@ -634,12 +682,11 @@ const LocationsPage: React.FC = () => {
               >
                 <div className="border border-tactical-border-medium -mx-6 -mb-6">
                   <LocationsTable
-                    locations={
-                      !locations || !locations.locations
-                        ? { locations: [] }
-                        : locations
-                    }
+                    locations={{ locations: locationsFlattened }}
                     onEditLocation={handleEditLocation}
+                    onLoadMore={() => fetchNextLocationsPage()}
+                    hasMore={hasNextLocationsPage}
+                    isLoadingMore={isFetchingNextLocationsPage}
                   />
                 </div>
               </TacticalCollapsible>
@@ -830,6 +877,18 @@ const LocationsPage: React.FC = () => {
         pixelCount={pixelStats?.count || 0}
         onJobCreated={(jobId) => {
           console.log('Enrichment job created:', jobId);
+        }}
+      />
+
+      {/* Add Overture Locations Modal */}
+      <AddOvertureLocationsModal
+        isOpen={!!selectedAdminBoundaryForLocations}
+        onClose={() => setSelectedAdminBoundaryForLocations(null)}
+        areaId={selectedArea?.id || ''}
+        areaName={selectedArea?.name || ''}
+        adminBoundary={selectedAdminBoundaryForLocations}
+        onImportComplete={() => {
+          setRefreshKey(prev => prev + 1);
         }}
       />
       </div>

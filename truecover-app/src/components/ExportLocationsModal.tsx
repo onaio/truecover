@@ -35,8 +35,16 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     selectedIndicatorId
   );
 
-  const coverageData = coverageDataResult?.locationData || [];
-  const coveragePixelData = coverageDataResult?.pixelData || [];
+  // Flatten paginated data from infinite query
+  const coverageData = useMemo(() => {
+    if (!coverageDataResult?.pages) return [];
+    return coverageDataResult.pages.flatMap(page => page.locationData);
+  }, [coverageDataResult]);
+
+  const coveragePixelData = useMemo(() => {
+    if (!coverageDataResult?.pages) return [];
+    return coverageDataResult.pages.flatMap(page => page.pixelData);
+  }, [coverageDataResult]);
 
   // Set default indicator when indicators load
   useEffect(() => {

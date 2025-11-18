@@ -57,6 +57,7 @@ export interface CoveragePixelRecord {
   last_predicted_at: string | null;
   indicator_name: string;
   rounds: number[];
+  location_count: number;
 }
 
 interface ListCoverageParams {

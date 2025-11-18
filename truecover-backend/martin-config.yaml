@@ -20,7 +20,7 @@ postgres:
       minzoom: 0
       maxzoom: 24
 
-# PMTiles sources for admin boundaries
+# PMTiles sources for admin boundaries and buildings
 pmtiles:
   sources:
     # ADM0 - Country level boundaries
@@ -42,3 +42,7 @@ pmtiles:
     # ADM4 - Union level boundaries
     bgd_adm4:
       path: /pmtiles/bgd_adm4.pmtiles
+
+    # Overture Maps buildings layer
+    buildings:
+      path: https://overturemaps-tiles-us-west-2-beta.s3.amazonaws.com/2025-10-22/buildings.pmtiles
