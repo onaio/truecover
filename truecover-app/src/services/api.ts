@@ -632,5 +632,54 @@ export const adminBoundariesApi = {
       }
     );
     return response.data;
+  },
+
+  async importOvertureBuildingsAsync(pcode: string, areaId: string, token: string): Promise<{
+    workflow_id: string;
+    status: string;
+  }> {
+    const response = await axios.post(
+      `${API_URL}/api/admin-boundaries/${pcode}/import-overture-buildings/async`,
+      { area_id: areaId },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getOvertureImportStatus(
+    workflowId: string,
+    token: string
+  ): Promise<{
+    workflow_id: string;
+    status: 'running' | 'completed' | 'failed';
+    progress?: {
+      total_fetched: number;
+      total_inserted: number;
+      total_duplicates: number;
+      batches_processed: number;
+    };
+    result?: {
+      success: boolean;
+      inserted: number;
+      duplicates: number;
+      pixels_created: number;
+      total_fetched: number;
+      batches_processed: number;
+    };
+    error?: string;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/overture/import/${workflowId}/status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
   }
 };

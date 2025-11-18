@@ -708,6 +708,11 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_coverage_quadkey ON coverage(quadkey);
         """)
 
+        # Create index on created_at for sorting
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_created_at ON coverage(created_at DESC);
+        """)
+
         # Create coverage_pixel table for storing aggregated pixel-level predictions
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS coverage_pixel (
@@ -745,6 +750,9 @@ def run_migrations():
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_coverage_pixel_rounds ON coverage_pixel USING GIN(rounds);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_pixel_created_at ON coverage_pixel(created_at DESC);
         """)
 
         # Create pixel_metadata_definitions table
