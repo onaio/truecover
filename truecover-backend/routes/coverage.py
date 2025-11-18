@@ -653,7 +653,7 @@ def list_area_coverage(user, area_id):
             JOIN locations l ON c.location_id = l.id
             JOIN indicators i ON c.indicator_id = i.id
             {where_clause}
-            ORDER BY c.created_at DESC LIMIT %s OFFSET %s
+            ORDER BY (array_length(c.rounds, 1) IS NOT NULL AND array_length(c.rounds, 1) > 0) DESC, c.created_at DESC LIMIT %s OFFSET %s
         """
         params.extend([limit, offset])
 
@@ -1010,7 +1010,7 @@ def list_area_coverage_pixel(user, area_id):
             LEFT JOIN pixels p ON cp.quadkey = p.quadkey
             LEFT JOIN pixel_location_counts plc ON cp.quadkey = plc.quadkey AND cp.area_id = plc.area_id
             {where_clause}
-            ORDER BY cp.created_at DESC LIMIT %s OFFSET %s
+            ORDER BY (array_length(cp.rounds, 1) IS NOT NULL AND array_length(cp.rounds, 1) > 0) DESC, cp.created_at DESC LIMIT %s OFFSET %s
         """
         params.extend([limit, offset])
 

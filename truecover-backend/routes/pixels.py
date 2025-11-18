@@ -155,7 +155,7 @@ def generate_pixels(user, area_id):
                     adm3_pcode,
                     adm4_pcode
                 FROM pixels_with_admin
-                ON CONFLICT (quadkey) DO UPDATE SET
+                ON CONFLICT (area_id, quadkey) DO UPDATE SET
                     area_id = EXCLUDED.area_id,
                     geometry = EXCLUDED.geometry,
                     latitude = EXCLUDED.latitude,

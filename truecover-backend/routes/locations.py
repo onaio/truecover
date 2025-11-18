@@ -19,7 +19,7 @@ def calculate_quadkey(latitude, longitude, level=QUADKEY_LEVEL):
     if latitude is None or longitude is None:
         return None
     try:
-        tile = mercantile.tile(longitude, latitude, level)
+        tile = mercantile.tile(float(longitude), float(latitude), level)
         return mercantile.quadkey(tile)
     except Exception as e:
         print(f"Error calculating quadkey for lat={latitude}, lng={longitude}: {e}")
