@@ -104,3 +104,47 @@ export function useCoverageData(
     enabled: !!areaId && !!indicatorId && isSignedIn,
   });
 }
+
+/**
+ * Hook to fetch all coverage data at once (no pagination) for charts/histograms
+ */
+export function useAllCoverageData(
+  areaId: string | undefined,
+  indicatorId: string | undefined,
+  roundId?: string | undefined,
+  refreshKey?: number
+) {
+  const { getToken, isSignedIn } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: ['allCoverage', areaId, indicatorId, roundId, refreshKey],
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!areaId || !indicatorId) {
+        throw new Error('Area ID and Indicator ID are required');
+      }
+
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+
+      return fetchCoverageData(
+        {
+          area_id: areaId,
+          indicator_id: indicatorId,
+          round_id: roundId,
+          limit: 10000,
+          offset: pageParam,
+        },
+        token
+      );
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      // If either location or pixel data returned full page, there may be more
+      const hasMore = lastPage.locationData.length === 10000 || lastPage.pixelData.length === 10000;
+      return hasMore ? allPages.length * 10000 : undefined;
+    },
+    initialPageParam: 0,
+    enabled: !!areaId && !!indicatorId && isSignedIn,
+  });
+}

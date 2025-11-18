@@ -127,6 +127,10 @@ def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
             # Filter out None values from rounds and convert to list
             rounds = [r for r in (all_rounds or []) if r is not None]
 
+            # Cap n_trials at 100 for mock data and ensure n_covered <= n_trials
+            capped_trials = min(total_trials or 0, 100)
+            capped_covered = min(total_covered or 0, capped_trials)
+
             # Check if coverage_pixel entry exists
             cursor.execute("""
                 SELECT id FROM coverage_pixel
@@ -144,7 +148,7 @@ def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
                         rounds = %s,
                         updated_at = NOW()
                     WHERE id = %s
-                """, (total_trials, total_covered, rounds, existing[0]))
+                """, (capped_trials, capped_covered, rounds, existing[0]))
             else:
                 # Insert new record with predictions defaulting to 0
                 cursor.execute("""
@@ -155,7 +159,7 @@ def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
                         prevalence_bci_width, prevalence_prediction
                     )
                     VALUES (%s, %s, %s, 0, %s, %s, %s, 0, 0, 0, 0)
-                """, (quadkey, area_id, indicator_id, total_trials, total_covered, rounds))
+                """, (quadkey, area_id, indicator_id, capped_trials, capped_covered, rounds))
 
         print(f"Updated {len(aggregated_data)} coverage_pixel records for area {area_id}, indicator {indicator_id}")
 
