@@ -246,7 +246,7 @@ async def update_location_coverage(results: List[Dict[str, Any]], area_id: str, 
             cursor.execute("""
                 SELECT id, latitude, longitude
                 FROM locations
-                WHERE id = ANY(%s)
+                WHERE id::text = ANY(%s)
             """, (location_ids,))
 
             for row in cursor.fetchall():
