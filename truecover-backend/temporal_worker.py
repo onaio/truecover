@@ -14,9 +14,10 @@ from temporal.workflows.coverage_prediction import CoveragePredictionWorkflow
 from temporal.workflows.pixel_enrichment import PixelEnrichmentWorkflow
 from temporal.workflows.round_generation import RoundGenerationWorkflow
 from temporal.workflows.pixel_generation import PixelGenerationWorkflow
+from temporal.workflows.visit_upload import VisitUploadWorkflow
 
 # Import activities
-from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels
+from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels, visits
 
 
 logging.basicConfig(level=logging.INFO)
@@ -65,6 +66,7 @@ async def main():
         *discover_activities(enrichment),
         *discover_activities(rounds),
         *discover_activities(pixels),
+        *discover_activities(visits),
     ]
 
     logger.info(f"Registered {len(all_activities)} activities")
@@ -80,6 +82,7 @@ async def main():
             PixelEnrichmentWorkflow,
             RoundGenerationWorkflow,
             PixelGenerationWorkflow,
+            VisitUploadWorkflow,
         ],
         activities=all_activities,
     )
