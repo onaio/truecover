@@ -83,17 +83,19 @@ class RoundGenerationWorkflow:
         workflow.logger.info(f"Created round {round_number} with ID {round_id}")
 
         try:
-            # Activity 2: Fetch coverage data
-            coverage_data = await workflow.execute_activity(
-                fetch_coverage_for_sampling,
-                args=[area_id, indicator_id, sampling_target, allow_revisit, admin_pcode],
-                start_to_close_timeout=timedelta(minutes=2),
-                retry_policy=RetryPolicy(maximum_attempts=3)
+            # Activity 2: Call adaptive sampling (fetches data internally)
+            # Pass only metadata, not the actual data
+            sampling_results = await workflow.execute_activity(
+                call_adaptive_sampling,
+                args=[area_id, indicator_id, sampling_target, batch_size, uncertainty_field, allow_revisit, admin_pcode],
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=RetryPolicy(
+                    initial_interval=timedelta(seconds=1),
+                    maximum_attempts=3
+                )
             )
 
-            self.total_items = len(coverage_data)
-
-            if not coverage_data:
+            if not sampling_results or len(sampling_results.get('selected_ids', [])) == 0:
                 # No data found, delete round and return error
                 await workflow.execute_activity(
                     delete_round_record,
@@ -103,30 +105,19 @@ class RoundGenerationWorkflow:
                 )
                 raise ValueError(f"No {sampling_target} found for sampling")
 
-            workflow.logger.info(f"Fetched {len(coverage_data)} {sampling_target} for sampling")
+            selected_ids = sampling_results['selected_ids']
+            self.total_items = sampling_results.get('total_items', len(selected_ids))
+            self.selected_count = len(selected_ids)
 
-            # Activity 3: Call adaptive sampling
-            sampling_results = await workflow.execute_activity(
-                call_adaptive_sampling,
-                args=[coverage_data, sampling_target, batch_size, uncertainty_field],
-                start_to_close_timeout=timedelta(minutes=2),
-                retry_policy=RetryPolicy(
-                    initial_interval=timedelta(seconds=1),
-                    maximum_attempts=3
-                )
-            )
+            workflow.logger.info(f"Adaptive sampling selected {len(selected_ids)} of {self.total_items} {sampling_target}")
 
-            workflow.logger.info(f"Received {len(sampling_results)} results from adaptive sampling")
-
-            # Activity 4: Update round assignments
+            # Activity 3: Update round assignments (pass only IDs)
             selected_count = await workflow.execute_activity(
                 update_round_assignments,
-                args=[sampling_results, coverage_data, round_number, sampling_target],
+                args=[selected_ids, round_number, sampling_target],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
-
-            self.selected_count = selected_count
 
             workflow.logger.info(f"Round generation complete: {selected_count} {sampling_target} selected")
 

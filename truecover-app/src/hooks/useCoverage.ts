@@ -10,10 +10,20 @@ interface PredictCoverageParams {
 }
 
 interface PredictCoverageResult {
-  success: boolean;
-  total_locations: number;
-  updated: number;
-  errors: string[];
+  workflow_id: string;
+  status: string;
+  message: string;
+}
+
+interface PredictCoverageStatusResult {
+  workflow_id: string;
+  status: string;
+  result?: {
+    total_locations?: number;
+    total_pixels?: number;
+    updated: number;
+  };
+  error?: string;
 }
 
 export interface CoverageRecord {
@@ -73,12 +83,27 @@ export const useCoverage = () => {
     const token = await getToken();
 
     const response = await axios.post(
-      `${API_URL}/api/coverage/predict`,
+      `${API_URL}/api/coverage/predict/workflow`,
       params,
       {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    return response.data;
+  };
+
+  const getPredictionStatus = async (workflowId: string): Promise<PredictCoverageStatusResult> => {
+    const token = await getToken();
+
+    const response = await axios.get(
+      `${API_URL}/api/coverage/predict/workflow/${workflowId}/status`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -158,5 +183,5 @@ export const useCoverage = () => {
     return response.data.coverage_pixel || [];
   };
 
-  return { predictCoverage, listCoverage, getCoverageGeoJSON, listCoveragePixel };
+  return { predictCoverage, getPredictionStatus, listCoverage, getCoverageGeoJSON, listCoveragePixel };
 };

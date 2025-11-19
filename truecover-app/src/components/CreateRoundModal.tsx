@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TacticalModal, TacticalInput, TacticalButton, TacticalTextarea, TacticalSelect, TacticalDatePicker } from '../tactical-ui';
+import { TacticalModal, TacticalInput, TacticalButton, TacticalTextarea, TacticalSelect, TacticalDatePicker, tacticalToast } from '../tactical-ui';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 import { useIndicators } from '../hooks/useIndicators';
@@ -93,7 +93,11 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         }
       );
 
-      if (response.data.success) {
+      // Temporal workflow started - close modal immediately
+      if (response.status === 202 && response.data.workflow_id) {
+        const workflowId = response.data.workflow_id;
+        const roundName = name.trim();
+
         // Reset form
         setName('');
         setDescription('');
@@ -105,8 +109,50 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         setAllowRevisit(false);
         setSamplingTarget('locations');
 
-        onRoundCreated();
+        // Close modal immediately
         onClose();
+
+        // Show info toast that round generation started
+        tacticalToast.info(
+          'Round Generation Started',
+          `Generating round "${roundName}"...`
+        );
+
+        // Poll for completion
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await axios.get(
+              `${API_URL}/api/rounds/workflow/${workflowId}/status`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+            if (statusResponse.data.status === 'completed' && statusResponse.data.result) {
+              clearInterval(pollInterval);
+              const selectedCount = statusResponse.data.result.selected_count || 0;
+              tacticalToast.success(
+                'Round Generated',
+                `Created round "${roundName}" with ${selectedCount.toLocaleString()} ${samplingTarget} selected`
+              );
+              // Trigger parent refresh
+              onRoundCreated();
+            } else if (statusResponse.data.status === 'failed') {
+              clearInterval(pollInterval);
+              tacticalToast.error(
+                'Round Generation Failed',
+                statusResponse.data.error || 'Round generation failed'
+              );
+            }
+          } catch (err) {
+            console.error('Failed to check workflow status:', err);
+          }
+        }, 2000);
+
+        // Clean up interval after 10 minutes (failsafe)
+        setTimeout(() => clearInterval(pollInterval), 600000);
       }
     } catch (err: any) {
       console.error('Error creating round:', err);

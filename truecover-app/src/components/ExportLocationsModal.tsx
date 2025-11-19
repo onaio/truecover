@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { TacticalModal, TacticalButton, TacticalBadge, TacticalSelect } from '../tactical-ui';
 import { useRounds } from '../hooks/useRounds';
 import { useIndicators } from '../hooks/useIndicators';
-import { useCoverageData } from '../hooks/useCoverageData';
+import { useAllCoverageData } from '../hooks/useCoverageData';
 
 interface ExportLocationsModalProps {
   isOpen: boolean;
@@ -29,8 +29,8 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   const [includeAllPoints, setIncludeAllPoints] = useState(true);
   const [exportFormat, setExportFormat] = useState<'geojson' | 'csv'>('geojson');
 
-  // Use React Query hook to fetch coverage data
-  const { data: coverageDataResult, isLoading: isLoadingCoverage } = useCoverageData(
+  // Use React Query hook to fetch ALL coverage data (not paginated)
+  const { data: coverageDataResult, isLoading: isLoadingCoverage } = useAllCoverageData(
     areaId,
     selectedIndicatorId
   );
@@ -46,6 +46,10 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     return coverageDataResult.pages.flatMap(page => page.pixelData);
   }, [coverageDataResult]);
 
+  // Get total counts from API (not paginated)
+  const locationTotalCount = coverageDataResult?.pages?.[0]?.locationTotalCount || 0;
+  const pixelTotalCount = coverageDataResult?.pages?.[0]?.pixelTotalCount || 0;
+
   // Set default indicator when indicators load
   useEffect(() => {
     if (indicators && indicators.length > 0 && !selectedIndicatorId) {
@@ -56,47 +60,25 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   // Calculate how many items would be exported (locations + pixels)
   const exportCount = useMemo(() => {
     if (includeAllPoints) {
-      // Count ALL coverage records for the indicator (both locations and pixels)
-      return (coverageData?.length || 0) + (coveragePixelData?.length || 0);
+      // Use total counts from API instead of counting paginated data
+      return locationTotalCount + pixelTotalCount;
     }
 
     if (!selectedRoundIds || selectedRoundIds.length === 0) {
       return 0;
     }
 
-    // Get selected rounds with their sampling targets
+    // Get selected rounds and sum their counts
     const selectedRounds = rounds.filter(r => selectedRoundIds.includes(r.id));
 
-    // Separate rounds by sampling target
-    const locationRounds = selectedRounds.filter(r => r.sampling_target === 'locations' || !r.sampling_target);
-    const pixelRounds = selectedRounds.filter(r => r.sampling_target === 'pixels');
-
     let count = 0;
-
-    // Count locations from location rounds
-    if (locationRounds.length > 0 && coverageData) {
-      const locationRoundNumbers = locationRounds.map(r => r.round_number);
-      count += coverageData.filter((record: any) => {
-        const recordRounds = record.rounds || [];
-        return recordRounds.length > 0 && locationRoundNumbers.some((roundNum: number) =>
-          recordRounds.includes(roundNum)
-        );
-      }).length;
-    }
-
-    // Count pixels from pixel rounds
-    if (pixelRounds.length > 0 && coveragePixelData) {
-      const pixelRoundNumbers = pixelRounds.map(r => r.round_number);
-      count += coveragePixelData.filter((record: any) => {
-        const recordRounds = record.rounds || [];
-        return recordRounds.length > 0 && pixelRoundNumbers.some((roundNum: number) =>
-          recordRounds.includes(roundNum)
-        );
-      }).length;
+    for (const round of selectedRounds) {
+      const isPixelRound = round.sampling_target === 'pixels';
+      count += isPixelRound ? round.pixel_count : round.location_count;
     }
 
     return count;
-  }, [coverageData, coveragePixelData, includeAllPoints, selectedRoundIds, rounds]);
+  }, [locationTotalCount, pixelTotalCount, includeAllPoints, selectedRoundIds, rounds]);
 
   const handleExport = () => {
     if ((!coverageData || coverageData.length === 0) && (!coveragePixelData || coveragePixelData.length === 0)) {
@@ -360,15 +342,10 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   };
 
   const handleSelectAll = () => {
-    // Filter to only rounds with coverage data (checking appropriate data source)
+    // Filter to only rounds with coverage data (using API counts)
     const roundsWithCoverage = rounds.filter((round) => {
       const isPixelRound = round.sampling_target === 'pixels';
-      const dataSource = isPixelRound ? coveragePixelData : coverageData;
-
-      const itemsInRound = dataSource.filter((record: any) => {
-        const recordRounds = record.rounds || [];
-        return recordRounds.includes(round.round_number);
-      }).length;
+      const itemsInRound = isPixelRound ? round.pixel_count : round.location_count;
       return itemsInRound > 0;
     });
 
@@ -418,12 +395,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
               {(() => {
                 const roundsWithCoverage = rounds.filter((round) => {
                   const isPixelRound = round.sampling_target === 'pixels';
-                  const dataSource = isPixelRound ? coveragePixelData : coverageData;
-
-                  const itemsInRound = dataSource.filter((record: any) => {
-                    const recordRounds = record.rounds || [];
-                    return recordRounds.includes(round.round_number);
-                  }).length;
+                  const itemsInRound = isPixelRound ? round.pixel_count : round.location_count;
                   return itemsInRound > 0;
                 });
                 return selectedRoundIds.length === roundsWithCoverage.length && roundsWithCoverage.length > 0 ? 'Deselect All' : 'Select All';
@@ -449,14 +421,9 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
                 (() => {
                   // Filter rounds to only show those with coverage data for the selected indicator
                   const roundsWithCoverage = rounds.filter((round) => {
-                    // Check the appropriate data source based on sampling_target
+                    // Use counts from API instead of counting paginated data
                     const isPixelRound = round.sampling_target === 'pixels';
-                    const dataSource = isPixelRound ? coveragePixelData : coverageData;
-
-                    const itemsInRound = dataSource.filter((record: any) => {
-                      const recordRounds = record.rounds || [];
-                      return recordRounds.includes(round.round_number);
-                    }).length;
+                    const itemsInRound = isPixelRound ? round.pixel_count : round.location_count;
 
                     return itemsInRound > 0;
                   });
@@ -470,14 +437,9 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
                   }
 
                   return roundsWithCoverage.map((round) => {
-                    // Count items in this round from the appropriate data source
+                    // Use counts from API instead of counting paginated data
                     const isPixelRound = round.sampling_target === 'pixels';
-                    const dataSource = isPixelRound ? coveragePixelData : coverageData;
-
-                    const itemsInRound = dataSource.filter((record: any) => {
-                      const recordRounds = record.rounds || [];
-                      return recordRounds.includes(round.round_number);
-                    }).length;
+                    const itemsInRound = isPixelRound ? round.pixel_count : round.location_count;
 
                     const itemType = isPixelRound ? 'pixel' : 'location';
                     const itemTypeLabel = itemsInRound === 1 ? itemType : `${itemType}s`;

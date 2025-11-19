@@ -14,6 +14,8 @@ interface Round {
   created_at: string;
   updated_at: string;
   location_count: number;
+  pixel_count: number;
+  sampling_target: string;
 }
 
 export const useRounds = (areaId: string | undefined) => {

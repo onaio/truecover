@@ -250,11 +250,11 @@ async def fetch_coverage_for_sampling(
                     "prevalence_prediction": float(r[8]) if r[8] else 0,
                 })
             else:
-                properties = r[8] if isinstance(r[8], dict) else json.loads(r[8]) if r[8] else {}
+                properties = r[9] if isinstance(r[9], dict) else json.loads(r[9]) if r[9] else {}
                 results.append({
                     "coverage_id": str(r[0]),
                     "location_id": str(r[1]),
-                    "identifier": r[9],  # external_id
+                    "identifier": r[10],  # external_id
                     "geometry": json.loads(r[2]) if r[2] else None,
                     "latitude": float(r[3]) if r[3] else None,
                     "longitude": float(r[4]) if r[4] else None,
@@ -273,24 +273,35 @@ async def fetch_coverage_for_sampling(
 
 @activity.defn
 async def call_adaptive_sampling(
-    coverage_data: List[Dict[str, Any]],
+    area_id: str,
+    indicator_id: str,
     sampling_target: str,
     batch_size: int,
-    uncertainty_field: str
-) -> List[Dict[str, Any]]:
+    uncertainty_field: str,
+    allow_revisit: bool,
+    admin_pcode: str = None
+) -> Dict[str, Any]:
     """
-    Call adaptive sampling service.
+    Fetch coverage data and call adaptive sampling service.
 
     Args:
-        coverage_data: List of coverage records
+        area_id: Area ID
+        indicator_id: Indicator ID
         sampling_target: 'locations' or 'pixels'
         batch_size: Number of items to select
         uncertainty_field: Field to use for uncertainty
+        allow_revisit: Allow revisiting locations/pixels
+        admin_pcode: Optional admin boundary filter
 
     Returns:
-        Sampling results with selected items
+        Dict with 'selected_ids' (list of coverage IDs) and 'total_items'
     """
-    activity.logger.info(f"Calling adaptive sampling for {len(coverage_data)} {sampling_target}")
+    # Fetch coverage data internally
+    coverage_data = await fetch_coverage_for_sampling(
+        area_id, indicator_id, sampling_target, allow_revisit, admin_pcode
+    )
+
+    activity.logger.info(f"Fetched {len(coverage_data)} {sampling_target} for adaptive sampling")
 
     # Build GeoJSON features
     features = []
@@ -361,13 +372,36 @@ async def call_adaptive_sampling(
     features_result = result.get('features', [])
     activity.logger.info(f"Adaptive sampling returned {len(features_result)} features")
 
-    return features_result
+    # Build lookup dict by identifier for efficient fallback (sampling service doesn't preserve id field)
+    identifier_to_coverage_id = {record["identifier"]: record["coverage_id"] for record in coverage_data}
+
+    # Extract only the IDs of selected items (not the full data)
+    selected_ids = []
+    for idx, feature in enumerate(features_result):
+        properties = feature.get('properties', {})
+        adaptively_selected = properties.get('adaptively_selected', 0)
+
+        if adaptively_selected == 1:
+            # Sampling service doesn't preserve the id field, so look up by identifier
+            identifier = properties.get('quadkey' if sampling_target == 'pixels' else 'external_id')
+            coverage_id = identifier_to_coverage_id.get(identifier)
+
+            if not coverage_id:
+                activity.logger.warning(f"Could not find coverage record for identifier {identifier}")
+            else:
+                selected_ids.append(coverage_id)
+
+    activity.logger.info(f"Selected {len(selected_ids)} {sampling_target} for sampling")
+
+    return {
+        'selected_ids': selected_ids,
+        'total_items': len(coverage_data)
+    }
 
 
 @activity.defn
 async def update_round_assignments(
-    sampling_results: List[Dict[str, Any]],
-    coverage_data: List[Dict[str, Any]],
+    selected_ids: List[str],
     round_number: int,
     sampling_target: str
 ) -> int:
@@ -375,72 +409,38 @@ async def update_round_assignments(
     Update coverage records with round assignments.
 
     Args:
-        sampling_results: Results from adaptive sampling
-        coverage_data: Original coverage data
+        selected_ids: List of coverage IDs that were selected
         round_number: Round number to assign
         sampling_target: 'locations' or 'pixels'
 
     Returns:
-        Number of items selected
+        Number of items updated
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        # Build mapping from index/identifier to coverage_id
-        index_to_coverage = {}
-        identifier_to_coverage = {}
+        if not selected_ids:
+            return 0
 
-        for idx, record in enumerate(coverage_data):
-            index_to_coverage[idx] = record["coverage_id"]
-            identifier_to_coverage[record["identifier"]] = record["coverage_id"]
-
-        selected_count = 0
-
-        # Process sampling results
-        for feature in sampling_results:
-            feature_id = feature.get('id')
-            properties = feature.get('properties', {})
-            adaptively_selected = properties.get('adaptively_selected', 0)
-
-            if adaptively_selected == 1:
-                coverage_id = None
-
-                # Try to find coverage_id by index
-                if feature_id is not None and feature_id in index_to_coverage:
-                    coverage_id = index_to_coverage[feature_id]
-
-                # Try to find by identifier
-                if not coverage_id:
-                    if sampling_target == 'pixels':
-                        quadkey = properties.get('quadkey')
-                        if quadkey and quadkey in identifier_to_coverage:
-                            coverage_id = identifier_to_coverage[quadkey]
-                    else:
-                        external_id = properties.get('external_id')
-                        if external_id and external_id in identifier_to_coverage:
-                            coverage_id = identifier_to_coverage[external_id]
-
-                if coverage_id:
-                    # Update the record
-                    if sampling_target == 'pixels':
-                        cursor.execute("""
-                            UPDATE coverage_pixel
-                            SET rounds = array_append(rounds, %s),
-                                updated_at = NOW()
-                            WHERE id = %s
-                        """, (round_number, coverage_id))
-                    else:
-                        cursor.execute("""
-                            UPDATE coverage
-                            SET rounds = array_append(rounds, %s),
-                                updated_at = NOW()
-                            WHERE id = %s
-                        """, (round_number, coverage_id))
-
-                    selected_count += 1
+        # Batch update all selected records
+        if sampling_target == 'pixels':
+            cursor.executemany("""
+                UPDATE coverage_pixel
+                SET rounds = array_append(rounds, %s),
+                    updated_at = NOW()
+                WHERE id = %s
+            """, [(round_number, coverage_id) for coverage_id in selected_ids])
+        else:
+            cursor.executemany("""
+                UPDATE coverage
+                SET rounds = array_append(rounds, %s),
+                    updated_at = NOW()
+                WHERE id = %s
+            """, [(round_number, coverage_id) for coverage_id in selected_ids])
 
         conn.commit()
+        selected_count = len(selected_ids)
         activity.logger.info(f"Updated {selected_count} {sampling_target} with round {round_number}")
         return selected_count
     finally:

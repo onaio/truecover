@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TacticalModal, TacticalButton, TacticalInput, TacticalSelect } from '../tactical-ui';
+import { TacticalModal, TacticalButton, TacticalInput, TacticalSelect, tacticalToast } from '../tactical-ui';
 import { useIndicators } from '../hooks/useIndicators';
 import { useRounds } from '../hooks/useRounds';
 import { useCoverage } from '../hooks/useCoverage';
@@ -9,6 +9,7 @@ interface PredictCoverageModalProps {
   onClose: () => void;
   areaId: string;
   projectId: string;
+  onPredictionComplete?: () => void;
 }
 
 const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
@@ -16,6 +17,7 @@ const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
   onClose,
   areaId,
   projectId,
+  onPredictionComplete,
 }) => {
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +25,7 @@ const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
   const [success, setSuccess] = useState<string | null>(null);
 
   const { data: indicators, isLoading: loadingIndicators, error: indicatorsError } = useIndicators(projectId);
-  const { predictCoverage } = useCoverage();
+  const { predictCoverage, getPredictionStatus } = useCoverage();
 
   // Build options for TacticalSelect
   const indicatorOptions = [
@@ -61,14 +63,55 @@ const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
         indicator_id: selectedIndicatorId,
       });
 
-      setSuccess(
-        `Coverage predictions generated successfully! ${result.updated} of ${result.total_locations} locations updated.`
-      );
+      // Temporal workflow started - close modal immediately
+      if (result.workflow_id) {
+        const workflowId = result.workflow_id;
+        const indicatorName = indicators?.find(i => i.id === selectedIndicatorId)?.name || 'coverage';
 
-      // Close modal after 2 seconds
-      setTimeout(() => {
+        // Reset form
+        setSelectedIndicatorId('');
+
+        // Close modal immediately
         onClose();
-      }, 2000);
+
+        // Show info toast that prediction started
+        tacticalToast.info(
+          'Prediction Started',
+          `Generating ${indicatorName} predictions...`
+        );
+
+        // Poll for completion
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await getPredictionStatus(workflowId);
+
+            if (statusResponse.status === 'completed' && statusResponse.result) {
+              clearInterval(pollInterval);
+              const updated = statusResponse.result.updated || 0;
+              const total = statusResponse.result.total_locations || statusResponse.result.total_pixels || 0;
+              tacticalToast.success(
+                'Predictions Generated',
+                `Updated ${updated.toLocaleString()} of ${total.toLocaleString()} records`
+              );
+              // Trigger parent refresh
+              if (onPredictionComplete) {
+                onPredictionComplete();
+              }
+            } else if (statusResponse.status === 'failed') {
+              clearInterval(pollInterval);
+              tacticalToast.error(
+                'Prediction Failed',
+                statusResponse.error || 'Coverage prediction failed'
+              );
+            }
+          } catch (err) {
+            console.error('Failed to check workflow status:', err);
+          }
+        }, 2000);
+
+        // Clean up interval after 10 minutes (failsafe)
+        setTimeout(() => clearInterval(pollInterval), 600000);
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to generate coverage predictions');
     } finally {

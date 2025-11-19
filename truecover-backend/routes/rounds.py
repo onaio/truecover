@@ -159,7 +159,77 @@ def get_round_workflow_status(user, workflow_id):
 @rounds_bp.route('/api/areas/<area_id>/rounds', methods=['POST'])
 @require_auth
 def create_round(user, area_id):
-    """Create a new round and run adaptive sampling on locations"""
+    """Create a new round and run adaptive sampling using Temporal workflow"""
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.round_generation import RoundGenerationWorkflow
+
+    try:
+        # Check if user has access to this area
+        if not check_area_access(user['id'], area_id):
+            return jsonify({'error': 'Access denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        name = data.get('name')
+        description = data.get('description', '')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        indicator_id = data.get('indicator_id')
+        batch_size = data.get('batch_size', 10)
+        uncertainty_field = data.get('uncertainty_field', 'exceedance_uncertainty')
+        allow_revisit = data.get('allow_revisit', False)
+        sampling_target = data.get('sampling_target', 'locations')
+        admin_pcode = data.get('admin_pcode')
+
+        if not name:
+            return jsonify({'error': 'Round name is required'}), 400
+
+        if not indicator_id:
+            return jsonify({'error': 'Indicator ID is required'}), 400
+
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"round-generation-{area_id}-{timestamp}"
+
+        # Start workflow
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                RoundGenerationWorkflow.run,
+                args=[
+                    area_id, name, description, start_date, end_date,
+                    indicator_id, batch_size, uncertainty_field,
+                    allow_revisit, sampling_target, admin_pcode
+                ],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        print(f"Started round generation workflow: {workflow_id}")
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'status': 'started',
+            'message': 'Round generation started. Use the workflow_id to check progress.'
+        }), 202
+
+    except Exception as e:
+        print(f"Error starting round generation workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start round generation', 'details': str(e)}), 500
+
+
+@rounds_bp.route('/api/areas/<area_id>/rounds_old', methods=['POST'])
+@require_auth
+def create_round_old(user, area_id):
+    """OLD SYNCHRONOUS VERSION - Create a new round and run adaptive sampling on locations"""
     conn = None
     try:
         # Check if user has access to this area

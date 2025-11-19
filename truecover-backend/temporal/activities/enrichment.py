@@ -160,7 +160,8 @@ async def download_cog(cog_url: str) -> str:
 
     # Create cache directory
     cache_dir = 'cog_cache'
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # Go up 3 levels from temporal/activities/enrichment.py to get to project root
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     cache_path = os.path.join(base_dir, cache_dir)
     os.makedirs(cache_path, exist_ok=True)
 

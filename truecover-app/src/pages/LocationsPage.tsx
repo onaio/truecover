@@ -347,11 +347,17 @@ const LocationsPage: React.FC = () => {
         {/* Location Summary */}
         {locations && locations.locations && (
           <>
-            <div className="mb-4 grid grid-cols-4 gap-4">
+            <div className="mb-4 grid grid-cols-5 gap-4">
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
                   {locations.total_count || locations.locations.length}
+                </p>
+              </div>
+              <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
+                <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Pixels</p>
+                <p className="text-3xl font-bold text-tactical-text-primary font-mono">
+                  {pixelTotalCount}
                 </p>
               </div>
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">

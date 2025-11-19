@@ -25,32 +25,31 @@ def parse_json_response(response):
         text = response.text
         decoder = json.JSONDecoder()
 
-        # Try to find the start of JSON by looking for common JSON start characters
-        json_start_chars = ['{', '[', '"', 't', 'f', 'n', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-']
+        # Prioritize objects and arrays (what we expect from API responses)
+        # Look for { or [ first before trying other JSON types
+        for start_char in ['{', '[']:
+            for i in range(len(text)):
+                if text[i] == start_char:
+                    try:
+                        obj, idx = decoder.raw_decode(text[i:])
 
-        # Try each position in the text
-        for i in range(len(text)):
-            if text[i] in json_start_chars:
-                try:
-                    obj, idx = decoder.raw_decode(text[i:])
+                        # Log if there was data before the JSON
+                        if i > 0:
+                            prefix_data = text[:min(i, 200)]
+                            activity.logger.warning(f"Data before JSON (showing first 200 chars): {prefix_data}")
 
-                    # Log if there was data before the JSON
-                    if i > 0:
-                        prefix_data = text[:min(i, 200)]
-                        activity.logger.warning(f"Data before JSON (showing first 200 chars): {prefix_data}")
+                        # Log if there was extra data after the JSON
+                        if i + idx < len(text):
+                            extra_data = text[i+idx:i+idx+200]
+                            activity.logger.warning(f"Extra data after JSON (showing first 200 chars): {extra_data}")
 
-                    # Log if there was extra data after the JSON
-                    if i + idx < len(text):
-                        extra_data = text[i+idx:i+idx+200]
-                        activity.logger.warning(f"Extra data after JSON (showing first 200 chars): {extra_data}")
+                        return obj
+                    except (ValueError, json.JSONDecodeError):
+                        # Not valid JSON at this position, try next
+                        continue
 
-                    return obj
-                except (ValueError, json.JSONDecodeError):
-                    # Not valid JSON at this position, try next
-                    continue
-
-        # If we get here, no valid JSON was found
-        raise ValueError(f"No valid JSON found in response: {text[:500]}")
+        # If we get here, no valid JSON object/array was found
+        raise ValueError(f"No valid JSON object or array found in response: {text[:500]}")
 
 
 @activity.defn
@@ -153,6 +152,10 @@ async def predict_location_coverage(locations: List[Dict[str, Any]]) -> List[Dic
     }
 
     activity.logger.info(f"Calling prevalence predictor at {PREVALENCE_PREDICTOR_URL}")
+    activity.logger.info(f"Number of features: {len(features)}")
+    if features:
+        activity.logger.info(f"First feature: {json.dumps(features[0])}")
+    activity.logger.info(f"Full payload (first 2000 chars): {json.dumps(payload)[:2000]}")
 
     # Call prevalence predictor service
     response = requests.post(
@@ -163,14 +166,29 @@ async def predict_location_coverage(locations: List[Dict[str, Any]]) -> List[Dic
     )
 
     response.raise_for_status()
+    activity.logger.info(f"Response status: {response.status_code}")
+    activity.logger.info(f"Response text (first 2000 chars): {response.text[:2000]}")
+
     prediction_result = parse_json_response(response)
+    activity.logger.info(f"Parsed response type: {type(prediction_result)}")
+    if isinstance(prediction_result, dict):
+        activity.logger.info(f"Response keys: {prediction_result.keys()}")
+
+    # Check for function status and handle errors
+    if isinstance(prediction_result, dict) and 'function_status' in prediction_result:
+        if prediction_result['function_status'] == 'error':
+            error_msg = prediction_result.get('result', 'Unknown error from prevalence predictor')
+            activity.logger.error(f"Prevalence predictor returned error: {error_msg}")
+            raise ValueError(f"Prevalence predictor error: {error_msg}")
+        elif prediction_result['function_status'] == 'success':
+            # Unwrap the result
+            prediction_result = prediction_result.get('result', prediction_result)
 
     # Extract features from response
-    if 'result' in prediction_result and 'features' in prediction_result['result']:
-        features_data = prediction_result['result']['features']
-    elif 'features' in prediction_result:
+    if isinstance(prediction_result, dict) and 'features' in prediction_result:
         features_data = prediction_result['features']
     else:
+        activity.logger.error(f"Cannot find features in response. Full response: {prediction_result}")
         raise ValueError('Invalid response from prevalence predictor - missing features')
 
     # Build results mapping location_id to coverage_id and predictions
@@ -364,6 +382,10 @@ async def predict_pixel_coverage(pixels: List[Dict[str, Any]]) -> List[Dict[str,
     }
 
     activity.logger.info(f"Calling prevalence predictor at {PREVALENCE_PREDICTOR_URL}")
+    activity.logger.info(f"Number of features: {len(features)}")
+    if features:
+        activity.logger.info(f"First feature: {json.dumps(features[0])}")
+    activity.logger.info(f"Full payload (first 2000 chars): {json.dumps(payload)[:2000]}")
 
     # Call prevalence predictor service
     response = requests.post(
