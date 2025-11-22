@@ -80,6 +80,10 @@ def run_migrations():
                 IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'projects') THEN
                     ALTER TABLE projects ADD COLUMN IF NOT EXISTS odk_api_key TEXT;
                     ALTER TABLE projects ADD COLUMN IF NOT EXISTS odk_host_url TEXT;
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS ona_project_id INTEGER;
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS ona_project_name TEXT;
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS ona_entity_list_id INTEGER;
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS ona_entity_list_name TEXT;
                 END IF;
             END $$;
         """)

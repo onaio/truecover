@@ -65,6 +65,32 @@ export interface Project {
   updated_at: string;
   odk_api_key: string | null;
   odk_host_url: string | null;
+  ona_project_id: number | null;
+  ona_project_name: string | null;
+  ona_entity_list_id: number | null;
+  ona_entity_list_name: string | null;
+}
+
+export interface OnaProject {
+  url: string;
+  owner: string;
+  name: string;
+  date_created: string;
+  date_modified: string;
+  projectid?: number;
+}
+
+export interface OnaEntityList {
+  url: string;
+  id: number;
+  name: string;
+  project: string;
+  public: boolean;
+  datecreated: string;
+  datemodified: string;
+  numregistrationforms: number;
+  numfollowupforms: number;
+  numentities: number;
 }
 
 export interface Area {

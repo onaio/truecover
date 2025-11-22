@@ -713,3 +713,67 @@ export const adminBoundariesApi = {
     return response.data;
   }
 };
+
+// Ona API calls
+export const onaApi = {
+  async verifyCredentialsAndListProjects(
+    projectId: string,
+    apiKey: string,
+    hostUrl: string,
+    token: string
+  ): Promise<{
+    success: boolean;
+    projects?: any[];
+    error?: string;
+  }> {
+    const response = await axios.post(
+      `${API_URL}/api/projects/${projectId}/ona/verify-credentials`,
+      { api_key: apiKey, host_url: hostUrl },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getEntityLists(
+    projectId: string,
+    onaProjectId: number,
+    token: string
+  ): Promise<{
+    entity_lists: any[];
+    error?: string;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/projects/${projectId}/ona/entity-lists?ona_project_id=${onaProjectId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getEntities(
+    projectId: string,
+    token: string
+  ): Promise<{
+    entities: any[];
+    count: number;
+    error?: string;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/projects/${projectId}/ona/entities`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  }
+};

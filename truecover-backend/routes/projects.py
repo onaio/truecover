@@ -30,7 +30,9 @@ def create_project(user, organization_id):
         cursor.execute("""
             INSERT INTO projects (organization_id, title, description, odk_api_key, odk_host_url)
             VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url;
+            RETURNING id, organization_id, title, description, created_at, updated_at,
+                      odk_api_key, odk_host_url, ona_project_id, ona_project_name,
+                      ona_entity_list_id, ona_entity_list_name;
         """, (organization_id, title.strip(), description, odk_api_key, odk_host_url))
 
         project_data = cursor.fetchone()
@@ -45,7 +47,11 @@ def create_project(user, organization_id):
             'created_at': project_data[4].isoformat() if project_data[4] else None,
             'updated_at': project_data[5].isoformat() if project_data[5] else None,
             'odk_api_key': project_data[6],
-            'odk_host_url': project_data[7]
+            'odk_host_url': project_data[7],
+            'ona_project_id': project_data[8],
+            'ona_project_name': project_data[9],
+            'ona_entity_list_id': project_data[10],
+            'ona_entity_list_name': project_data[11]
         }
 
         cursor.close()
@@ -72,7 +78,9 @@ def list_projects(user, organization_id):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url
+            SELECT id, organization_id, title, description, created_at, updated_at,
+                   odk_api_key, odk_host_url, ona_project_id, ona_project_name,
+                   ona_entity_list_id, ona_entity_list_name
             FROM projects
             WHERE organization_id = %s
             ORDER BY created_at DESC
@@ -88,7 +96,11 @@ def list_projects(user, organization_id):
                 'created_at': row[4].isoformat() if row[4] else None,
                 'updated_at': row[5].isoformat() if row[5] else None,
                 'odk_api_key': row[6],
-                'odk_host_url': row[7]
+                'odk_host_url': row[7],
+                'ona_project_id': row[8],
+                'ona_project_name': row[9],
+                'ona_entity_list_id': row[10],
+                'ona_entity_list_name': row[11]
             })
 
         cursor.close()
@@ -116,7 +128,9 @@ def get_project(user, project_id):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url
+            SELECT id, organization_id, title, description, created_at, updated_at,
+                   odk_api_key, odk_host_url, ona_project_id, ona_project_name,
+                   ona_entity_list_id, ona_entity_list_name
             FROM projects
             WHERE id = %s
         """, (project_id,))
@@ -135,7 +149,11 @@ def get_project(user, project_id):
             'created_at': project_data[4].isoformat() if project_data[4] else None,
             'updated_at': project_data[5].isoformat() if project_data[5] else None,
             'odk_api_key': project_data[6],
-            'odk_host_url': project_data[7]
+            'odk_host_url': project_data[7],
+            'ona_project_id': project_data[8],
+            'ona_project_name': project_data[9],
+            'ona_entity_list_id': project_data[10],
+            'ona_entity_list_name': project_data[11]
         }
 
         cursor.close()
@@ -166,6 +184,16 @@ def update_project(user, project_id):
         description = data.get('description')
         odk_api_key = data.get('odk_api_key')
         odk_host_url = data.get('odk_host_url')
+        ona_project_id = data.get('ona_project_id')
+        ona_project_name = data.get('ona_project_name')
+        ona_entity_list_id = data.get('ona_entity_list_id')
+        ona_entity_list_name = data.get('ona_entity_list_name')
+
+        print(f"💾 Backend received update for project {project_id}:")
+        print(f"   ona_project_id: {ona_project_id}")
+        print(f"   ona_project_name: {ona_project_name}")
+        print(f"   ona_entity_list_id: {ona_entity_list_id}")
+        print(f"   ona_entity_list_name: {ona_entity_list_name}")
 
         # Build dynamic update query
         update_fields = []
@@ -183,6 +211,18 @@ def update_project(user, project_id):
         if odk_host_url is not None:
             update_fields.append('odk_host_url = %s')
             params.append(odk_host_url)
+        if ona_project_id is not None:
+            update_fields.append('ona_project_id = %s')
+            params.append(ona_project_id)
+        if ona_project_name is not None:
+            update_fields.append('ona_project_name = %s')
+            params.append(ona_project_name)
+        if ona_entity_list_id is not None:
+            update_fields.append('ona_entity_list_id = %s')
+            params.append(ona_entity_list_id)
+        if ona_entity_list_name is not None:
+            update_fields.append('ona_entity_list_name = %s')
+            params.append(ona_entity_list_name)
 
         if not update_fields:
             return jsonify({'error': 'No fields to update'}), 400
@@ -196,7 +236,9 @@ def update_project(user, project_id):
             UPDATE projects
             SET {', '.join(update_fields)}, updated_at = NOW()
             WHERE id = %s
-            RETURNING id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url;
+            RETURNING id, organization_id, title, description, created_at, updated_at,
+                      odk_api_key, odk_host_url, ona_project_id, ona_project_name,
+                      ona_entity_list_id, ona_entity_list_name;
         """, params)
 
         project_data = cursor.fetchone()
@@ -215,8 +257,16 @@ def update_project(user, project_id):
             'created_at': project_data[4].isoformat() if project_data[4] else None,
             'updated_at': project_data[5].isoformat() if project_data[5] else None,
             'odk_api_key': project_data[6],
-            'odk_host_url': project_data[7]
+            'odk_host_url': project_data[7],
+            'ona_project_id': project_data[8],
+            'ona_project_name': project_data[9],
+            'ona_entity_list_id': project_data[10],
+            'ona_entity_list_name': project_data[11]
         }
+
+        print(f"✅ Backend returning project:")
+        print(f"   ona_project_id: {project['ona_project_id']}")
+        print(f"   ona_project_name: {project['ona_project_name']}")
 
         cursor.close()
         return jsonify(project), 200

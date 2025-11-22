@@ -38,3 +38,70 @@
 7:15:30 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
 7:15:41 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
 7:17:13 PM [vite] (client) hmr update /src/pages/LocationsPage.tsx, /src/index.css
+8:40:57 PM [vite] (client) page reload src/types.ts
+8:41:25 PM [vite] (client) hmr update /src/tactical-ui/components/TacticalInput.tsx, /src/index.css
+8:41:45 PM [vite] (client) hmr update /src/tactical-ui/components/TacticalInput.tsx, /src/index.css
+8:42:12 PM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/ExportLocationsModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx
+8:42:35 PM [vite] (client) hmr update /src/index.css, /src/components/RouteWrappers.tsx
+8:42:45 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:44:25 PM [vite] (client) hmr update /src/App.tsx, /src/index.css
+8:44:31 PM [vite] (client) hmr update /src/App.tsx, /src/index.css
+8:44:56 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:45:01 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:45:09 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:48:36 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+8:49:05 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+8:49:17 PM [vite] (client) hmr update /src/pages/ProjectSettingsPage.tsx, /src/index.css
+8:49:24 PM [vite] (client) hmr update /src/App.tsx, /src/index.css
+8:49:32 PM [vite] (client) hmr update /src/App.tsx, /src/index.css
+8:50:12 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:50:22 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:50:31 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:50:37 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:50:44 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:50:59 PM [vite] (client) hmr update /src/components/ProjectsList.tsx, /src/index.css
+8:53:04 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+8:53:15 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:03:32 PM [vite] (client) page reload src/types.ts
+9:03:41 PM [vite] (client) page reload src/types.ts
+9:06:45 PM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/ExportLocationsModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx, /src/components/ProjectSettings.tsx
+9:07:21 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:07:37 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:07:56 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:08:04 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:09:55 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:18:22 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:18:42 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:19:21 PM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/ExportLocationsModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx, /src/components/ProjectSettings.tsx
+9:19:32 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:19:38 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:19:47 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:19:57 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:20:26 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:21:26 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+9:22:52 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:23:19 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:23:30 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:23:41 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:23:59 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:24:09 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:24:44 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+9:26:22 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:27:10 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:31:34 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+9:32:14 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:33:11 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:33:21 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:37:51 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:37:59 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:38:11 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:40:06 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:40:22 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:42:39 PM [vite] (client) hmr update /src/tactical-ui/components/TacticalSelect.tsx, /src/index.css
+10:42:52 PM [vite] (client) hmr update /src/tactical-ui/components/TacticalSelect.tsx, /src/index.css
+10:43:02 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:43:10 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:46:08 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:46:25 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:46:37 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+10:46:43 PM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css

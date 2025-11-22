@@ -3,6 +3,8 @@ import { TacticalModal, TacticalButton, TacticalBadge, TacticalSelect } from '..
 import { useRounds } from '../hooks/useRounds';
 import { useIndicators } from '../hooks/useIndicators';
 import { useAllCoverageData } from '../hooks/useCoverageData';
+import { useAuth } from '@clerk/clerk-react';
+import { onaApi } from '../services/api';
 
 interface ExportLocationsModalProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   projectId,
   locations,
 }) => {
+  const { getToken } = useAuth();
   const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
   const { data: indicators = [] } = useIndicators(projectId);
 
@@ -28,6 +31,13 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   const [selectedRoundIds, setSelectedRoundIds] = useState<string[]>([]);
   const [includeAllPoints, setIncludeAllPoints] = useState(true);
   const [exportFormat, setExportFormat] = useState<'geojson' | 'csv'>('geojson');
+  const [exportDestination, setExportDestination] = useState<'download' | 'odk'>('download');
+
+  // ODK entity state
+  const [entities, setEntities] = useState<any[]>([]);
+  const [isLoadingEntities, setIsLoadingEntities] = useState(false);
+  const [entitiesError, setEntitiesError] = useState<string | null>(null);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   // Use React Query hook to fetch ALL coverage data (not paginated)
   const { data: coverageDataResult, isLoading: isLoadingCoverage } = useAllCoverageData(
@@ -56,6 +66,45 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
       setSelectedIndicatorId(indicators[0].id);
     }
   }, [indicators]);
+
+  // Fetch entities when ODK export is selected
+  useEffect(() => {
+    const fetchEntities = async () => {
+      if (exportDestination !== 'odk') {
+        setEntities([]);
+        setEntitiesError(null);
+        return;
+      }
+
+      setIsLoadingEntities(true);
+      setEntitiesError(null);
+
+      try {
+        const token = await getToken();
+        if (!token) {
+          setEntitiesError('Authentication required');
+          return;
+        }
+
+        const result = await onaApi.getEntities(projectId, token);
+
+        if (result.error) {
+          setEntitiesError(result.error);
+          setEntities([]);
+        } else {
+          setEntities(result.entities || []);
+        }
+      } catch (err: any) {
+        console.error('Failed to load entities:', err);
+        setEntitiesError(err.response?.data?.error || 'Failed to load entities');
+        setEntities([]);
+      } finally {
+        setIsLoadingEntities(false);
+      }
+    };
+
+    fetchEntities();
+  }, [exportDestination, projectId, getToken]);
 
   // Calculate how many items would be exported (locations + pixels)
   const exportCount = useMemo(() => {
@@ -477,38 +526,129 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
           )}
         </div>
 
-        {/* Export Format */}
+        {/* Export Destination */}
         <div>
           <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-            Export Format
+            Export Destination
           </label>
           <div className="flex gap-3">
             <label className="flex-1 flex items-center gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
               <input
                 type="radio"
-                name="exportFormat"
-                checked={exportFormat === 'geojson'}
-                onChange={() => setExportFormat('geojson')}
+                name="exportDestination"
+                checked={exportDestination === 'download'}
+                onChange={() => setExportDestination('download')}
                 className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
               />
               <div className="flex-1">
-                <div className="text-sm text-tactical-text-primary font-mono">GeoJSON</div>
+                <div className="text-sm text-tactical-text-primary font-mono">Download</div>
               </div>
             </label>
             <label className="flex-1 flex items-center gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
               <input
                 type="radio"
-                name="exportFormat"
-                checked={exportFormat === 'csv'}
-                onChange={() => setExportFormat('csv')}
+                name="exportDestination"
+                checked={exportDestination === 'odk'}
+                onChange={() => setExportDestination('odk')}
                 className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
               />
               <div className="flex-1">
-                <div className="text-sm text-tactical-text-primary font-mono">CSV</div>
+                <div className="text-sm text-tactical-text-primary font-mono">Export to ODK</div>
               </div>
             </label>
           </div>
         </div>
+
+        {/* Export Format (only shown for Download) */}
+        {exportDestination === 'download' && (
+          <div>
+            <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+              Export Format
+            </label>
+            <div className="flex gap-3">
+              <label className="flex-1 flex items-center gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
+                <input
+                  type="radio"
+                  name="exportFormat"
+                  checked={exportFormat === 'geojson'}
+                  onChange={() => setExportFormat('geojson')}
+                  className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                />
+                <div className="flex-1">
+                  <div className="text-sm text-tactical-text-primary font-mono">GeoJSON</div>
+                </div>
+              </label>
+              <label className="flex-1 flex items-center gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
+                <input
+                  type="radio"
+                  name="exportFormat"
+                  checked={exportFormat === 'csv'}
+                  onChange={() => setExportFormat('csv')}
+                  className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                />
+                <div className="flex-1">
+                  <div className="text-sm text-tactical-text-primary font-mono">CSV</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Entity Selection (shown when Export to ODK is selected) */}
+        {exportDestination === 'odk' && (
+          <div>
+            <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+              Select Entity
+            </label>
+            {isLoadingEntities ? (
+              <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary text-center">
+                <p className="text-sm text-tactical-text-dim">Loading entities...</p>
+              </div>
+            ) : entitiesError ? (
+              <div className="p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
+                <div className="flex items-start gap-2">
+                  <TacticalBadge variant="danger">ERROR</TacticalBadge>
+                  <span className="text-sm text-tactical-accent-red">{entitiesError}</span>
+                </div>
+              </div>
+            ) : entities.length === 0 ? (
+              <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary text-center">
+                <p className="text-sm text-tactical-text-dim">No entities found. Please configure ODK integration in project settings.</p>
+              </div>
+            ) : (
+              <div className="border border-tactical-border-medium bg-tactical-bg-secondary max-h-48 overflow-y-auto tactical-scrollbar">
+                {entities.map((entity: any) => (
+                  <label
+                    key={entity.uuid}
+                    className="flex items-center gap-3 p-3 border-b border-tactical-border-medium last:border-b-0 hover:bg-tactical-bg-tertiary cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="selectedEntity"
+                      checked={selectedEntityId === entity.uuid}
+                      onChange={() => setSelectedEntityId(entity.uuid)}
+                      className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm text-tactical-text-primary font-mono">
+                        {entity.label || entity.uuid}
+                      </div>
+                      {entity.data && Object.keys(entity.data).length > 0 && (
+                        <div className="text-xs text-tactical-text-dim font-mono mt-1">
+                          {Object.entries(entity.data).slice(0, 2).map(([key, value]) => (
+                            <span key={key} className="mr-2">
+                              {key}: {String(value)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Filter Options */}
         <div>

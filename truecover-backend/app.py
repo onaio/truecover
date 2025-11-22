@@ -22,6 +22,7 @@ from routes.pixels import pixels_bp
 from routes.data_sources import data_sources_bp
 from routes.enrichment import enrichment_bp
 from routes.admin_boundaries import admin_boundaries_bp
+from routes.ona import ona_bp
 
 # Import database utilities
 from db.migrations import run_migrations
@@ -52,6 +53,7 @@ app.register_blueprint(pixels_bp)
 app.register_blueprint(data_sources_bp)
 app.register_blueprint(enrichment_bp)
 app.register_blueprint(admin_boundaries_bp)
+app.register_blueprint(ona_bp)
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])

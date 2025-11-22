@@ -49,12 +49,9 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
   currentBounds,
   onGenerated
 }) => {
-  console.log('🔥 NEW GeneratePixelsModal code loaded with polling!');
   const { getToken } = useAuth();
   const [selectedLevel, setSelectedLevel] = useState<number>(18);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  console.log('📊 State:', { isGenerating, isOpen, currentBounds });
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ pixels_inserted: number; total_pixels?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);

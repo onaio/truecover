@@ -23,6 +23,14 @@ export interface TacticalSelectProps {
    */
   label?: string;
   /**
+   * Placeholder text
+   */
+  placeholder?: string;
+  /**
+   * Helper text shown below the select
+   */
+  helperText?: string;
+  /**
    * Disabled state
    * @default false
    */
@@ -57,6 +65,8 @@ export const TacticalSelect: React.FC<TacticalSelectProps> = ({
   onChange,
   options,
   label,
+  placeholder,
+  helperText,
   disabled = false,
   fullWidth = true,
   className = '',
@@ -89,12 +99,23 @@ export const TacticalSelect: React.FC<TacticalSelectProps> = ({
           transition-colors
         `}
       >
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
       </select>
+
+      {helperText && (
+        <p className="mt-1 text-xs font-mono text-tactical-text-dim">
+          {helperText}
+        </p>
+      )}
     </div>
   );
 };
