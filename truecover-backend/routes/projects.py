@@ -20,16 +20,18 @@ def create_project(user, organization_id):
             return jsonify({'error': 'Project title is required'}), 400
 
         description = data.get('description', '')
+        odk_api_key = data.get('odk_api_key')
+        odk_host_url = data.get('odk_host_url')
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Create project
         cursor.execute("""
-            INSERT INTO projects (organization_id, title, description)
-            VALUES (%s, %s, %s)
-            RETURNING id, organization_id, title, description, created_at, updated_at;
-        """, (organization_id, title.strip(), description))
+            INSERT INTO projects (organization_id, title, description, odk_api_key, odk_host_url)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url;
+        """, (organization_id, title.strip(), description, odk_api_key, odk_host_url))
 
         project_data = cursor.fetchone()
         conn.commit()
@@ -41,7 +43,9 @@ def create_project(user, organization_id):
             'title': project_data[2],
             'description': project_data[3],
             'created_at': project_data[4].isoformat() if project_data[4] else None,
-            'updated_at': project_data[5].isoformat() if project_data[5] else None
+            'updated_at': project_data[5].isoformat() if project_data[5] else None,
+            'odk_api_key': project_data[6],
+            'odk_host_url': project_data[7]
         }
 
         cursor.close()
@@ -68,7 +72,7 @@ def list_projects(user, organization_id):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT id, organization_id, title, description, created_at, updated_at
+            SELECT id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url
             FROM projects
             WHERE organization_id = %s
             ORDER BY created_at DESC
@@ -82,7 +86,9 @@ def list_projects(user, organization_id):
                 'title': row[2],
                 'description': row[3],
                 'created_at': row[4].isoformat() if row[4] else None,
-                'updated_at': row[5].isoformat() if row[5] else None
+                'updated_at': row[5].isoformat() if row[5] else None,
+                'odk_api_key': row[6],
+                'odk_host_url': row[7]
             })
 
         cursor.close()
@@ -110,7 +116,7 @@ def get_project(user, project_id):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT id, organization_id, title, description, created_at, updated_at
+            SELECT id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url
             FROM projects
             WHERE id = %s
         """, (project_id,))
@@ -127,7 +133,9 @@ def get_project(user, project_id):
             'title': project_data[2],
             'description': project_data[3],
             'created_at': project_data[4].isoformat() if project_data[4] else None,
-            'updated_at': project_data[5].isoformat() if project_data[5] else None
+            'updated_at': project_data[5].isoformat() if project_data[5] else None,
+            'odk_api_key': project_data[6],
+            'odk_host_url': project_data[7]
         }
 
         cursor.close()
@@ -156,35 +164,40 @@ def update_project(user, project_id):
         # Extract allowed fields
         title = data.get('title')
         description = data.get('description')
+        odk_api_key = data.get('odk_api_key')
+        odk_host_url = data.get('odk_host_url')
 
-        if not title and description is None:
+        # Build dynamic update query
+        update_fields = []
+        params = []
+
+        if title is not None:
+            update_fields.append('title = %s')
+            params.append(title.strip())
+        if description is not None:
+            update_fields.append('description = %s')
+            params.append(description)
+        if odk_api_key is not None:
+            update_fields.append('odk_api_key = %s')
+            params.append(odk_api_key)
+        if odk_host_url is not None:
+            update_fields.append('odk_host_url = %s')
+            params.append(odk_host_url)
+
+        if not update_fields:
             return jsonify({'error': 'No fields to update'}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Update project
-        if title and description is not None:
-            cursor.execute("""
-                UPDATE projects
-                SET title = %s, description = %s, updated_at = NOW()
-                WHERE id = %s
-                RETURNING id, organization_id, title, description, created_at, updated_at;
-            """, (title.strip(), description, project_id))
-        elif title:
-            cursor.execute("""
-                UPDATE projects
-                SET title = %s, updated_at = NOW()
-                WHERE id = %s
-                RETURNING id, organization_id, title, description, created_at, updated_at;
-            """, (title.strip(), project_id))
-        else:  # description only
-            cursor.execute("""
-                UPDATE projects
-                SET description = %s, updated_at = NOW()
-                WHERE id = %s
-                RETURNING id, organization_id, title, description, created_at, updated_at;
-            """, (description, project_id))
+        params.append(project_id)
+        cursor.execute(f"""
+            UPDATE projects
+            SET {', '.join(update_fields)}, updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, organization_id, title, description, created_at, updated_at, odk_api_key, odk_host_url;
+        """, params)
 
         project_data = cursor.fetchone()
 
@@ -200,7 +213,9 @@ def update_project(user, project_id):
             'title': project_data[2],
             'description': project_data[3],
             'created_at': project_data[4].isoformat() if project_data[4] else None,
-            'updated_at': project_data[5].isoformat() if project_data[5] else None
+            'updated_at': project_data[5].isoformat() if project_data[5] else None,
+            'odk_api_key': project_data[6],
+            'odk_host_url': project_data[7]
         }
 
         cursor.close()

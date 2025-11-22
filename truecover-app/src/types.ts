@@ -63,6 +63,8 @@ export interface Project {
   description: string | null;
   created_at: string;
   updated_at: string;
+  odk_api_key: string | null;
+  odk_host_url: string | null;
 }
 
 export interface Area {

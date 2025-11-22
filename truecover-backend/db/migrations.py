@@ -73,6 +73,17 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_projects_org_id ON projects(organization_id);
         """)
 
+        # Add ODK configuration columns to projects table
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'projects') THEN
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS odk_api_key TEXT;
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS odk_host_url TEXT;
+                END IF;
+            END $$;
+        """)
+
         # Enable PostGIS extension for spatial data
         cursor.execute("""
             CREATE EXTENSION IF NOT EXISTS postgis;

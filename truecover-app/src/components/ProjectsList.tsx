@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { Project, Organization } from '../types';
 import { projectsApi } from '../services/api';
@@ -16,6 +17,7 @@ interface ProjectsListProps {
 }
 
 const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
+  const navigate = useNavigate();
   const { getToken } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -151,8 +153,10 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
 
       const updatedProject = await projectsApi.update(
         editingProject.id,
-        editedTitle.trim(),
-        editedDescription.trim(),
+        {
+          title: editedTitle.trim(),
+          description: editedDescription.trim()
+        },
         token
       );
 
@@ -279,6 +283,13 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <TacticalButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => navigate(`/orgs/${organization!.id}/projects/${project.id}/settings`)}
+                    >
+                      Settings
+                    </TacticalButton>
                     <TacticalButton
                       variant="secondary"
                       size="sm"

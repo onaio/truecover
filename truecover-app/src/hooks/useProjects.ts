@@ -93,20 +93,23 @@ export function useUpdateProject() {
     mutationFn: async ({
       projectId,
       orgId,
-      title,
-      description
+      data
     }: {
       projectId: string;
       orgId: string;
-      title: string;
-      description: string
+      data: {
+        title?: string;
+        description?: string;
+        odk_api_key?: string | null;
+        odk_host_url?: string | null;
+      }
     }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');
       }
 
-      return projectsApi.update(projectId, title, description, token);
+      return projectsApi.update(projectId, data, token);
     },
     onSuccess: (_, variables) => {
       // Invalidate both the list and the specific project

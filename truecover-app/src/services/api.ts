@@ -146,10 +146,19 @@ export const projectsApi = {
     return response.data;
   },
 
-  async update(projectId: string, title: string, description: string, token: string): Promise<Project> {
+  async update(
+    projectId: string,
+    data: {
+      title?: string;
+      description?: string;
+      odk_api_key?: string | null;
+      odk_host_url?: string | null;
+    },
+    token: string
+  ): Promise<Project> {
     const response = await axios.put(
       `${API_URL}/api/projects/${projectId}`,
-      { title, description },
+      data,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
