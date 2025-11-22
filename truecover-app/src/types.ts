@@ -69,6 +69,7 @@ export interface Project {
   ona_project_name: string | null;
   ona_entity_list_id: number | null;
   ona_entity_list_name: string | null;
+  odk_pixel_geometry_type: string | null;
 }
 
 export interface OnaProject {

@@ -110,3 +110,15 @@
 10:57:18 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
 10:57:30 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
 10:57:57 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+11:57:16 PM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/components/ExportLocationsModal.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx, /src/components/ProjectSettings.tsx
+11:57:36 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+11:57:43 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+11:57:54 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+11:58:13 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+11:58:37 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+11:58:51 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+12:30:26 AM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+12:30:35 AM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+12:30:56 AM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+12:31:12 AM [vite] (client) hmr update /src/components/ProjectSettings.tsx, /src/index.css
+12:31:33 AM [vite] (client) page reload src/types.ts

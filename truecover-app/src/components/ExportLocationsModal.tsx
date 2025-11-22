@@ -5,7 +5,7 @@ import { useIndicators } from '../hooks/useIndicators';
 import { useAllCoverageData } from '../hooks/useCoverageData';
 import { useProject } from '../hooks/useProjects';
 import { useAuth } from '@clerk/clerk-react';
-import { onaApi } from '../services/api';
+import { onaApi, entityExportApi } from '../services/api';
 
 interface ExportLocationsModalProps {
   isOpen: boolean;
@@ -39,6 +39,16 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   const [entityCount, setEntityCount] = useState<number>(0);
   const [isLoadingEntities, setIsLoadingEntities] = useState(false);
   const [entitiesError, setEntitiesError] = useState<string | null>(null);
+
+  // Entity export workflow state
+  const [exportWorkflowId, setExportWorkflowId] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState<{
+    total_pixels: number;
+    created_pixels: number;
+    current_quadkey: string;
+  } | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Use React Query hook to fetch ALL coverage data (not paginated)
   const { data: coverageDataResult, isLoading: isLoadingCoverage } = useAllCoverageData(
@@ -115,6 +125,46 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     fetchEntityCount();
   }, [exportDestination, projectId, project?.ona_entity_list_id, getToken]);
 
+  // Poll for entity export workflow status
+  useEffect(() => {
+    if (!exportWorkflowId || !isExporting) {
+      return;
+    }
+
+    const pollStatus = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const status = await entityExportApi.getWorkflowStatus(exportWorkflowId, token);
+
+        if (status.status === 'running' && status.progress) {
+          setExportProgress(status.progress);
+        } else if (status.status === 'completed' && status.result) {
+          setIsExporting(false);
+          setExportProgress(null);
+          setExportWorkflowId(null);
+          alert(status.result.message);
+          onClose();
+        } else if (status.status === 'failed') {
+          setIsExporting(false);
+          setExportProgress(null);
+          setExportWorkflowId(null);
+          setExportError(status.error || 'Entity export failed');
+          alert(`Export failed: ${status.error || 'Unknown error'}`);
+        }
+      } catch (err: any) {
+        console.error('Failed to get workflow status:', err);
+      }
+    };
+
+    // Poll every 2 seconds
+    const interval = setInterval(pollStatus, 2000);
+    pollStatus(); // Initial poll
+
+    return () => clearInterval(interval);
+  }, [exportWorkflowId, isExporting, getToken, onClose]);
+
   // Calculate how many items would be exported (locations + pixels)
   const exportCount = useMemo(() => {
     if (includeAllPoints) {
@@ -138,7 +188,49 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     return count;
   }, [locationTotalCount, pixelTotalCount, includeAllPoints, selectedRoundIds, rounds]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    // Handle ODK export via workflow
+    if (exportDestination === 'odk') {
+      if (selectedRoundIds.length === 0) {
+        alert('Please select at least one round for ODK export');
+        return;
+      }
+
+      if (!project?.ona_entity_list_id) {
+        alert('Please configure ODK entity list in project settings');
+        return;
+      }
+
+      try {
+        setIsExporting(true);
+        setExportError(null);
+
+        const token = await getToken();
+        if (!token) {
+          alert('Authentication required');
+          setIsExporting(false);
+          return;
+        }
+
+        const result = await entityExportApi.startWorkflow(
+          areaId,
+          selectedIndicatorId,
+          selectedRoundIds,
+          projectId,
+          token
+        );
+
+        setExportWorkflowId(result.workflow_id);
+      } catch (err: any) {
+        console.error('Failed to start entity export:', err);
+        alert(`Failed to start export: ${err.response?.data?.error || err.message}`);
+        setIsExporting(false);
+      }
+
+      return;
+    }
+
+    // Regular download export
     if ((!coverageData || coverageData.length === 0) && (!coveragePixelData || coveragePixelData.length === 0)) {
       alert('No coverage data available to export');
       return;
@@ -640,28 +732,52 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
           </div>
         )}
 
-        {/* Filter Options */}
-        <div>
-          <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-            Filter Options
-          </label>
-          <label className="flex items-start gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
-            <input
-              type="checkbox"
-              checked={includeAllPoints}
-              onChange={(e) => setIncludeAllPoints(e.target.checked)}
-              className="mt-0.5 w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
-            />
-            <div className="flex-1">
-              <div className="text-sm text-tactical-text-primary font-mono">
-                Include all items
+        {/* Filter Options (hidden for ODK export) */}
+        {exportDestination === 'download' && (
+          <div>
+            <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+              Filter Options
+            </label>
+            <label className="flex items-start gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
+              <input
+                type="checkbox"
+                checked={includeAllPoints}
+                onChange={(e) => setIncludeAllPoints(e.target.checked)}
+                className="mt-0.5 w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+              />
+              <div className="flex-1">
+                <div className="text-sm text-tactical-text-primary font-mono">
+                  Include all items
+                </div>
+                <div className="text-xs text-tactical-text-dim font-mono mt-1">
+                  When enabled, exports all items (locations or pixels) regardless of round selection. When disabled, only exports items with data in selected rounds.
+                </div>
               </div>
-              <div className="text-xs text-tactical-text-dim font-mono mt-1">
-                When enabled, exports all items (locations or pixels) regardless of round selection. When disabled, only exports items with data in selected rounds.
-              </div>
+            </label>
+          </div>
+        )}
+
+        {/* Export Progress (shown during ODK export) */}
+        {exportDestination === 'odk' && isExporting && exportProgress && (
+          <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+            <div className="flex items-center gap-2 mb-2">
+              <TacticalBadge variant="info">CREATING ENTITIES</TacticalBadge>
             </div>
-          </label>
-        </div>
+            <div className="text-sm font-mono space-y-1">
+              <div className="flex justify-between">
+                <span className="text-tactical-text-dim">Progress:</span>
+                <span className="text-tactical-text-primary font-bold">
+                  {exportProgress.created_pixels} / {exportProgress.total_pixels} pixels
+                </span>
+              </div>
+              {exportProgress.current_quadkey && (
+                <div className="text-xs text-tactical-text-dim">
+                  Current: {exportProgress.current_quadkey}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Data Summary */}
         <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
@@ -690,6 +806,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
             type="button"
             variant="secondary"
             onClick={onClose}
+            disabled={isExporting}
           >
             Cancel
           </TacticalButton>
@@ -697,9 +814,22 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
             type="button"
             variant="primary"
             onClick={handleExport}
-            disabled={exportCount === 0}
+            disabled={
+              isExporting ||
+              (exportDestination === 'odk' ? selectedRoundIds.length === 0 : exportCount === 0)
+            }
           >
-            {exportFormat === 'csv' ? 'Export CSV' : 'Export GeoJSON'}
+            {isExporting ? (
+              <span className="tactical-loading-dots">
+                EXPORTING<span>.</span><span>.</span><span>.</span>
+              </span>
+            ) : exportDestination === 'odk' ? (
+              'Export to ODK'
+            ) : exportFormat === 'csv' ? (
+              'Export CSV'
+            ) : (
+              'Export GeoJSON'
+            )}
           </TacticalButton>
         </div>
       </div>

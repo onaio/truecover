@@ -84,6 +84,7 @@ def run_migrations():
                     ALTER TABLE projects ADD COLUMN IF NOT EXISTS ona_project_name TEXT;
                     ALTER TABLE projects ADD COLUMN IF NOT EXISTS ona_entity_list_id INTEGER;
                     ALTER TABLE projects ADD COLUMN IF NOT EXISTS ona_entity_list_name TEXT;
+                    ALTER TABLE projects ADD COLUMN IF NOT EXISTS odk_pixel_geometry_type TEXT DEFAULT 'centroid';
                 END IF;
             END $$;
         """)

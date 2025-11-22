@@ -46,6 +46,9 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
   const [selectedEntityListId, setSelectedEntityListId] = useState<number | null>(project.ona_entity_list_id);
   const [selectedEntityListName, setSelectedEntityListName] = useState<string | null>(project.ona_entity_list_name);
 
+  // Pixel geometry type state
+  const [pixelGeometryType, setPixelGeometryType] = useState<string>(project.odk_pixel_geometry_type || 'centroid');
+
   useEffect(() => {
     if (isOpen) {
       setTitle(project.title);
@@ -56,6 +59,7 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
       setSelectedOnaProjectName(project.ona_project_name);
       setSelectedEntityListId(project.ona_entity_list_id);
       setSelectedEntityListName(project.ona_entity_list_name);
+      setPixelGeometryType(project.odk_pixel_geometry_type || 'centroid');
       setError(null);
       setOnaProjects([]);
       setOnaEntityLists([]);
@@ -219,7 +223,8 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
           ona_project_id: selectedOnaProjectId,
           ona_project_name: selectedOnaProjectName,
           ona_entity_list_id: selectedEntityListId,
-          ona_entity_list_name: selectedEntityListName
+          ona_entity_list_name: selectedEntityListName,
+          odk_pixel_geometry_type: pixelGeometryType
         },
         token
       );
@@ -404,6 +409,47 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
                 helperText={selectedEntityListName ? `Selected: ${selectedEntityListName}` : undefined}
               />
             )}
+
+            {/* Pixel Geometry Type Selection */}
+            <div>
+              <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+                Pixel Geometry Type
+              </label>
+              <div className="flex gap-3">
+                <label className="flex-1 flex items-center gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="pixelGeometryType"
+                    value="centroid"
+                    checked={pixelGeometryType === 'centroid'}
+                    onChange={(e) => setPixelGeometryType(e.target.value)}
+                    className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm text-tactical-text-primary font-mono">Centroid (Point)</div>
+                    <div className="text-xs text-tactical-text-dim font-mono mt-1">
+                      Export pixel center as a single point
+                    </div>
+                  </div>
+                </label>
+                <label className="flex-1 flex items-center gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="pixelGeometryType"
+                    value="boundary"
+                    checked={pixelGeometryType === 'boundary'}
+                    onChange={(e) => setPixelGeometryType(e.target.value)}
+                    className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm text-tactical-text-primary font-mono">Boundary (Polygon)</div>
+                    <div className="text-xs text-tactical-text-dim font-mono mt-1">
+                      Export pixel as a square boundary polygon
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 

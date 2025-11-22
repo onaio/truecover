@@ -23,6 +23,7 @@ from routes.data_sources import data_sources_bp
 from routes.enrichment import enrichment_bp
 from routes.admin_boundaries import admin_boundaries_bp
 from routes.ona import ona_bp
+from routes.entity_export import entity_export_bp
 
 # Import database utilities
 from db.migrations import run_migrations
@@ -54,6 +55,7 @@ app.register_blueprint(data_sources_bp)
 app.register_blueprint(enrichment_bp)
 app.register_blueprint(admin_boundaries_bp)
 app.register_blueprint(ona_bp)
+app.register_blueprint(entity_export_bp)
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])

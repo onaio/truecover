@@ -80,7 +80,7 @@ def list_projects(user, organization_id):
         cursor.execute("""
             SELECT id, organization_id, title, description, created_at, updated_at,
                    odk_api_key, odk_host_url, ona_project_id, ona_project_name,
-                   ona_entity_list_id, ona_entity_list_name
+                   ona_entity_list_id, ona_entity_list_name, odk_pixel_geometry_type
             FROM projects
             WHERE organization_id = %s
             ORDER BY created_at DESC
@@ -100,7 +100,8 @@ def list_projects(user, organization_id):
                 'ona_project_id': row[8],
                 'ona_project_name': row[9],
                 'ona_entity_list_id': row[10],
-                'ona_entity_list_name': row[11]
+                'ona_entity_list_name': row[11],
+                'odk_pixel_geometry_type': row[12]
             })
 
         cursor.close()
@@ -130,7 +131,7 @@ def get_project(user, project_id):
         cursor.execute("""
             SELECT id, organization_id, title, description, created_at, updated_at,
                    odk_api_key, odk_host_url, ona_project_id, ona_project_name,
-                   ona_entity_list_id, ona_entity_list_name
+                   ona_entity_list_id, ona_entity_list_name, odk_pixel_geometry_type
             FROM projects
             WHERE id = %s
         """, (project_id,))
@@ -153,7 +154,8 @@ def get_project(user, project_id):
             'ona_project_id': project_data[8],
             'ona_project_name': project_data[9],
             'ona_entity_list_id': project_data[10],
-            'ona_entity_list_name': project_data[11]
+            'ona_entity_list_name': project_data[11],
+            'odk_pixel_geometry_type': project_data[12]
         }
 
         cursor.close()
@@ -188,6 +190,7 @@ def update_project(user, project_id):
         ona_project_name = data.get('ona_project_name')
         ona_entity_list_id = data.get('ona_entity_list_id')
         ona_entity_list_name = data.get('ona_entity_list_name')
+        odk_pixel_geometry_type = data.get('odk_pixel_geometry_type')
 
         print(f"💾 Backend received update for project {project_id}:")
         print(f"   ona_project_id: {ona_project_id}")
@@ -223,6 +226,9 @@ def update_project(user, project_id):
         if ona_entity_list_name is not None:
             update_fields.append('ona_entity_list_name = %s')
             params.append(ona_entity_list_name)
+        if odk_pixel_geometry_type is not None:
+            update_fields.append('odk_pixel_geometry_type = %s')
+            params.append(odk_pixel_geometry_type)
 
         if not update_fields:
             return jsonify({'error': 'No fields to update'}), 400
@@ -238,7 +244,7 @@ def update_project(user, project_id):
             WHERE id = %s
             RETURNING id, organization_id, title, description, created_at, updated_at,
                       odk_api_key, odk_host_url, ona_project_id, ona_project_name,
-                      ona_entity_list_id, ona_entity_list_name;
+                      ona_entity_list_id, ona_entity_list_name, odk_pixel_geometry_type;
         """, params)
 
         project_data = cursor.fetchone()
@@ -261,7 +267,8 @@ def update_project(user, project_id):
             'ona_project_id': project_data[8],
             'ona_project_name': project_data[9],
             'ona_entity_list_id': project_data[10],
-            'ona_entity_list_name': project_data[11]
+            'ona_entity_list_name': project_data[11],
+            'odk_pixel_geometry_type': project_data[12]
         }
 
         print(f"✅ Backend returning project:")

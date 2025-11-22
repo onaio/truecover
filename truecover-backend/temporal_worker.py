@@ -15,9 +15,10 @@ from temporal.workflows.pixel_enrichment import PixelEnrichmentWorkflow
 from temporal.workflows.round_generation import RoundGenerationWorkflow
 from temporal.workflows.pixel_generation import PixelGenerationWorkflow
 from temporal.workflows.visit_upload import VisitUploadWorkflow
+from temporal.workflows.entity_export import EntityExportWorkflow
 
 # Import activities
-from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels, visits
+from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels, visits, entity_export
 
 
 logging.basicConfig(level=logging.INFO)
@@ -67,6 +68,7 @@ async def main():
         *discover_activities(rounds),
         *discover_activities(pixels),
         *discover_activities(visits),
+        *discover_activities(entity_export),
     ]
 
     logger.info(f"Registered {len(all_activities)} activities")
@@ -83,6 +85,7 @@ async def main():
             RoundGenerationWorkflow,
             PixelGenerationWorkflow,
             VisitUploadWorkflow,
+            EntityExportWorkflow,
         ],
         activities=all_activities,
     )

@@ -777,3 +777,65 @@ export const onaApi = {
     return response.data;
   }
 };
+
+// Entity Export API calls
+export const entityExportApi = {
+  async startWorkflow(
+    areaId: string,
+    indicatorId: string,
+    roundIds: string[],
+    projectId: string,
+    token: string
+  ): Promise<{
+    workflow_id: string;
+    status: string;
+    message: string;
+  }> {
+    const response = await axios.post(
+      `${API_URL}/api/areas/${areaId}/export-entities/workflow`,
+      {
+        indicator_id: indicatorId,
+        round_ids: roundIds,
+        project_id: projectId
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getWorkflowStatus(
+    workflowId: string,
+    token: string
+  ): Promise<{
+    workflow_id: string;
+    status: string;
+    progress?: {
+      total_pixels: number;
+      created_pixels: number;
+      current_quadkey: string;
+      error_message: string | null;
+    };
+    result?: {
+      success: boolean;
+      total_pixels: number;
+      created_pixels: number;
+      message: string;
+    };
+    error?: string;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/entity-export/${workflowId}/status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  }
+};
