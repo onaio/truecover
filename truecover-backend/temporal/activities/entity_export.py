@@ -13,7 +13,7 @@ def get_pixel_boundary_coords(quadkey: str) -> str:
     Get the boundary coordinates of a pixel from its quadkey.
 
     Returns a string in ODK geoshape format:
-    "lat1 lon1 0 0, lat2 lon2 0 0, lat3 lon3 0 0, lat4 lon4 0 0, lat1 lon1 0 0"
+    "lat1 lon1 0 0;lat2 lon2 0 0;lat3 lon3 0 0;lat4 lon4 0 0;lat1 lon1 0 0"
 
     The corners are ordered counter-clockwise starting from southwest:
     SW -> SE -> NE -> NW -> SW (closed polygon)
@@ -26,14 +26,14 @@ def get_pixel_boundary_coords(quadkey: str) -> str:
         bounds = mercantile.bounds(tile)
 
         # Create corners in counter-clockwise order starting from SW
-        # Format: lat lon 0 0 for each corner
+        # Format: lat lon 0 0 for each corner, separated by semicolons
         sw = f"{bounds.south} {bounds.west} 0 0"
         se = f"{bounds.south} {bounds.east} 0 0"
         ne = f"{bounds.north} {bounds.east} 0 0"
         nw = f"{bounds.north} {bounds.west} 0 0"
 
         # Close the polygon by repeating first point
-        return f"{sw}, {se}, {ne}, {nw}, {sw}"
+        return f"{sw};{se};{ne};{nw};{sw}"
     except Exception as e:
         print(f"Error calculating boundary for quadkey {quadkey}: {e}")
         # Fallback to empty geoshape
@@ -114,7 +114,8 @@ async def fetch_pixel_coverage_activity(
 @activity.defn
 async def create_odk_entity_activity(
     project_id: str,
-    pixel_data: Dict[str, Any]
+    pixel_data: Dict[str, Any],
+    geometry_type: str = 'centroid'
 ) -> Dict[str, Any]:
     """
     Create a single ODK entity via Ona API.
@@ -122,6 +123,7 @@ async def create_odk_entity_activity(
     Args:
         project_id: Project ID to get ODK credentials
         pixel_data: Pixel data dict with id, quadkey, lat, lng, adm4_pcode
+        geometry_type: 'centroid' or 'boundary' - how to represent pixel geometry
 
     Returns:
         Dict with success status and created entity info
@@ -133,9 +135,9 @@ async def create_odk_entity_activity(
     cursor = conn.cursor()
 
     try:
-        # Get ODK credentials and geometry type from project
+        # Get ODK credentials from project
         cursor.execute("""
-            SELECT odk_api_key, odk_host_url, ona_entity_list_id, odk_pixel_geometry_type
+            SELECT odk_api_key, odk_host_url, ona_entity_list_id
             FROM projects
             WHERE id = %s
         """, (project_id,))
@@ -144,7 +146,7 @@ async def create_odk_entity_activity(
         if not project_data:
             raise Exception(f'Project {project_id} not found')
 
-        api_key, host_url, entity_list_id, geometry_type = project_data
+        api_key, host_url, entity_list_id = project_data
 
         if not api_key or not host_url or not entity_list_id:
             raise Exception('ODK credentials or entity list not configured for this project')

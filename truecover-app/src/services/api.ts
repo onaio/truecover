@@ -785,6 +785,7 @@ export const entityExportApi = {
     indicatorId: string,
     roundIds: string[],
     projectId: string,
+    geometryType: string,
     token: string
   ): Promise<{
     workflow_id: string;
@@ -796,7 +797,8 @@ export const entityExportApi = {
       {
         indicator_id: indicatorId,
         round_ids: roundIds,
-        project_id: projectId
+        project_id: projectId,
+        geometry_type: geometryType
       },
       {
         headers: {

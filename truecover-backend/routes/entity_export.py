@@ -28,6 +28,7 @@ def start_entity_export_workflow(user, area_id):
         indicator_id = data.get('indicator_id')
         round_ids = data.get('round_ids', [])
         project_id = data.get('project_id')
+        geometry_type = data.get('geometry_type', 'centroid')
 
         if not indicator_id:
             return jsonify({'error': 'indicator_id is required'}), 400
@@ -47,7 +48,7 @@ def start_entity_export_workflow(user, area_id):
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 EntityExportWorkflow.run,
-                args=[area_id, indicator_id, round_ids, project_id],
+                args=[area_id, indicator_id, round_ids, project_id, geometry_type],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

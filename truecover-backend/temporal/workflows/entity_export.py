@@ -36,7 +36,8 @@ class EntityExportWorkflow:
         area_id: str,
         indicator_id: str,
         round_ids: List[str],
-        project_id: str
+        project_id: str,
+        geometry_type: str = 'centroid'
     ) -> Dict[str, Any]:
         """
         Run entity export workflow.
@@ -83,7 +84,7 @@ class EntityExportWorkflow:
             try:
                 result = await workflow.execute_activity(
                     create_odk_entity_activity,
-                    args=[project_id, pixel],
+                    args=[project_id, pixel, geometry_type],
                     start_to_close_timeout=timedelta(seconds=30),
                     retry_policy=RetryPolicy(maximum_attempts=1)
                 )

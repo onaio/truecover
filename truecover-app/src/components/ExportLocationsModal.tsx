@@ -49,6 +49,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   } | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [pixelGeometryType, setPixelGeometryType] = useState<'centroid' | 'boundary'>('centroid');
 
   // Use React Query hook to fetch ALL coverage data (not paginated)
   const { data: coverageDataResult, isLoading: isLoadingCoverage } = useAllCoverageData(
@@ -217,6 +218,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
           selectedIndicatorId,
           selectedRoundIds,
           projectId,
+          pixelGeometryType,
           token
         );
 
@@ -513,7 +515,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
       title="Export Samples to Visit"
       size="md"
     >
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto tactical-scrollbar">
         {/* Indicator Selection */}
         <div>
           <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
@@ -697,39 +699,82 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 
         {/* ODK Entity List Info (shown when Export to ODK is selected) */}
         {exportDestination === 'odk' && (
-          <div>
-            <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-              ODK Entity List
-            </label>
-            {isLoadingEntities ? (
-              <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary text-center">
-                <p className="text-sm text-tactical-text-dim">Loading entity list information...</p>
-              </div>
-            ) : entitiesError ? (
-              <div className="p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
-                <div className="flex items-start gap-2">
-                  <TacticalBadge variant="danger">ERROR</TacticalBadge>
-                  <div className="flex-1">
-                    <span className="text-sm text-tactical-accent-red">{entitiesError}</span>
+          <>
+            <div>
+              <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+                ODK Entity List
+              </label>
+              {isLoadingEntities ? (
+                <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary text-center">
+                  <p className="text-sm text-tactical-text-dim">Loading entity list information...</p>
+                </div>
+              ) : entitiesError ? (
+                <div className="p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
+                  <div className="flex items-start gap-2">
+                    <TacticalBadge variant="danger">ERROR</TacticalBadge>
+                    <div className="flex-1">
+                      <span className="text-sm text-tactical-accent-red">{entitiesError}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
-                <div className="flex items-center gap-2">
-                  <TacticalBadge variant="success">CONFIGURED</TacticalBadge>
-                  <div className="flex-1">
-                    <div className="text-sm text-tactical-text-primary font-mono">
-                      {project?.ona_entity_list_name || 'Entity List'}
+              ) : (
+                <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+                  <div className="flex items-center gap-2">
+                    <TacticalBadge variant="success">CONFIGURED</TacticalBadge>
+                    <div className="flex-1">
+                      <div className="text-sm text-tactical-text-primary font-mono">
+                        {project?.ona_entity_list_name || 'Entity List'}
+                      </div>
+                      <div className="text-xs text-tactical-text-dim font-mono mt-1">
+                        {entityCount} {entityCount === 1 ? 'location' : 'locations'} in ODK
+                      </div>
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Pixel Geometry Type Selection */}
+            <div>
+              <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+                Pixel Geometry Type
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-start gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="pixelGeometryType"
+                    value="centroid"
+                    checked={pixelGeometryType === 'centroid'}
+                    onChange={(e) => setPixelGeometryType(e.target.value as 'centroid' | 'boundary')}
+                    className="mt-0.5 w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm text-tactical-text-primary font-mono">Centroid (Point)</div>
                     <div className="text-xs text-tactical-text-dim font-mono mt-1">
-                      {entityCount} {entityCount === 1 ? 'location' : 'locations'} in ODK
+                      Export pixel center as a single point
                     </div>
                   </div>
-                </div>
+                </label>
+                <label className="flex items-start gap-3 p-3 border border-tactical-border-medium bg-tactical-bg-secondary hover:bg-tactical-bg-tertiary cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="pixelGeometryType"
+                    value="boundary"
+                    checked={pixelGeometryType === 'boundary'}
+                    onChange={(e) => setPixelGeometryType(e.target.value as 'centroid' | 'boundary')}
+                    className="mt-0.5 w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm text-tactical-text-primary font-mono">Boundary (Polygon)</div>
+                    <div className="text-xs text-tactical-text-dim font-mono mt-1">
+                      Export pixel as a square boundary polygon with 4 corners
+                    </div>
+                  </div>
+                </label>
               </div>
-            )}
-          </div>
+            </div>
+          </>
         )}
 
         {/* Filter Options (hidden for ODK export) */}
