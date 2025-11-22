@@ -140,7 +140,7 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
             />
 
             <TacticalInput
-              label="ODK API Key"
+              label="API Key"
               type="password"
               value={odkApiKey}
               onChange={setOdkApiKey}
