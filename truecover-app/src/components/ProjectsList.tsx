@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { Project, Organization } from '../types';
 import { projectsApi } from '../services/api';
+import ProjectSettings from './ProjectSettings';
 import {
   TacticalCard,
   TacticalButton,
@@ -17,7 +17,6 @@ interface ProjectsListProps {
 }
 
 const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
-  const navigate = useNavigate();
   const { getToken } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,13 +29,9 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // Edit Project Modal state
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [editedTitle, setEditedTitle] = useState('');
-  const [editedDescription, setEditedDescription] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  // Settings Modal state
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsProject, setSettingsProject] = useState<Project | null>(null);
 
   // Delete Project Modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -117,57 +112,14 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
     setCreateError(null);
   };
 
-  const openEditModal = (project: Project) => {
-    setEditingProject(project);
-    setEditedTitle(project.title);
-    setEditedDescription(project.description || '');
-    setIsEditModalOpen(true);
+  const openSettingsModal = (project: Project) => {
+    setSettingsProject(project);
+    setIsSettingsModalOpen(true);
   };
 
-  const closeEditModal = () => {
-    setIsEditModalOpen(false);
-    setEditingProject(null);
-    setEditedTitle('');
-    setEditedDescription('');
-    setEditError(null);
-  };
-
-  const handleEditProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!editingProject) return;
-    if (!editedTitle.trim()) {
-      setEditError('Project title is required');
-      return;
-    }
-
-    setIsEditing(true);
-    setEditError(null);
-
-    try {
-      const token = await getToken();
-      if (!token) {
-        setEditError('Authentication required');
-        return;
-      }
-
-      const updatedProject = await projectsApi.update(
-        editingProject.id,
-        {
-          title: editedTitle.trim(),
-          description: editedDescription.trim()
-        },
-        token
-      );
-
-      setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
-      closeEditModal();
-    } catch (err: any) {
-      console.error('Failed to update project:', err);
-      setEditError(err.response?.data?.error || 'Failed to update project');
-    } finally {
-      setIsEditing(false);
-    }
+  const closeSettingsModal = () => {
+    setIsSettingsModalOpen(false);
+    setSettingsProject(null);
   };
 
   const openDeleteModal = (project: Project) => {
@@ -286,16 +238,9 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
                     <TacticalButton
                       variant="secondary"
                       size="sm"
-                      onClick={() => navigate(`/orgs/${organization!.id}/projects/${project.id}/settings`)}
+                      onClick={() => openSettingsModal(project)}
                     >
                       Settings
-                    </TacticalButton>
-                    <TacticalButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => openEditModal(project)}
-                    >
-                      Edit
                     </TacticalButton>
                     <TacticalButton
                       variant="secondary"
@@ -380,73 +325,17 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
         </form>
       </TacticalModal>
 
-      {/* Edit Project Modal */}
-      <TacticalModal
-        title="Edit Project"
-        isOpen={isEditModalOpen}
-        onClose={closeEditModal}
-        size="md"
-      >
-        <form onSubmit={handleEditProject} className="space-y-4">
-          {editError && (
-            <div className="flex items-start gap-3 p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
-              <TacticalBadge variant="danger">ERROR</TacticalBadge>
-              <span className="text-sm text-tactical-accent-red">{editError}</span>
-            </div>
-          )}
-
-          <div>
-            <label
-              htmlFor="projectTitleEdit"
-              className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
-            >
-              Project Title
-            </label>
-            <TacticalInput
-              id="projectTitleEdit"
-              type="text"
-              value={editedTitle}
-              onChange={setEditedTitle}
-              placeholder="Enter project title"
-              disabled={isEditing}
-            />
-          </div>
-
-          <TacticalTextarea
-            id="projectDescriptionEdit"
-            label="Description (Optional)"
-            value={editedDescription}
-            onChange={setEditedDescription}
-            placeholder="Enter project description"
-            disabled={isEditing}
-            rows={3}
-          />
-
-          <div className="flex gap-3 justify-end pt-2">
-            <TacticalButton
-              type="button"
-              variant="secondary"
-              onClick={closeEditModal}
-              disabled={isEditing}
-            >
-              Cancel
-            </TacticalButton>
-            <TacticalButton
-              type="submit"
-              variant="primary"
-              disabled={isEditing || !editedTitle.trim()}
-            >
-              {isEditing ? (
-                <span className="tactical-loading-dots">
-                  SAVING<span>.</span><span>.</span><span>.</span>
-                </span>
-              ) : (
-                'Save Changes'
-              )}
-            </TacticalButton>
-          </div>
-        </form>
-      </TacticalModal>
+      {/* Project Settings Modal */}
+      {settingsProject && (
+        <ProjectSettings
+          isOpen={isSettingsModalOpen}
+          onClose={closeSettingsModal}
+          project={settingsProject}
+          onProjectUpdated={(updatedProject) => {
+            setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+          }}
+        />
+      )}
 
       {/* Delete Project Modal */}
       <TacticalModal

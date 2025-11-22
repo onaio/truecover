@@ -8,7 +8,6 @@ import HomePage from './pages/HomePage';
 import AdaptiveSamplingPage from './pages/AdaptiveSamplingPage';
 import CoveragePredictionPage from './pages/CoveragePredictionPage';
 import OrganizationManagementPage from './pages/OrganizationManagementPage';
-import ProjectSettingsPage from './pages/ProjectSettingsPage';
 import TacticalShowcase from './pages/TacticalShowcase';
 import { LocationsWrapper } from './components/RouteWrappers';
 import CreateOrganizationModal from './components/CreateOrganizationModal';
@@ -98,7 +97,6 @@ const AppContent: React.FC = () => {
         <Route path="/tactical" element={<TacticalShowcase />} />
         <Route path="/tools/adaptive-sampling" element={<AdaptiveSamplingPage />} />
         <Route path="/tools/coverage-prediction" element={<CoveragePredictionPage />} />
-        <Route path="/orgs/:orgId/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId" element={<LocationsWrapper />} />
       </Routes>
 

@@ -1,45 +1,58 @@
-// ABOUTME: Project settings page for configuring ODK integration and other project-level settings
-// ABOUTME: Allows users to set ODK API credentials for data collection integration
+// ABOUTME: Project settings modal for configuring project details and ODK integration
+// ABOUTME: Allows users to edit project name, description, and ODK API credentials
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { Project } from '../types';
 import { projectsApi } from '../services/api';
 import {
-  TacticalCard,
+  TacticalModal,
   TacticalButton,
   TacticalBadge,
-  TacticalInput
+  TacticalInput,
+  TacticalTextarea
 } from '../tactical-ui';
 
 interface ProjectSettingsProps {
+  isOpen: boolean;
+  onClose: () => void;
   project: Project;
-  organizationId: string;
   onProjectUpdated: (project: Project) => void;
 }
 
 const ProjectSettings: React.FC<ProjectSettingsProps> = ({
+  isOpen,
+  onClose,
   project,
-  organizationId,
   onProjectUpdated
 }) => {
   const { getToken } = useAuth();
+  const [title, setTitle] = useState(project.title);
+  const [description, setDescription] = useState(project.description || '');
   const [odkApiKey, setOdkApiKey] = useState(project.odk_api_key || '');
   const [odkHostUrl, setOdkHostUrl] = useState(project.odk_host_url || '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setOdkApiKey(project.odk_api_key || '');
-    setOdkHostUrl(project.odk_host_url || '');
-  }, [project]);
+    if (isOpen) {
+      setTitle(project.title);
+      setDescription(project.description || '');
+      setOdkApiKey(project.odk_api_key || '');
+      setOdkHostUrl(project.odk_host_url || '');
+      setError(null);
+    }
+  }, [project, isOpen]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!title.trim()) {
+      setError('Project title is required');
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
-    setSuccessMessage(null);
 
     try {
       const token = await getToken();
@@ -51,6 +64,8 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
       const updatedProject = await projectsApi.update(
         project.id,
         {
+          title: title.trim(),
+          description: description.trim(),
           odk_api_key: odkApiKey.trim() || null,
           odk_host_url: odkHostUrl.trim() || null
         },
@@ -58,9 +73,7 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
       );
 
       onProjectUpdated(updatedProject);
-      setSuccessMessage('Settings saved successfully');
-
-      setTimeout(() => setSuccessMessage(null), 3000);
+      onClose();
     } catch (err: any) {
       console.error('Failed to update project settings:', err);
       setError(err.response?.data?.error || 'Failed to save settings');
@@ -69,53 +82,53 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
     }
   };
 
-  const hasChanges =
-    odkApiKey !== (project.odk_api_key || '') ||
-    odkHostUrl !== (project.odk_host_url || '');
-
   return (
-    <TacticalCard title="Project Settings" padding="lg">
-      <div className="space-y-6">
-        {/* Project Info */}
+    <TacticalModal
+      title="Project Settings"
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+    >
+      <form onSubmit={handleSave} className="space-y-4">
+        {error && (
+          <div className="flex items-start gap-3 p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
+            <TacticalBadge variant="danger">ERROR</TacticalBadge>
+            <span className="text-sm text-tactical-accent-red">{error}</span>
+          </div>
+        )}
+
         <div>
-          <h4 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+          <h4 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
             Project Information
           </h4>
-          <div className="space-y-2">
-            <div>
-              <span className="text-xs text-tactical-text-muted uppercase tracking-wider">Name:</span>
-              <p className="text-tactical-text-secondary">{project.title}</p>
-            </div>
-            {project.description && (
-              <div>
-                <span className="text-xs text-tactical-text-muted uppercase tracking-wider">Description:</span>
-                <p className="text-tactical-text-secondary">{project.description}</p>
-              </div>
-            )}
+
+          <div className="space-y-4">
+            <TacticalInput
+              label="Project Title"
+              type="text"
+              value={title}
+              onChange={setTitle}
+              placeholder="Enter project title"
+              disabled={isSaving}
+            />
+
+            <TacticalTextarea
+              label="Description"
+              value={description}
+              onChange={setDescription}
+              placeholder="Enter project description (optional)"
+              disabled={isSaving}
+              rows={3}
+            />
           </div>
         </div>
 
-        {/* ODK Configuration */}
         <div>
           <h4 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
             ODK Central Integration
           </h4>
 
-          <form onSubmit={handleSave} className="space-y-4">
-            {error && (
-              <div className="flex items-start gap-3 p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
-                <TacticalBadge variant="danger">ERROR</TacticalBadge>
-                <span className="text-sm text-tactical-accent-red">{error}</span>
-              </div>
-            )}
-
-            {successMessage && (
-              <div className="flex items-start gap-3 p-3 border border-tactical-accent-green bg-tactical-bg-secondary">
-                <TacticalBadge variant="success">SUCCESS</TacticalBadge>
-                <span className="text-sm text-tactical-accent-green">{successMessage}</span>
-              </div>
-            )}
-
+          <div className="space-y-4">
             <TacticalInput
               label="ODK Host URL"
               type="text"
@@ -136,26 +149,34 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
               showToggle={true}
               helperText="API key for authenticating with ODK Central"
             />
-
-            <div className="flex gap-3 justify-end pt-4">
-              <TacticalButton
-                type="submit"
-                variant="primary"
-                disabled={isSaving || !hasChanges}
-              >
-                {isSaving ? (
-                  <span className="tactical-loading-dots">
-                    SAVING<span>.</span><span>.</span><span>.</span>
-                  </span>
-                ) : (
-                  'Save Settings'
-                )}
-              </TacticalButton>
-            </div>
-          </form>
+          </div>
         </div>
-      </div>
-    </TacticalCard>
+
+        <div className="flex gap-3 justify-end pt-4">
+          <TacticalButton
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={isSaving}
+          >
+            Cancel
+          </TacticalButton>
+          <TacticalButton
+            type="submit"
+            variant="primary"
+            disabled={isSaving || !title.trim()}
+          >
+            {isSaving ? (
+              <span className="tactical-loading-dots">
+                SAVING<span>.</span><span>.</span><span>.</span>
+              </span>
+            ) : (
+              'Save Settings'
+            )}
+          </TacticalButton>
+        </div>
+      </form>
+    </TacticalModal>
   );
 };
 
