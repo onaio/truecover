@@ -194,12 +194,6 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log('🔴 SAVE CLICKED - Current state:');
-    console.log('   selectedOnaProjectId:', selectedOnaProjectId);
-    console.log('   selectedOnaProjectName:', selectedOnaProjectName);
-    console.log('   selectedEntityListId:', selectedEntityListId);
-    console.log('   selectedEntityListName:', selectedEntityListName);
-
     if (!title.trim()) {
       setError('Project title is required');
       return;
@@ -215,26 +209,20 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
         return;
       }
 
-      const updateData = {
-        title: title.trim(),
-        description: description.trim(),
-        odk_api_key: odkApiKey.trim() || null,
-        odk_host_url: odkHostUrl.trim() || null,
-        ona_project_id: selectedOnaProjectId,
-        ona_project_name: selectedOnaProjectName,
-        ona_entity_list_id: selectedEntityListId,
-        ona_entity_list_name: selectedEntityListName
-      };
-
-      console.log('💾 Saving project with data:', updateData);
-
       const updatedProject = await projectsApi.update(
         project.id,
-        updateData,
+        {
+          title: title.trim(),
+          description: description.trim(),
+          odk_api_key: odkApiKey.trim() || null,
+          odk_host_url: odkHostUrl.trim() || null,
+          ona_project_id: selectedOnaProjectId,
+          ona_project_name: selectedOnaProjectName,
+          ona_entity_list_id: selectedEntityListId,
+          ona_entity_list_name: selectedEntityListName
+        },
         token
       );
-
-      console.log('✅ Received updated project:', updatedProject);
 
       onProjectUpdated(updatedProject);
       onClose();

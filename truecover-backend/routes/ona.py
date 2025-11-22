@@ -203,12 +203,19 @@ def get_entities(user, project_id):
 
             entities_data = response.json()
 
-            # The Ona API returns paginated results with 'results' array
-            entities = entities_data.get('results', [])
+            # Handle both response formats: list or paginated dict
+            if isinstance(entities_data, list):
+                # Direct list response
+                entities = entities_data
+                total_count = len(entities)
+            else:
+                # Paginated response with 'results' array and 'count' for total
+                entities = entities_data.get('results', [])
+                total_count = entities_data.get('count', len(entities))
 
             return jsonify({
                 'entities': entities,
-                'count': len(entities)
+                'count': total_count
             }), 200
 
         except requests.exceptions.Timeout:

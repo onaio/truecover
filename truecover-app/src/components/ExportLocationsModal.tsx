@@ -3,6 +3,7 @@ import { TacticalModal, TacticalButton, TacticalBadge, TacticalSelect } from '..
 import { useRounds } from '../hooks/useRounds';
 import { useIndicators } from '../hooks/useIndicators';
 import { useAllCoverageData } from '../hooks/useCoverageData';
+import { useProject } from '../hooks/useProjects';
 import { useAuth } from '@clerk/clerk-react';
 import { onaApi } from '../services/api';
 
@@ -26,6 +27,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   const { getToken } = useAuth();
   const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
   const { data: indicators = [] } = useIndicators(projectId);
+  const { data: project } = useProject(projectId);
 
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<string[]>([]);
@@ -34,10 +36,9 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   const [exportDestination, setExportDestination] = useState<'download' | 'odk'>('download');
 
   // ODK entity state
-  const [entities, setEntities] = useState<any[]>([]);
+  const [entityCount, setEntityCount] = useState<number>(0);
   const [isLoadingEntities, setIsLoadingEntities] = useState(false);
   const [entitiesError, setEntitiesError] = useState<string | null>(null);
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   // Use React Query hook to fetch ALL coverage data (not paginated)
   const { data: coverageDataResult, isLoading: isLoadingCoverage } = useAllCoverageData(
@@ -67,12 +68,20 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     }
   }, [indicators]);
 
-  // Fetch entities when ODK export is selected
+  // Fetch entity count when ODK export is selected
   useEffect(() => {
-    const fetchEntities = async () => {
+    const fetchEntityCount = async () => {
       if (exportDestination !== 'odk') {
-        setEntities([]);
+        setEntityCount(0);
         setEntitiesError(null);
+        return;
+      }
+
+      // Check if entity list is configured
+      if (!project?.ona_entity_list_id) {
+        setEntitiesError('No entity list configured. Please configure ODK integration in project settings.');
+        setEntityCount(0);
+        setIsLoadingEntities(false);
         return;
       }
 
@@ -90,21 +99,21 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 
         if (result.error) {
           setEntitiesError(result.error);
-          setEntities([]);
+          setEntityCount(0);
         } else {
-          setEntities(result.entities || []);
+          setEntityCount(result.count || 0);
         }
       } catch (err: any) {
-        console.error('Failed to load entities:', err);
-        setEntitiesError(err.response?.data?.error || 'Failed to load entities');
-        setEntities([]);
+        console.error('Failed to load entity count:', err);
+        setEntitiesError(err.response?.data?.error || 'Failed to load entity count');
+        setEntityCount(0);
       } finally {
         setIsLoadingEntities(false);
       }
     };
 
-    fetchEntities();
-  }, [exportDestination, projectId, getToken]);
+    fetchEntityCount();
+  }, [exportDestination, projectId, project?.ona_entity_list_id, getToken]);
 
   // Calculate how many items would be exported (locations + pixels)
   const exportCount = useMemo(() => {
@@ -594,57 +603,38 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
           </div>
         )}
 
-        {/* Entity Selection (shown when Export to ODK is selected) */}
+        {/* ODK Entity List Info (shown when Export to ODK is selected) */}
         {exportDestination === 'odk' && (
           <div>
             <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-              Select Entity
+              ODK Entity List
             </label>
             {isLoadingEntities ? (
               <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary text-center">
-                <p className="text-sm text-tactical-text-dim">Loading entities...</p>
+                <p className="text-sm text-tactical-text-dim">Loading entity list information...</p>
               </div>
             ) : entitiesError ? (
               <div className="p-3 border border-tactical-accent-red bg-tactical-bg-secondary">
                 <div className="flex items-start gap-2">
                   <TacticalBadge variant="danger">ERROR</TacticalBadge>
-                  <span className="text-sm text-tactical-accent-red">{entitiesError}</span>
+                  <div className="flex-1">
+                    <span className="text-sm text-tactical-accent-red">{entitiesError}</span>
+                  </div>
                 </div>
               </div>
-            ) : entities.length === 0 ? (
-              <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary text-center">
-                <p className="text-sm text-tactical-text-dim">No entities found. Please configure ODK integration in project settings.</p>
-              </div>
             ) : (
-              <div className="border border-tactical-border-medium bg-tactical-bg-secondary max-h-48 overflow-y-auto tactical-scrollbar">
-                {entities.map((entity: any) => (
-                  <label
-                    key={entity.uuid}
-                    className="flex items-center gap-3 p-3 border-b border-tactical-border-medium last:border-b-0 hover:bg-tactical-bg-tertiary cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="radio"
-                      name="selectedEntity"
-                      checked={selectedEntityId === entity.uuid}
-                      onChange={() => setSelectedEntityId(entity.uuid)}
-                      className="w-4 h-4 bg-tactical-bg-secondary border-2 border-tactical-border-medium checked:bg-tactical-accent-green checked:border-tactical-accent-green focus:outline-none focus:ring-2 focus:ring-tactical-accent-orange"
-                    />
-                    <div className="flex-1">
-                      <div className="text-sm text-tactical-text-primary font-mono">
-                        {entity.label || entity.uuid}
-                      </div>
-                      {entity.data && Object.keys(entity.data).length > 0 && (
-                        <div className="text-xs text-tactical-text-dim font-mono mt-1">
-                          {Object.entries(entity.data).slice(0, 2).map(([key, value]) => (
-                            <span key={key} className="mr-2">
-                              {key}: {String(value)}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+              <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+                <div className="flex items-center gap-2">
+                  <TacticalBadge variant="success">CONFIGURED</TacticalBadge>
+                  <div className="flex-1">
+                    <div className="text-sm text-tactical-text-primary font-mono">
+                      {project?.ona_entity_list_name || 'Entity List'}
                     </div>
-                  </label>
-                ))}
+                    <div className="text-xs text-tactical-text-dim font-mono mt-1">
+                      {entityCount} {entityCount === 1 ? 'location' : 'locations'} in ODK
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

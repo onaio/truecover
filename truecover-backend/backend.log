@@ -18722,3 +18722,1105 @@ Got user from Clerk: mberg@ona.io
 Syncing user to database...
 User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:46:45.324236'}
 127.0.0.1 - - [21/Nov/2025 22:46:45] "GET /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/members HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:04] "OPTIONS /api/organizations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:04] "OPTIONS /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/projects HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:04] "OPTIONS /api/organizations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:04] "OPTIONS /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/projects HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...Decoding token...
+
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwClerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Fetching user from Clerk API...Decoding token...
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.ioUser synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:04.647700'}
+
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:47:04] "GET /api/organizations HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:04.669059'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:47:04] "GET /api/organizations HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:04.731214'}
+127.0.0.1 - - [21/Nov/2025 22:47:04] "GET /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/projects HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:04.737503'}
+127.0.0.1 - - [21/Nov/2025 22:47:04] "GET /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/projects HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:04] "OPTIONS /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:04] "OPTIONS /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/areas HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:04] "OPTIONS /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/areas HTTP/1.1" 200 -
+Decoding token...Decoding token...Decoding token...
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwFetching user from Clerk API...
+Fetching user from Clerk API...
+
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:04.908181'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:47:04] "GET /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/areas HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:04.952072'}
+127.0.0.1 - - [21/Nov/2025 22:47:04] "GET /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/indicators HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:04.956648'}
+127.0.0.1 - - [21/Nov/2025 22:47:04] "GET /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/areas HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:07] "OPTIONS /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c/projects HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:07.873729'}
+127.0.0.1 - - [21/Nov/2025 22:47:07] "GET /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c/projects HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:09] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:09] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/areas HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:09.986828'}
+127.0.0.1 - - [21/Nov/2025 22:47:09] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/areas HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:10.044102'}
+127.0.0.1 - - [21/Nov/2025 22:47:10] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoding token...
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwFetching user from Clerk API...
+Decoding token...Fetching user from Clerk API...
+
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:28.749182'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:47:28] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:28.838178'}
+127.0.0.1 - - [21/Nov/2025 22:47:28] "GET /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:28.851347'}
+127.0.0.1 - - [21/Nov/2025 22:47:28] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:28.847168'}
+127.0.0.1 - - [21/Nov/2025 22:47:28] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/data-sources HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:28] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoding token...
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+
+Fetching user from Clerk API...127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoding token...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoding token...
+
+Fetching user from Clerk API...Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+
+Decoding token...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...Fetching user from Clerk API...
+Fetching user from Clerk API...
+
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.129259'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.192899'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.203199'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.207936'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.214318'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/data-sources HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.243432'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.323025'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.365353'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.387264'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.426766'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:29] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoding token...
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Fetching user from Clerk API...
+
+Decoding token...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.437105'}Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Fetching user from Clerk API...
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783264, 'fva': [436, -1], 'iat': 1763783204, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783194, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.486391'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.477237'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.719029'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.720063'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.718425'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:47:29.722110'}
+127.0.0.1 - - [21/Nov/2025 22:47:29] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:47:30] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:48:37] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783362, 'fva': [438, -1], 'iat': 1763783302, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783292, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:48:37.453841'}
+127.0.0.1 - - [21/Nov/2025 22:48:38] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783874, 'fva': [447, -1], 'iat': 1763783814, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783804, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783874, 'fva': [447, -1], 'iat': 1763783814, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783804, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+
+Decoding token...127.0.0.1 - - [21/Nov/2025 22:57:08] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783874, 'fva': [447, -1], 'iat': 1763783814, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783804, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783874, 'fva': [447, -1], 'iat': 1763783814, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783804, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783874, 'fva': [447, -1], 'iat': 1763783814, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783804, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwClerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Decoding token...
+Fetching user from Clerk API...Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783859, 'fva': [6034, -1], 'iat': 1763783799, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783789, 'sid': 'sess_35cuVPQ2fRXwTFYVXqwPJENop7O', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Decoding token...
+Decoding token...Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783859, 'fva': [6034, -1], 'iat': 1763783799, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783789, 'sid': 'sess_35cuVPQ2fRXwTFYVXqwPJENop7O', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783859, 'fva': [6034, -1], 'iat': 1763783799, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783789, 'sid': 'sess_35cuVPQ2fRXwTFYVXqwPJENop7O', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoded token: {'azp': 'http://localhost:3050', 'exp': 1763783859, 'fva': [6034, -1], 'iat': 1763783799, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783789, 'sid': 'sess_35cuVPQ2fRXwTFYVXqwPJENop7O', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Fetching user from Clerk API...
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...Got user from Clerk: mberg@ona.io
+
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.490652'}
+127.0.0.1 - - [21/Nov/2025 22:57:08] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.642132'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.651013'}
+127.0.0.1 - - [21/Nov/2025 22:57:08] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.652477'}
+127.0.0.1 - - [21/Nov/2025 22:57:08] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.644714'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.647202'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.691002'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.664170'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:08.696076'}
+127.0.0.1 - - [21/Nov/2025 22:57:08] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:08] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:09] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:09] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:09] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:18] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:18] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783874, 'fva': [447, -1], 'iat': 1763783814, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783804, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoding token...
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783859, 'fva': [6034, -1], 'iat': 1763783799, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783789, 'sid': 'sess_35cuVPQ2fRXwTFYVXqwPJENop7O', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.ioUser synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:19.111566'}
+
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:57:19] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:19.267851'}
+127.0.0.1 - - [21/Nov/2025 22:57:19] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:58] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783920, 'fva': [447, -1], 'iat': 1763783860, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783850, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:58.344104'}
+127.0.0.1 - - [21/Nov/2025 22:57:58] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:57:58] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763783911, 'fva': [6035, -1], 'iat': 1763783851, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783841, 'sid': 'sess_35cuVPQ2fRXwTFYVXqwPJENop7O', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:57:58.939267'}
+127.0.0.1 - - [21/Nov/2025 22:57:58] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/routes/ona.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(6786a39c-9fde-4e42-bdbc-9357ca24603d, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(6786a39c-9fde-4e42-bdbc-9357ca24603d, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 102-801-168
+127.0.0.1 - - [21/Nov/2025 22:59:30] "OPTIONS /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:30] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:30] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+Decoding token...
+127.0.0.1 - - [21/Nov/2025 22:59:30] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoding token...
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:30] "OPTIONS /api/user/me HTTP/1.1" 200 -
+Decoding token...Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Decoding token...Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwClerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwFetching user from Clerk API...
+Fetching user from Clerk API...
+
+Fetching user from Clerk API...
+
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:30.733533'}
+127.0.0.1 - - [21/Nov/2025 22:59:30] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:30.888441'}
+127.0.0.1 - - [21/Nov/2025 22:59:30] "GET /api/user/me HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:30.874246'}
+127.0.0.1 - - [21/Nov/2025 22:59:30] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:30.892191'}
+127.0.0.1 - - [21/Nov/2025 22:59:30] "GET /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:30.896936'}
+127.0.0.1 - - [21/Nov/2025 22:59:30] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/data-sources HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoding token...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Fetching user from Clerk API...Decoding token...Decoding token...
+
+Decoding token...Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.183411'}
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/data-sources HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.265254'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.270588'}
+Got user from Clerk: mberg@ona.ioUser synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.265958'}
+
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.271801'}
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.387129'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.393674'}
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.465207'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.521386'}
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.524762'}
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.530535'}
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoding token...Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:31] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.ioDecoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Syncing user to database...
+Decoding token...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwGot user from Clerk: mberg@ona.io
+Fetching user from Clerk API...
+
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:31.801082'}
+127.0.0.1 - - [21/Nov/2025 22:59:31] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:32.034887'}
+127.0.0.1 - - [21/Nov/2025 22:59:32] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:32.139295'}
+127.0.0.1 - - [21/Nov/2025 22:59:32] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:32.326065'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:32.355284'}
+127.0.0.1 - - [21/Nov/2025 22:59:32] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:32.352717'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:32.351461'}
+127.0.0.1 - - [21/Nov/2025 22:59:32] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:32] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:32] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:43] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784030, 'fva': [449, -1], 'iat': 1763783970, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783960, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:44.016784'}
+127.0.0.1 - - [21/Nov/2025 22:59:44] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:51] "OPTIONS /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:51] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:51] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:51] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:51] "OPTIONS /api/user/me HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.169828'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.177189'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.201326'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.252368'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.286712'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/user/me HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/data-sources HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+Decoding token...Decoding token...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoding token...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Fetching user from Clerk API...Fetching user from Clerk API...
+
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.464164'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.497426'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.567085'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.563429'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.578682'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.580481'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+Decoding token...127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.634845'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.665748'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/data-sources HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.710101'}
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.753090'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Syncing user to database...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.782364'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:52] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 22:59:52] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.889275'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 22:59:53] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:52.893640'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:53.056765'}
+127.0.0.1 - - [21/Nov/2025 22:59:53] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:53.321905'}
+127.0.0.1 - - [21/Nov/2025 22:59:53] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:53.319432'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T03:59:53.324148'}
+127.0.0.1 - - [21/Nov/2025 22:59:53] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:53] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 22:59:53] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:00:06] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784052, 'fva': [450, -1], 'iat': 1763783992, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763783982, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:00:06.651003'}
+127.0.0.1 - - [21/Nov/2025 23:00:07] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/routes/ona.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(6786a39c-9fde-4e42-bdbc-9357ca24603d, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(6786a39c-9fde-4e42-bdbc-9357ca24603d, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker startedEnrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 247-266-977
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/user/me HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoding token...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwClerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+
+Fetching user from Clerk API...Fetching user from Clerk API...
+Fetching user from Clerk API...
+Decoding token...
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoding token...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.515608'}
+127.0.0.1 - - [21/Nov/2025 23:01:00] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.619243'}
+127.0.0.1 - - [21/Nov/2025 23:01:00] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.619535'}
+127.0.0.1 - - [21/Nov/2025 23:01:00] "GET /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.619548'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.622076'}
+127.0.0.1 - - [21/Nov/2025 23:01:00] "GET /api/user/me HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/data-sources HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:00] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoding token...
+Decoding token...Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Decoding token...
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Fetching user from Clerk API...
+
+
+
+Fetching user from Clerk API...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoding token...
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Fetching user from Clerk API...
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Fetching user from Clerk API...Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.885428'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 23:01:00] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.964054'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.947539'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.946619'}
+127.0.0.1 - - [21/Nov/2025 23:01:00] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.952283'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:00.951737'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/data-sources HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/enrichment-jobs HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/stats HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:01] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:01] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:01] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.060764'}
+Got user from Clerk: mberg@ona.io127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/pixels/metadata-stats HTTP/1.1" 200 -
+
+Syncing user to database...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.131628'}
+
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations?limit=200&offset=0 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwGot user from Clerk: mberg@ona.io
+Syncing user to database...
+
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.154303'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.190410'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:01] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.193226'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.205076'}
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.239309'}
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:01] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:01] "OPTIONS /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/locations HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.330181'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.352237'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/rounds HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.344029'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.417959'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:01.441300'}
+127.0.0.1 - - [21/Nov/2025 23:01:01] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage/histogram?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&mode=coverage&data_type=locations&bins=12 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:02] "GET /api/areas/61de22ae-3180-4866-bf7e-e124cdd64add/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+127.0.0.1 - - [21/Nov/2025 23:01:12] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1763784120, 'fva': [451, -1], 'iat': 1763784060, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1763784050, 'sid': 'sess_35ns5aTKw8FOJ1DyCliq1AWT9as', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-22T04:01:12.981256'}
+127.0.0.1 - - [21/Nov/2025 23:01:13] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/ona/entities HTTP/1.1" 200 -
