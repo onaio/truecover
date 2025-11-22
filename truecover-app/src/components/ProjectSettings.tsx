@@ -125,18 +125,18 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
 
         <div>
           <h4 className="font-mono text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
-            ODK Central Integration
+            ODK Integration
           </h4>
 
           <div className="space-y-4">
             <TacticalInput
-              label="ODK Host URL"
+              label="Ona Data Host URL"
               type="text"
               value={odkHostUrl}
               onChange={setOdkHostUrl}
               placeholder="https://your-odk-server.com"
               disabled={isSaving}
-              helperText="The base URL of your ODK Central server"
+              helperText="The base URL of your ODK server"
             />
 
             <TacticalInput
@@ -147,7 +147,7 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
               placeholder="Enter API key"
               disabled={isSaving}
               showToggle={true}
-              helperText="API key for authenticating with ODK Central"
+              helperText="API key for authenticating with ODK"
             />
           </div>
         </div>
