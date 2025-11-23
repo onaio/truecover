@@ -3,96 +3,114 @@
 @tailwind utilities;
 
 body {
-  margin: 0;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New',
-    monospace;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #000000;
-  color: #ffffff;
+    margin: 0;
+    font-family:
+        "JetBrains Mono", "Fira Code", "Consolas", "Monaco", "Courier New",
+        monospace;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #000000;
+    color: #ffffff;
 }
 
 code {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New',
-    monospace;
+    font-family:
+        "JetBrains Mono", "Fira Code", "Consolas", "Monaco", "Courier New",
+        monospace;
 }
 
 /* Mapbox Popup Tactical UI Styling */
 .tactical-popup .mapboxgl-popup-content {
-  background-color: #0a0a0a !important;
-  border: 1px solid #333333 !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
-  position: relative !important;
+    background-color: #0a0a0a !important;
+    border: 1px solid #333333 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+    font-family:
+        "JetBrains Mono", "Fira Code", "Consolas", "Monaco", "Courier New",
+        monospace !important;
+    position: relative !important;
 }
 
 .tactical-popup .mapboxgl-popup-close-button {
-  color: #ffffff !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-  padding: 6px !important;
-  position: absolute !important;
-  right: 4px !important;
-  top: 4px !important;
-  background-color: transparent !important;
-  border: none !important;
-  cursor: pointer !important;
-  z-index: 10 !important;
-  line-height: 1 !important;
-  width: auto !important;
-  height: auto !important;
+    color: #ffffff !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    padding: 6px !important;
+    position: absolute !important;
+    right: 4px !important;
+    top: 4px !important;
+    background-color: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    line-height: 1 !important;
+    width: auto !important;
+    height: auto !important;
 }
 
 .tactical-popup .mapboxgl-popup-close-button:hover {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
 }
 
 .tactical-popup .mapboxgl-popup-tip {
-  border-top-color: #0a0a0a !important;
+    border-top-color: #0a0a0a !important;
 }
 
 /* Mapbox Draw Controls Tactical UI Styling */
 .mapboxgl-ctrl-group {
-  background-color: #0a0a0a !important;
-  border: 1px solid #333333 !important;
-  border-radius: 0 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    background-color: #0a0a0a !important;
+    border: 1px solid #333333 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
 .mapboxgl-ctrl-group button {
-  background-color: #0a0a0a !important;
-  border: none !important;
-  border-bottom: 1px solid #333333 !important;
-  width: 36px !important;
-  height: 36px !important;
+    background-color: #0a0a0a !important;
+    border: none !important;
+    border-bottom: 1px solid #333333 !important;
+    width: 36px !important;
+    height: 36px !important;
 }
 
 .mapboxgl-ctrl-group button:last-child {
-  border-bottom: none !important;
+    border-bottom: none !important;
 }
 
 .mapboxgl-ctrl-group button:hover {
-  background-color: #1a1a1a !important;
+    background-color: #1a1a1a !important;
 }
 
 .mapboxgl-ctrl-group button.active {
-  background-color: #ff6b35 !important;
+    background-color: #ff6b35 !important;
 }
 
 .mapboxgl-ctrl-group button.active:hover {
-  background-color: #ff8555 !important;
+    background-color: #ff8555 !important;
 }
 
 /* Style the SVG icons */
 .mapboxgl-ctrl-group button .mapbox-gl-draw_ctrl-draw-btn {
-  background-color: transparent !important;
+    background-color: transparent !important;
+}
+
+/* Make SVG icons white */
+.mapboxgl-ctrl-group button svg {
+    fill: #ffffff !important;
+}
+
+.mapboxgl-ctrl-group button svg path {
+    fill: #ffffff !important;
+}
+
+.mapboxgl-ctrl-group button.active svg,
+.mapboxgl-ctrl-group button.active svg path {
+    fill: #000000 !important;
 }
 
 /* Position draw controls */
 .mapboxgl-ctrl-top-right .mapboxgl-ctrl-group {
-  margin-right: 380px !important;
-  margin-top: 12px !important;
+    margin-right: 140px !important;
+    margin-top: 12px !important;
 }
