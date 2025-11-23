@@ -90,50 +90,6 @@ code {
     background-color: #ff8555 !important;
 }
 
-/* Style the SVG icons */
-.mapboxgl-ctrl-group button .mapbox-gl-draw_ctrl-draw-btn {
-    background-color: transparent !important;
-}
-
-/* Make icons white - icons use background-image with masks */
-.mapboxgl-ctrl-group button {
-    background-color: #0a0a0a !important;
-    -webkit-mask-size: 20px 20px !important;
-    mask-size: 20px 20px !important;
-    -webkit-mask-position: center !important;
-    mask-position: center !important;
-    -webkit-mask-repeat: no-repeat !important;
-    mask-repeat: no-repeat !important;
-}
-
-/* Override the background with white for the icon to show through the mask */
-.mapboxgl-ctrl-group button::before {
-    content: '' !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    background-color: #ffffff !important;
-    -webkit-mask: inherit !important;
-    mask: inherit !important;
-}
-
-.mapboxgl-ctrl-group button:hover {
-    background-color: #1a1a1a !important;
-}
-
-.mapboxgl-ctrl-group button.active {
-    background-color: #ff6b35 !important;
-}
-
-.mapboxgl-ctrl-group button.active::before {
-    background-color: #000000 !important;
-}
-
-.mapboxgl-ctrl-group button.active:hover {
-    background-color: #ff8555 !important;
-}
 
 /* Position draw controls */
 .mapboxgl-ctrl-top-right .mapboxgl-ctrl-group {
