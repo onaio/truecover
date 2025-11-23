@@ -95,24 +95,43 @@ code {
     background-color: transparent !important;
 }
 
-/* Make icons white by inverting the button background image filter */
+/* Make icons white - icons use background-image with masks */
 .mapboxgl-ctrl-group button {
-    filter: invert(1) hue-rotate(180deg) !important;
     background-color: #0a0a0a !important;
+    -webkit-mask-size: 20px 20px !important;
+    mask-size: 20px 20px !important;
+    -webkit-mask-position: center !important;
+    mask-position: center !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+}
+
+/* Override the background with white for the icon to show through the mask */
+.mapboxgl-ctrl-group button::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background-color: #ffffff !important;
+    -webkit-mask: inherit !important;
+    mask: inherit !important;
 }
 
 .mapboxgl-ctrl-group button:hover {
-    filter: invert(1) hue-rotate(180deg) brightness(1.2) !important;
-    background-color: #0a0a0a !important;
+    background-color: #1a1a1a !important;
 }
 
 .mapboxgl-ctrl-group button.active {
-    filter: none !important;
     background-color: #ff6b35 !important;
 }
 
+.mapboxgl-ctrl-group button.active::before {
+    background-color: #000000 !important;
+}
+
 .mapboxgl-ctrl-group button.active:hover {
-    filter: none !important;
     background-color: #ff8555 !important;
 }
 
