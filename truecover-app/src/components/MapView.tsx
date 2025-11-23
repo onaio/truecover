@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import Map, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox';
 import type { LayerProps } from 'react-map-gl/mapbox';
 import { GeoJSONFeatureCollection } from '../types';
@@ -6,6 +6,8 @@ import { createJenksColorExpression, PREVALENCE_COLORS, UNCERTAINTY_COLORS, META
 import { Geocoder } from '@mapbox/search-js-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import MapboxDraw from '@mapbox/mapbox-gl-draw';
+import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import { useAuth } from '@clerk/clerk-react';
 import { adminBoundariesApi, pixelsApi } from '../services/api';
 import { useGeneratePixels } from '../hooks/usePixels';
@@ -95,6 +97,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     pixels_with_data: number;
   } | null>(null);
   const [loadingPopulation, setLoadingPopulation] = useState<boolean>(false);
+  const [drawnFeature, setDrawnFeature] = useState<any>(null);
+  const drawControlRef = useRef<MapboxDraw | null>(null);
   const geocoderInputRef = useRef<HTMLDivElement>(null);
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -154,6 +158,67 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       }, 100);
     }
   }, [showGeocoderModal]);
+
+  // Setup draw controls when in planning mode
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    if (planningMode) {
+      // Initialize draw control if not already created
+      if (!drawControlRef.current) {
+        const draw = new MapboxDraw({
+          displayControlsDefault: false,
+          controls: {
+            polygon: true,
+            trash: true
+          },
+          defaultMode: 'simple_select'
+        });
+
+        drawControlRef.current = draw;
+        mapInstance.addControl(draw, 'top-left');
+
+        // Handle draw.create event
+        const handleDrawCreate = (e: any) => {
+          const feature = e.features[0];
+          setDrawnFeature(feature);
+        };
+
+        // Handle draw.delete event
+        const handleDrawDelete = () => {
+          setDrawnFeature(null);
+        };
+
+        // Handle draw.update event
+        const handleDrawUpdate = (e: any) => {
+          const feature = e.features[0];
+          setDrawnFeature(feature);
+        };
+
+        mapInstance.on('draw.create', handleDrawCreate);
+        mapInstance.on('draw.delete', handleDrawDelete);
+        mapInstance.on('draw.update', handleDrawUpdate);
+      }
+    } else {
+      // Remove draw control when exiting planning mode
+      if (drawControlRef.current) {
+        mapInstance.removeControl(drawControlRef.current);
+        drawControlRef.current = null;
+        setDrawnFeature(null);
+      }
+    }
+
+    return () => {
+      if (drawControlRef.current && mapInstance) {
+        try {
+          mapInstance.removeControl(drawControlRef.current);
+        } catch (e) {
+          // Control may already be removed
+        }
+        drawControlRef.current = null;
+      }
+    };
+  }, [mapInstance, planningMode]);
 
   const bounds = useMemo(() => {
     // Check if we already calculated bounds (prevents unnecessary recalculations)
@@ -628,6 +693,27 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const handleMapClick = (event: any) => {
     const features = event.features || [];
 
+    // Check if clicked on drawn feature first
+    const drawnFeatures = features.filter((f: any) =>
+      f.source === 'mapbox-gl-draw-cold' || f.source === 'mapbox-gl-draw-hot'
+    );
+
+    if (drawnFeatures.length > 0 && drawnFeature && planningMode) {
+      // Clicked on drawn feature - show popup with options
+      const [lng, lat] = getCentroid(drawnFeature.geometry);
+      setPopupInfo({
+        longitude: lng,
+        latitude: lat,
+        properties: {
+          isDrawnFeature: true,
+          name: 'Drawn Area'
+        }
+      });
+      setPopulationSummary(null);
+      setLoadingPopulation(false);
+      return;
+    }
+
     // Prioritize admin boundaries - find the one with the highest level (most detailed)
     const adminBoundaries = features.filter((f: any) => {
       if (f.sourceLayer?.startsWith('admin_boundaries_adm') || f.sourceLayer === 'admin_boundaries') {
@@ -733,6 +819,39 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     } catch (error) {
       console.error('Failed to fetch admin boundary bounds:', error);
     }
+  };
+
+  const handleGeneratePixelsForDrawnArea = () => {
+    if (!drawnFeature || !areaId) return;
+
+    // Calculate bounding box from drawn feature
+    const coords = extractCoordinates(drawnFeature.geometry);
+    if (coords.length === 0) return;
+
+    let minLng = Infinity;
+    let minLat = Infinity;
+    let maxLng = -Infinity;
+    let maxLat = -Infinity;
+
+    coords.forEach(([lng, lat]) => {
+      minLng = Math.min(minLng, lng);
+      minLat = Math.min(minLat, lat);
+      maxLng = Math.max(maxLng, lng);
+      maxLat = Math.max(maxLat, lat);
+    });
+
+    setPendingAdminPixelGen({
+      pcode: 'drawn_area',
+      name: 'Drawn Area',
+      bbox: [minLng, minLat, maxLng, maxLat]
+    });
+    setShowPixelGenerateModal(true);
+  };
+
+  const handleAddLocationsForDrawnArea = () => {
+    if (!drawnFeature || !onAddLocationsForAdminBoundary) return;
+    onAddLocationsForAdminBoundary('drawn_area', 'Drawn Area');
+    setPopupInfo(null);
   };
 
   const handleConfirmPixelGeneration = async () => {
@@ -1120,12 +1239,12 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           mapStyle={mapStyle}
           projection="globe"
           interactiveLayerIds={isPredictionData
-            ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4']
+            ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4', 'gl-draw-polygon-fill-inactive.cold', 'gl-draw-polygon-stroke-inactive.cold', 'gl-draw-polygon-fill-active.cold', 'gl-draw-polygon-stroke-active.cold']
             : mode === 'locations' && areaId && indicatorId
               ? showPixels
-                ? ['pixels-fill-layer', 'pixels-line-layer', 'locations-points', 'locations-polygons-fill', 'locations-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4']
-                : ['locations-points', 'locations-polygons-fill', 'locations-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4']
-              : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4']}
+                ? ['pixels-fill-layer', 'pixels-line-layer', 'locations-points', 'locations-polygons-fill', 'locations-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4', 'gl-draw-polygon-fill-inactive.cold', 'gl-draw-polygon-stroke-inactive.cold', 'gl-draw-polygon-fill-active.cold', 'gl-draw-polygon-stroke-active.cold']
+                : ['locations-points', 'locations-polygons-fill', 'locations-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4', 'gl-draw-polygon-fill-inactive.cold', 'gl-draw-polygon-stroke-inactive.cold', 'gl-draw-polygon-fill-active.cold', 'gl-draw-polygon-stroke-active.cold']
+              : ['all-points', 'selected-points', 'all-polygons-fill', 'selected-polygons-fill', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4', 'gl-draw-polygon-fill-inactive.cold', 'gl-draw-polygon-stroke-inactive.cold', 'gl-draw-polygon-fill-active.cold', 'gl-draw-polygon-stroke-active.cold']}
           onClick={handleMapClick}
           onMove={handleMapMove}
           onLoad={(e) => setMapInstance(e.target)}
@@ -1803,7 +1922,34 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               closeOnClick={false}
               className="tactical-popup"
             >
-              {popupInfo.properties?.level !== undefined ? (
+              {popupInfo.properties?.isDrawnFeature ? (
+                /* Drawn feature popup */
+                <div className="bg-tactical-bg-primary border border-tactical-border-medium p-3" style={{ minWidth: '250px', maxWidth: '350px' }}>
+                  <div className="text-lg font-mono font-bold text-tactical-accent-orange mb-3">
+                    Drawn Area
+                  </div>
+
+                  {/* Generate Pixels button */}
+                  {areaId && (
+                    <button
+                      onClick={handleGeneratePixelsForDrawnArea}
+                      className="w-full px-3 py-2 bg-tactical-accent-orange hover:bg-opacity-80 text-black font-mono text-sm font-bold uppercase tracking-wider transition-all"
+                    >
+                      Generate Pixels
+                    </button>
+                  )}
+
+                  {/* Add Locations button */}
+                  {onAddLocationsForAdminBoundary && (
+                    <button
+                      onClick={handleAddLocationsForDrawnArea}
+                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-blue hover:bg-opacity-80 text-black"
+                    >
+                      Add Locations
+                    </button>
+                  )}
+                </div>
+              ) : popupInfo.properties?.level !== undefined ? (
                 /* Compact admin boundary popup */
                 <div className="bg-tactical-bg-primary border border-tactical-border-medium p-3" style={{ minWidth: '250px', maxWidth: '350px' }}>
                   {/* Breadcrumb - starts from ADM1 to save space */}
