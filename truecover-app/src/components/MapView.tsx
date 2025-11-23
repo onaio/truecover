@@ -695,7 +695,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
     // Check if clicked on drawn feature first
     const drawnFeatures = features.filter((f: any) =>
-      f.source === 'mapbox-gl-draw-cold' || f.source === 'mapbox-gl-draw-hot'
+      f.source && (f.source.includes('mapbox-gl-draw') || f.layer?.id?.includes('gl-draw'))
     );
 
     if (drawnFeatures.length > 0 && drawnFeature && planningMode) {
