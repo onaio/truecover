@@ -40,7 +40,8 @@ class PixelGenerationWorkflow:
         bbox: List[float],
         level: int,
         append: bool = False,
-        admin_pcode: str = None
+        admin_pcode: str = None,
+        geometry: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Run pixel generation workflow.
@@ -57,9 +58,16 @@ class PixelGenerationWorkflow:
         """
         workflow.logger.info(f"Starting pixel generation for area {area_id}, level {level}")
 
-        # Activity 1: Fetch admin boundary geometry (if provided)
+        # Activity 1: Fetch admin boundary geometry (if provided) or use drawn geometry
         admin_geometry_wkt = None
-        if admin_pcode:
+        if geometry:
+            # Convert GeoJSON geometry to WKT for drawn areas
+            from shapely.geometry import shape
+            from shapely import wkt
+            geom = shape(geometry)
+            admin_geometry_wkt = wkt.dumps(geom)
+            workflow.logger.info(f"Using drawn geometry")
+        elif admin_pcode:
             admin_geometry_wkt = await workflow.execute_activity(
                 fetch_admin_boundary_geometry,
                 args=[admin_pcode],

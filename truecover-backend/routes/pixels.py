@@ -26,6 +26,7 @@ def generate_pixels_workflow(user, area_id):
         level = data.get('level', 18)
         append = data.get('append', False)
         admin_pcode = data.get('admin_pcode')
+        geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
         if not bbox or len(bbox) != 4:
             return jsonify({'error': 'Invalid bbox. Expected [minLng, minLat, maxLng, maxLat]'}), 400
@@ -53,7 +54,7 @@ def generate_pixels_workflow(user, area_id):
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 PixelGenerationWorkflow.run,
-                args=[area_id, bbox, level, append, admin_pcode],
+                args=[area_id, bbox, level, append, admin_pcode, geometry],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )
@@ -158,6 +159,7 @@ def generate_pixels(user, area_id):
         level = data.get('level', 18)
         append = data.get('append', False)
         admin_pcode = data.get('admin_pcode')
+        geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
         if not bbox or len(bbox) != 4:
             return jsonify({'error': 'Invalid bbox. Expected [minLng, minLat, maxLng, maxLat]'}), 400
@@ -185,7 +187,7 @@ def generate_pixels(user, area_id):
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 PixelGenerationWorkflow.run,
-                args=[area_id, bbox, level, append, admin_pcode],
+                args=[area_id, bbox, level, append, admin_pcode, geometry],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )
