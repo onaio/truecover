@@ -90,6 +90,14 @@ code {
     background-color: #ff8555 !important;
 }
 
+/* Make icon fills white */
+.mapboxgl-ctrl button svg {
+    fill: #ffffff !important;
+}
+
+.mapboxgl-ctrl button.active svg {
+    fill: #000000 !important;
+}
 
 /* Position draw controls */
 .mapboxgl-ctrl-top-right .mapboxgl-ctrl-group {
