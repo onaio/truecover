@@ -176,7 +176,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         });
 
         drawControlRef.current = draw;
-        mapInstance.addControl(draw, 'top-left');
+        mapInstance.addControl(draw, 'top-right');
 
         // Handle draw.create event
         const handleDrawCreate = (e: any) => {
