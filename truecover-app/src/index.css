@@ -100,13 +100,35 @@ code {
     fill: #ffffff !important;
 }
 
-.mapboxgl-ctrl-group button svg path {
+.mapboxgl-ctrl-group button svg path,
+.mapboxgl-ctrl-group button svg polygon,
+.mapboxgl-ctrl-group button svg rect,
+.mapboxgl-ctrl-group button svg circle,
+.mapboxgl-ctrl-group button svg line,
+.mapboxgl-ctrl-group button svg polyline {
     fill: #ffffff !important;
+    stroke: #ffffff !important;
 }
 
 .mapboxgl-ctrl-group button.active svg,
-.mapboxgl-ctrl-group button.active svg path {
+.mapboxgl-ctrl-group button.active svg path,
+.mapboxgl-ctrl-group button.active svg polygon,
+.mapboxgl-ctrl-group button.active svg rect,
+.mapboxgl-ctrl-group button.active svg circle,
+.mapboxgl-ctrl-group button.active svg line,
+.mapboxgl-ctrl-group button.active svg polyline {
     fill: #000000 !important;
+    stroke: #000000 !important;
+}
+
+/* Target mapbox-gl-draw specific icon classes */
+.mapbox-gl-draw_ctrl-draw-btn {
+    background-image: none !important;
+}
+
+.mapbox-gl-draw_polygon,
+.mapbox-gl-draw_trash {
+    filter: invert(1) !important;
 }
 
 /* Position draw controls */
