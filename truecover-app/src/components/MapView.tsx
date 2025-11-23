@@ -187,6 +187,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         // Handle draw.delete event
         const handleDrawDelete = () => {
           setDrawnFeature(null);
+          setPopupInfo(null);
         };
 
         // Handle draw.update event
@@ -195,9 +196,28 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           setDrawnFeature(feature);
         };
 
+        // Handle draw.selectionchange event - show popup when drawn feature is selected
+        const handleDrawSelectionChange = (e: any) => {
+          if (e.features && e.features.length > 0) {
+            const feature = e.features[0];
+            const [lng, lat] = getCentroid(feature.geometry);
+            setPopupInfo({
+              longitude: lng,
+              latitude: lat,
+              properties: {
+                isDrawnFeature: true,
+                name: 'Drawn Area'
+              }
+            });
+            setPopulationSummary(null);
+            setLoadingPopulation(false);
+          }
+        };
+
         mapInstance.on('draw.create', handleDrawCreate);
         mapInstance.on('draw.delete', handleDrawDelete);
         mapInstance.on('draw.update', handleDrawUpdate);
+        mapInstance.on('draw.selectionchange', handleDrawSelectionChange);
       }
     } else {
       // Remove draw control when exiting planning mode
