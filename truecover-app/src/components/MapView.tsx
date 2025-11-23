@@ -893,7 +893,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         18,
         token,
         true, // append
-        pendingAdminPixelGen.pcode
+        pendingAdminPixelGen.pcode,
+        pendingAdminPixelGen.geometry
       );
 
       // Close modal immediately
