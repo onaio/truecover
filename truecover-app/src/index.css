@@ -95,53 +95,25 @@ code {
     background-color: transparent !important;
 }
 
-/* Make SVG icons white */
-.mapboxgl-ctrl-group button svg {
-    fill: #ffffff !important;
+/* Make icons white by inverting the button background image filter */
+.mapboxgl-ctrl-group button {
+    filter: invert(1) hue-rotate(180deg) !important;
+    background-color: #0a0a0a !important;
 }
 
-.mapboxgl-ctrl-group button svg path,
-.mapboxgl-ctrl-group button svg polygon,
-.mapboxgl-ctrl-group button svg rect,
-.mapboxgl-ctrl-group button svg circle,
-.mapboxgl-ctrl-group button svg line,
-.mapboxgl-ctrl-group button svg polyline {
-    fill: #ffffff !important;
-    stroke: #ffffff !important;
+.mapboxgl-ctrl-group button:hover {
+    filter: invert(1) hue-rotate(180deg) brightness(1.2) !important;
+    background-color: #0a0a0a !important;
 }
 
-.mapboxgl-ctrl-group button.active svg,
-.mapboxgl-ctrl-group button.active svg path,
-.mapboxgl-ctrl-group button.active svg polygon,
-.mapboxgl-ctrl-group button.active svg rect,
-.mapboxgl-ctrl-group button.active svg circle,
-.mapboxgl-ctrl-group button.active svg line,
-.mapboxgl-ctrl-group button.active svg polyline {
-    fill: #000000 !important;
-    stroke: #000000 !important;
-}
-
-/* Target mapbox-gl-draw specific icon classes - apply white color to button content */
-.mapboxgl-ctrl-group button::before,
-.mapboxgl-ctrl-group button::after {
-    color: #ffffff !important;
-}
-
-/* Make icons inside buttons white using filter on the icon container only */
-.mapboxgl-ctrl-group button .mapbox-gl-draw_ctrl-draw-btn,
-.mapboxgl-ctrl-group button[title*="Polygon"],
-.mapboxgl-ctrl-group button[title*="Delete"] {
-    background-position: center !important;
-    background-repeat: no-repeat !important;
-}
-
-/* Invert just the icon, not the button background */
-.mapboxgl-ctrl-group button > * {
-    filter: invert(1) brightness(2) !important;
-}
-
-.mapboxgl-ctrl-group button.active > * {
+.mapboxgl-ctrl-group button.active {
     filter: none !important;
+    background-color: #ff6b35 !important;
+}
+
+.mapboxgl-ctrl-group button.active:hover {
+    filter: none !important;
+    background-color: #ff8555 !important;
 }
 
 /* Position draw controls */
