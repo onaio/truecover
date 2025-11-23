@@ -121,14 +121,27 @@ code {
     stroke: #000000 !important;
 }
 
-/* Target mapbox-gl-draw specific icon classes */
-.mapbox-gl-draw_ctrl-draw-btn {
-    background-image: none !important;
+/* Target mapbox-gl-draw specific icon classes - apply white color to button content */
+.mapboxgl-ctrl-group button::before,
+.mapboxgl-ctrl-group button::after {
+    color: #ffffff !important;
 }
 
-.mapbox-gl-draw_polygon,
-.mapbox-gl-draw_trash {
-    filter: invert(1) !important;
+/* Make icons inside buttons white using filter on the icon container only */
+.mapboxgl-ctrl-group button .mapbox-gl-draw_ctrl-draw-btn,
+.mapboxgl-ctrl-group button[title*="Polygon"],
+.mapboxgl-ctrl-group button[title*="Delete"] {
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+}
+
+/* Invert just the icon, not the button background */
+.mapboxgl-ctrl-group button > * {
+    filter: invert(1) brightness(2) !important;
+}
+
+.mapboxgl-ctrl-group button.active > * {
+    filter: none !important;
 }
 
 /* Position draw controls */
