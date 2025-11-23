@@ -12,6 +12,7 @@ interface GeneratePixelsModalProps {
   areaId: string;
   currentBounds: [number, number, number, number] | null;
   onGenerated: () => void;
+  geometry?: any;
 }
 
 const ZOOM_LEVELS = [
@@ -47,7 +48,8 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
   onClose,
   areaId,
   currentBounds,
-  onGenerated
+  onGenerated,
+  geometry
 }) => {
   const { getToken } = useAuth();
   const [selectedLevel, setSelectedLevel] = useState<number>(18);
@@ -145,13 +147,16 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
         return;
       }
 
-      console.log('📡 Starting workflow...', { areaId, bounds: currentBounds, level: selectedLevel });
+      console.log('📡 Starting workflow...', { areaId, bounds: currentBounds, level: selectedLevel, geometry });
       // Start the workflow
       const response = await pixelsApi.generate(
         areaId,
         currentBounds,
         selectedLevel,
-        token
+        token,
+        undefined,
+        undefined,
+        geometry
       );
 
       console.log('✅ Workflow started:', response);
@@ -331,11 +336,7 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
           </TacticalButton>
           <TacticalButton
             variant="primary"
-            onClick={() => {
-              console.log('🖱️ Button clicked!');
-              alert('Button was clicked!');
-              handleGenerate();
-            }}
+            onClick={handleGenerate}
             disabled={!currentBounds || isGenerating}
           >
             {isGenerating ? (

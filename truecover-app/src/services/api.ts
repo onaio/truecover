@@ -434,11 +434,12 @@ export const pixelsApi = {
     level: number,
     token: string,
     append?: boolean,
-    admin_pcode?: string
+    admin_pcode?: string,
+    geometry?: any
   ): Promise<{ workflow_id: string; status: string; message: string }> {
     const response = await axios.post(
       `${API_URL}/api/areas/${areaId}/pixels/generate`,
-      { bbox, level, append, admin_pcode },
+      { bbox, level, append, admin_pcode, geometry },
       {
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -89,6 +89,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     pcode: string;
     name: string;
     bbox: [number, number, number, number];
+    geometry?: any;
   } | null>(null);
   const [populationSummary, setPopulationSummary] = useState<{
     pixel_count: number;
@@ -863,7 +864,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     setPendingAdminPixelGen({
       pcode: '',
       name: 'Drawn Area',
-      bbox: [minLng, minLat, maxLng, maxLat]
+      bbox: [minLng, minLat, maxLng, maxLat],
+      geometry: drawnFeature.geometry
     });
     setShowPixelGenerateModal(true);
   };
