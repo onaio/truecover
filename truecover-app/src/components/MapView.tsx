@@ -861,7 +861,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     });
 
     setPendingAdminPixelGen({
-      pcode: 'drawn_area',
+      pcode: '',
       name: 'Drawn Area',
       bbox: [minLng, minLat, maxLng, maxLat]
     });
