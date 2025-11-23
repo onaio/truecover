@@ -9,6 +9,30 @@ from db.connection import get_db_connection, return_db_connection
 
 
 @activity.defn
+async def convert_geojson_to_wkt(geometry: Dict[str, Any]) -> str:
+    """
+    Convert GeoJSON geometry to WKT format.
+
+    Args:
+        geometry: GeoJSON geometry dict
+
+    Returns:
+        WKT string representation
+    """
+    from shapely.geometry import shape
+    from shapely import wkt as shapely_wkt
+
+    try:
+        geom = shape(geometry)
+        wkt_string = shapely_wkt.dumps(geom)
+        activity.logger.info(f"Converted GeoJSON to WKT: {geom.geom_type}")
+        return wkt_string
+    except Exception as e:
+        activity.logger.error(f"Failed to convert geometry to WKT: {e}")
+        raise
+
+
+@activity.defn
 async def fetch_admin_boundary_geometry(admin_pcode: str) -> str:
     """
     Fetch admin boundary geometry for filtering pixels.

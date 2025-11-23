@@ -8,6 +8,7 @@ from typing import Dict, Any, List
 
 with workflow.unsafe.imports_passed_through():
     from ..activities.pixels import (
+        convert_geojson_to_wkt,
         fetch_admin_boundary_geometry,
         delete_existing_pixels,
         generate_tile_data,
@@ -58,15 +59,17 @@ class PixelGenerationWorkflow:
         """
         workflow.logger.info(f"Starting pixel generation for area {area_id}, level {level}")
 
-        # Activity 1: Fetch admin boundary geometry (if provided) or use drawn geometry
+        # Activity 1: Fetch admin boundary geometry (if provided) or convert drawn geometry
         admin_geometry_wkt = None
         if geometry:
             # Convert GeoJSON geometry to WKT for drawn areas
-            from shapely.geometry import shape
-            from shapely import wkt
-            geom = shape(geometry)
-            admin_geometry_wkt = wkt.dumps(geom)
-            workflow.logger.info(f"Using drawn geometry")
+            admin_geometry_wkt = await workflow.execute_activity(
+                convert_geojson_to_wkt,
+                args=[geometry],
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(maximum_attempts=3)
+            )
+            workflow.logger.info(f"Converted drawn geometry to WKT")
         elif admin_pcode:
             admin_geometry_wkt = await workflow.execute_activity(
                 fetch_admin_boundary_geometry,
