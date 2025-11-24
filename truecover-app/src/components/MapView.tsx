@@ -1351,6 +1351,38 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         >
           <NavigationControl position="bottom-right" showCompass={false} style={{ marginBottom: '32px' }} />
 
+          {/* Buildings Layer from Overture Maps via Martin - render first so locations appear on top */}
+          {showBuildings && (
+            <Source
+              id="buildings-source"
+              type="vector"
+              tiles={[`http://localhost:3051/buildings/{z}/{x}/{y}`]}
+              minzoom={3}
+              maxzoom={14}
+            >
+              <Layer
+                id="buildings-fill"
+                type="fill"
+                source-layer="building"
+                minzoom={12}
+                paint={{
+                  'fill-color': '#4393c3',
+                  'fill-opacity': 0.2
+                }}
+              />
+              <Layer
+                id="buildings-outline"
+                type="line"
+                source-layer="building"
+                minzoom={12}
+                paint={{
+                  'line-color': '#2166ac',
+                  'line-width': 1
+                }}
+              />
+            </Source>
+          )}
+
           {isPredictionData && displayData?.features?.length > 0 ? (
             /* Prediction visualization with heatmap interpolation */
             <Source id="prediction-source" type="geojson" data={displayData as any}>
@@ -1907,38 +1939,6 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     1,
                     0.7
                   ]
-                }}
-              />
-            </Source>
-          )}
-
-          {/* Buildings Layer from Overture Maps via Martin */}
-          {showBuildings && (
-            <Source
-              id="buildings-source"
-              type="vector"
-              tiles={[`http://localhost:3051/buildings/{z}/{x}/{y}`]}
-              minzoom={3}
-              maxzoom={14}
-            >
-              <Layer
-                id="buildings-fill"
-                type="fill"
-                source-layer="building"
-                minzoom={12}
-                paint={{
-                  'fill-color': '#4393c3',
-                  'fill-opacity': 0.2
-                }}
-              />
-              <Layer
-                id="buildings-outline"
-                type="line"
-                source-layer="building"
-                minzoom={12}
-                paint={{
-                  'line-color': '#2166ac',
-                  'line-width': 1
                 }}
               />
             </Source>
