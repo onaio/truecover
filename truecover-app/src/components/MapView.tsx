@@ -1368,6 +1368,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   id="locations-polygons-fill"
                   type="fill"
                   source-layer="locations"
+                  minzoom={0}
                   filter={buildHistogramFilter(['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]])}
                   paint={{
                     'fill-color': getPolygonFillColor(),
@@ -1381,6 +1382,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   id="locations-polygons-outline"
                   type="line"
                   source-layer="locations"
+                  minzoom={0}
                   filter={buildHistogramFilter(['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]])}
                   paint={{
                     'line-color': getPolygonLineColor(),
