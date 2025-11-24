@@ -222,6 +222,7 @@ def import_overture_buildings(user, pcode):
     """Import buildings from Overture Maps for this admin boundary into locations table"""
     data = request.get_json()
     area_id = data.get('area_id')
+    geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
     if not area_id:
         return jsonify({'error': 'area_id is required'}), 400
@@ -245,26 +246,39 @@ def import_overture_buildings(user, pcode):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Get bounding box and WKT geometry for admin boundary
-        cursor.execute("""
-            SELECT
-                ST_XMin(geometry) as min_lng,
-                ST_YMin(geometry) as min_lat,
-                ST_XMax(geometry) as max_lng,
-                ST_YMax(geometry) as max_lat,
-                ST_AsText(geometry) as geometry_wkt
-            FROM admin_boundaries
-            WHERE adm0_pcode = %s OR adm1_pcode = %s OR adm2_pcode = %s
-               OR adm3_pcode = %s OR adm4_pcode = %s
-            LIMIT 1
-        """, (pcode, pcode, pcode, pcode, pcode))
+        # If geometry is provided (drawn area), use it instead of looking up pcode
+        if geometry:
+            from shapely.geometry import shape
+            from shapely import wkt as shapely_wkt
 
-        result = cursor.fetchone()
-        if not result:
-            return jsonify({'error': f'Admin boundary not found for PCODE: {pcode}'}), 404
+            # Convert GeoJSON to WKT
+            geom = shape(geometry)
+            boundary_wkt = shapely_wkt.dumps(geom)
 
-        bbox = (result[0], result[1], result[2], result[3])
-        boundary_wkt = result[4]
+            # Calculate bbox from geometry
+            bounds = geom.bounds  # (minx, miny, maxx, maxy)
+            bbox = bounds  # (min_lng, min_lat, max_lng, max_lat)
+        else:
+            # Get bounding box and WKT geometry for admin boundary
+            cursor.execute("""
+                SELECT
+                    ST_XMin(geometry) as min_lng,
+                    ST_YMin(geometry) as min_lat,
+                    ST_XMax(geometry) as max_lng,
+                    ST_YMax(geometry) as max_lat,
+                    ST_AsText(geometry) as geometry_wkt
+                FROM admin_boundaries
+                WHERE adm0_pcode = %s OR adm1_pcode = %s OR adm2_pcode = %s
+                   OR adm3_pcode = %s OR adm4_pcode = %s
+                LIMIT 1
+            """, (pcode, pcode, pcode, pcode, pcode))
+
+            result = cursor.fetchone()
+            if not result:
+                return jsonify({'error': f'Admin boundary not found for PCODE: {pcode}'}), 404
+
+            bbox = (result[0], result[1], result[2], result[3])
+            boundary_wkt = result[4]
 
         print(f"Importing Overture buildings for PCODE {pcode}")
 

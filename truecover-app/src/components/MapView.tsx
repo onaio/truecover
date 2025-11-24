@@ -38,7 +38,7 @@ interface MapViewProps {
   sampledItemsCount?: number;
   planningMode?: boolean;
   onAddRoundForAdminBoundary?: (pcode: string, name: string) => void;
-  onAddLocationsForAdminBoundary?: (pcode: string, name: string) => void;
+  onAddLocationsForAdminBoundary?: (pcode: string, name: string, geometry?: any) => void;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -872,7 +872,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
   const handleAddLocationsForDrawnArea = () => {
     if (!drawnFeature || !onAddLocationsForAdminBoundary) return;
-    onAddLocationsForAdminBoundary('drawn_area', 'Drawn Area');
+    onAddLocationsForAdminBoundary('drawn_area', 'Drawn Area', drawnFeature.geometry);
     setPopupInfo(null);
   };
 
