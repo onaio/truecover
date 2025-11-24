@@ -180,9 +180,10 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       title="Create New Round"
       size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Admin Boundary Filter Indicator */}
-        {adminBoundaryPcode && adminBoundaryName && (
+      <form onSubmit={handleSubmit} className="flex flex-col max-h-[calc(100vh-120px)]">
+        <div className="space-y-4 overflow-y-auto pr-2 flex-1">
+          {/* Admin Boundary Filter Indicator */}
+          {adminBoundaryPcode && adminBoundaryName && (
           <div className="p-3 border border-tactical-accent-blue bg-tactical-accent-blue/10">
             <p className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-1">
               Filtering to Admin Boundary
@@ -301,14 +302,15 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
             </div>
           </div>
         </div>
+        </div>
 
         {error && (
-          <div className="p-3 border border-tactical-accent-red bg-tactical-accent-red/10">
+          <div className="p-3 border border-tactical-accent-red bg-tactical-accent-red/10 mt-4">
             <p className="text-sm text-tactical-accent-red">{error}</p>
           </div>
         )}
 
-        <div className="flex gap-3 justify-end pt-4 border-t border-tactical-border-medium">
+        <div className="flex gap-3 justify-end pt-4 border-t border-tactical-border-medium mt-4">
           <TacticalButton
             type="button"
             variant="secondary"
