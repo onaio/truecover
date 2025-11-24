@@ -132,9 +132,10 @@ def get_pixel_summary(user, pcode):
 @admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/preview-overture-buildings', methods=['POST'])
 @require_auth
 def preview_overture_buildings(user, pcode):
-    """Preview count of buildings available from Overture Maps for this admin boundary"""
+    """Preview count of buildings available from Overture Maps for this admin boundary or drawn geometry"""
     data = request.get_json()
     area_id = data.get('area_id')
+    geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
     if not area_id:
         return jsonify({'error': 'area_id is required'}), 400
@@ -146,26 +147,39 @@ def preview_overture_buildings(user, pcode):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Get bounding box and WKT geometry for admin boundary
-        cursor.execute("""
-            SELECT
-                ST_XMin(geometry) as min_lng,
-                ST_YMin(geometry) as min_lat,
-                ST_XMax(geometry) as max_lng,
-                ST_YMax(geometry) as max_lat,
-                ST_AsText(geometry) as geometry_wkt
-            FROM admin_boundaries
-            WHERE adm0_pcode = %s OR adm1_pcode = %s OR adm2_pcode = %s
-               OR adm3_pcode = %s OR adm4_pcode = %s
-            LIMIT 1
-        """, (pcode, pcode, pcode, pcode, pcode))
+        # If geometry is provided (drawn area), use it instead of looking up pcode
+        if geometry:
+            from shapely.geometry import shape
+            from shapely import wkt as shapely_wkt
 
-        result = cursor.fetchone()
-        if not result:
-            return jsonify({'error': f'Admin boundary not found for PCODE: {pcode}'}), 404
+            # Convert GeoJSON to WKT
+            geom = shape(geometry)
+            boundary_wkt = shapely_wkt.dumps(geom)
 
-        bbox = (result[0], result[1], result[2], result[3])  # (min_lng, min_lat, max_lng, max_lat)
-        boundary_wkt = result[4]
+            # Calculate bbox from geometry
+            bounds = geom.bounds  # (minx, miny, maxx, maxy)
+            bbox = bounds  # (min_lng, min_lat, max_lng, max_lat)
+        else:
+            # Get bounding box and WKT geometry for admin boundary
+            cursor.execute("""
+                SELECT
+                    ST_XMin(geometry) as min_lng,
+                    ST_YMin(geometry) as min_lat,
+                    ST_XMax(geometry) as max_lng,
+                    ST_YMax(geometry) as max_lat,
+                    ST_AsText(geometry) as geometry_wkt
+                FROM admin_boundaries
+                WHERE adm0_pcode = %s OR adm1_pcode = %s OR adm2_pcode = %s
+                   OR adm3_pcode = %s OR adm4_pcode = %s
+                LIMIT 1
+            """, (pcode, pcode, pcode, pcode, pcode))
+
+            result = cursor.fetchone()
+            if not result:
+                return jsonify({'error': f'Admin boundary not found for PCODE: {pcode}'}), 404
+
+            bbox = (result[0], result[1], result[2], result[3])  # (min_lng, min_lat, max_lng, max_lat)
+            boundary_wkt = result[4]
 
         # Count buildings from Overture Maps using DuckDB
         print(f"Counting Overture buildings for PCODE {pcode}")
@@ -565,6 +579,7 @@ def import_overture_buildings_async(user, pcode):
     """Start async Overture Maps building import workflow"""
     data = request.get_json()
     area_id = data.get('area_id')
+    geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
     if not area_id:
         return jsonify({'error': 'area_id is required'}), 400
@@ -581,7 +596,7 @@ def import_overture_buildings_async(user, pcode):
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 OvertureImportWorkflow.run,
-                args=[pcode, area_id],
+                args=[pcode, area_id, geometry],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

@@ -63,12 +63,13 @@ class PixelGenerationWorkflow:
         admin_geometry_wkt = None
         if geometry:
             # Convert GeoJSON geometry to WKT for drawn areas
-            admin_geometry_wkt = await workflow.execute_activity(
+            geometry_data = await workflow.execute_activity(
                 convert_geojson_to_wkt,
                 args=[geometry],
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
+            admin_geometry_wkt = geometry_data['wkt']
             workflow.logger.info(f"Converted drawn geometry to WKT")
         elif admin_pcode:
             admin_geometry_wkt = await workflow.execute_activity(

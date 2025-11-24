@@ -17,6 +17,7 @@ with workflow.unsafe.imports_passed_through():
         generate_pixels_for_quadkeys,
         create_coverage_pixel_records,
     )
+    from ..activities.pixels import convert_geojson_to_wkt
 
 
 @workflow.defn
@@ -43,7 +44,8 @@ class OvertureImportWorkflow:
     async def run(
         self,
         pcode: str,
-        area_id: str
+        area_id: str,
+        geometry: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Run Overture Maps building import workflow.
@@ -51,22 +53,38 @@ class OvertureImportWorkflow:
         Args:
             pcode: Admin boundary PCODE
             area_id: Area ID
+            geometry: Optional GeoJSON geometry for drawn areas
 
         Returns:
             Result summary with counts
         """
-        # Activity 1: Fetch admin boundary
-        boundary_data = await workflow.execute_activity(
-            fetch_admin_boundary,
-            args=[pcode],
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3)
-        )
+        # Activity 1: Get boundary geometry (from drawn shape or admin boundary)
+        if geometry:
+            # Convert GeoJSON geometry to WKT for drawn areas
+            geometry_data = await workflow.execute_activity(
+                convert_geojson_to_wkt,
+                args=[geometry],
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(maximum_attempts=3)
+            )
 
-        bbox = tuple(boundary_data['bbox'])
-        boundary_wkt = boundary_data['boundary_wkt']
+            boundary_wkt = geometry_data['wkt']
+            bbox = tuple(geometry_data['bbox'])
 
-        workflow.logger.info(f"Fetched boundary for {pcode}")
+            workflow.logger.info(f"Converted drawn geometry to WKT")
+        else:
+            # Fetch admin boundary
+            boundary_data = await workflow.execute_activity(
+                fetch_admin_boundary,
+                args=[pcode],
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(maximum_attempts=3)
+            )
+
+            bbox = tuple(boundary_data['bbox'])
+            boundary_wkt = boundary_data['boundary_wkt']
+
+            workflow.logger.info(f"Fetched boundary for {pcode}")
 
         # Fetch and process buildings in batches
         batch_size = 5000

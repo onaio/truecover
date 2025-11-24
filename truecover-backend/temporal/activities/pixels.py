@@ -9,15 +9,15 @@ from db.connection import get_db_connection, return_db_connection
 
 
 @activity.defn
-async def convert_geojson_to_wkt(geometry: Dict[str, Any]) -> str:
+async def convert_geojson_to_wkt(geometry: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Convert GeoJSON geometry to WKT format.
+    Convert GeoJSON geometry to WKT format and calculate bounding box.
 
     Args:
         geometry: GeoJSON geometry dict
 
     Returns:
-        WKT string representation
+        Dict with 'wkt' (string) and 'bbox' (tuple of minx, miny, maxx, maxy)
     """
     from shapely.geometry import shape
     from shapely import wkt as shapely_wkt
@@ -25,8 +25,12 @@ async def convert_geojson_to_wkt(geometry: Dict[str, Any]) -> str:
     try:
         geom = shape(geometry)
         wkt_string = shapely_wkt.dumps(geom)
-        activity.logger.info(f"Converted GeoJSON to WKT: {geom.geom_type}")
-        return wkt_string
+        bbox = geom.bounds  # (minx, miny, maxx, maxy)
+        activity.logger.info(f"Converted GeoJSON to WKT: {geom.geom_type}, bbox={bbox}")
+        return {
+            'wkt': wkt_string,
+            'bbox': bbox
+        }
     except Exception as e:
         activity.logger.error(f"Failed to convert geometry to WKT: {e}")
         raise

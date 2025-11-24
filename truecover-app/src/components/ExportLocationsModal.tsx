@@ -31,7 +31,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<string[]>([]);
-  const [includeAllPoints, setIncludeAllPoints] = useState(true);
+  const [includeAllPoints, setIncludeAllPoints] = useState(false);
   const [exportFormat, setExportFormat] = useState<'geojson' | 'csv'>('geojson');
   const [exportDestination, setExportDestination] = useState<'download' | 'odk'>('download');
 
@@ -168,6 +168,24 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 
   // Calculate how many items would be exported (locations + pixels)
   const exportCount = useMemo(() => {
+    // For ODK export, always use selected rounds (don't include all points)
+    if (exportDestination === 'odk') {
+      if (!selectedRoundIds || selectedRoundIds.length === 0) {
+        return 0;
+      }
+
+      const selectedRounds = rounds.filter(r => selectedRoundIds.includes(r.id));
+
+      let count = 0;
+      for (const round of selectedRounds) {
+        const isPixelRound = round.sampling_target === 'pixels';
+        count += isPixelRound ? round.pixel_count : round.location_count;
+      }
+
+      return count;
+    }
+
+    // For download export, respect the includeAllPoints flag
     if (includeAllPoints) {
       // Use total counts from API instead of counting paginated data
       return locationTotalCount + pixelTotalCount;
@@ -187,7 +205,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     }
 
     return count;
-  }, [locationTotalCount, pixelTotalCount, includeAllPoints, selectedRoundIds, rounds]);
+  }, [locationTotalCount, pixelTotalCount, includeAllPoints, selectedRoundIds, rounds, exportDestination]);
 
   const handleExport = async () => {
     // Handle ODK export via workflow
@@ -720,7 +738,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
               ) : (
                 <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
                   <div className="flex items-center gap-2">
-                    <TacticalBadge variant="success">CONFIGURED</TacticalBadge>
+                    <TacticalBadge variant="success">SELECTED</TacticalBadge>
                     <div className="flex-1">
                       <div className="text-sm text-tactical-text-primary font-mono">
                         {project?.ona_entity_list_name || 'Entity List'}

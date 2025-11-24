@@ -3,6 +3,7 @@
 
 postgres:
   connection_string: "postgresql://truecover:truecover@postgres:5432/truecover"
+  auto_publish: true
 
   # Define function-based sources for dynamic filtering
   functions:

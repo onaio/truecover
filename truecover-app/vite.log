@@ -127,3 +127,71 @@
 12:47:36 AM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
 12:47:56 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/components/ExportLocationsModal.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx, /src/components/ProjectSettings.tsx
 12:53:25 AM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+2:45:42 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+2:46:25 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+2:47:39 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+2:48:42 PM [vite] (client) hmr update /src/components/ExportLocationsModal.tsx, /src/index.css
+3:00:36 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:00:47 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:01:08 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:01:09 PM [vite] (client) ✨ new dependencies optimized: @mapbox/mapbox-gl-draw
+3:01:09 PM [vite] (client) ✨ optimized dependencies changed. reloading
+3:01:34 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:01:54 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:02:17 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:02:50 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:06:42 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:08:06 PM [vite] (client) hmr update /src/index.css
+3:11:58 PM [vite] (client) hmr update /src/index.css
+3:12:14 PM [vite] (client) hmr update /src/index.css
+3:12:20 PM [vite] (client) hmr update /src/index.css
+3:13:50 PM [vite] (client) hmr update /src/index.css
+3:13:56 PM [vite] (client) hmr update /src/index.css
+3:14:46 PM [vite] (client) hmr update /src/index.css
+3:16:00 PM [vite] (client) hmr update /src/index.css
+3:16:29 PM [vite] (client) hmr update /src/index.css
+3:17:47 PM [vite] (client) hmr update /src/index.css
+3:18:24 PM [vite] (client) hmr update /src/index.css
+3:19:40 PM [vite] (client) hmr update /src/index.css
+3:21:03 PM [vite] (client) hmr update /src/index.css
+3:23:39 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:26:22 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:29:50 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:31:55 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:32:02 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+3:32:34 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+3:33:14 PM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/components/ExportLocationsModal.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx, /src/components/ProjectSettings.tsx
+3:33:35 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+3:33:50 PM [vite] (client) hmr update /src/components/GeneratePixelsModal.tsx, /src/index.css
+3:53:44 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+5:30:37 PM [vite] (client) hmr update /src/pages/LocationsPage.tsx, /src/index.css
+5:30:42 PM [vite] (client) hmr update /src/pages/LocationsPage.tsx, /src/index.css
+5:30:56 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+5:31:03 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+5:31:22 PM [vite] (client) hmr update /src/components/AddOvertureLocationsModal.tsx, /src/index.css
+5:31:28 PM [vite] (client) hmr update /src/components/AddOvertureLocationsModal.tsx, /src/index.css
+5:31:38 PM [vite] (client) hmr update /src/components/AddOvertureLocationsModal.tsx, /src/index.css
+5:32:05 PM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/components/ExportLocationsModal.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx, /src/components/ProjectSettings.tsx
+5:32:12 PM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/CreateOrganizationModal.tsx, /src/components/CreateProjectModal.tsx, /src/components/OrganizationSelector.tsx, /src/components/ProjectSelector.tsx, /src/components/AreasList.tsx, /src/components/ProjectsList.tsx, /src/components/OrganizationSettings.tsx, /src/components/RouteWrappers.tsx, /src/components/ExportLocationsModal.tsx, /src/pages/LocationsPage.tsx, /src/components/MapView.tsx, /src/components/CreateAreaModal.tsx, /src/components/IndicatorsManager.tsx, /src/components/AddVisitModal.tsx, /src/components/IndicatorModal.tsx, /src/components/CreateRoundModal.tsx, /src/components/PredictCoverageModal.tsx, /src/components/LocationUploadModal.tsx, /src/components/LocationEditModal.tsx, /src/components/GeneratePixelsModal.tsx, /src/components/EnrichPixelsModal.tsx, /src/components/AddOvertureLocationsModal.tsx, /src/components/ProjectSettings.tsx
+5:33:27 PM [vite] (client) hmr update /src/index.css
+5:39:06 PM [vite] (client) hmr update /src/components/AddOvertureLocationsModal.tsx, /src/index.css
+5:39:29 PM [vite] (client) hmr update /src/components/AddOvertureLocationsModal.tsx, /src/index.css
+5:39:41 PM [vite] (client) hmr update /src/components/AddOvertureLocationsModal.tsx, /src/index.css
+5:41:14 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+5:54:43 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+5:56:29 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:00:17 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:01:58 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:02:07 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:20:28 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:20:37 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:20:43 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:20:47 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:20:55 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:21:09 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:21:16 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:21:23 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:21:29 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:21:39 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:21:44 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css
+6:29:24 PM [vite] (client) hmr update /src/components/MapView.tsx, /src/index.css

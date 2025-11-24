@@ -11,7 +11,7 @@ interface AddOvertureLocationsModalProps {
   onClose: () => void;
   areaId: string;
   areaName: string;
-  adminBoundary: { pcode: string; name: string } | null;
+  adminBoundary: { pcode: string; name: string; geometry?: any } | null;
   onImportComplete?: () => void;
 }
 
@@ -51,7 +51,16 @@ const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
   // Load preview when modal opens and cleanup on close
   useEffect(() => {
     if (isOpen && adminBoundary) {
-      loadPreview();
+      // Skip preview for drawn areas (they have geometry)
+      if (adminBoundary.geometry) {
+        // For drawn areas, set count to 1 to enable the import button
+        // (we don't know the actual count until we import)
+        setBuildingCount(1);
+        setIsLoadingPreview(false);
+      } else {
+        // For admin boundaries, do the preview
+        loadPreview();
+      }
     } else {
       // Reset state when modal closes
       setBuildingCount(null);
@@ -90,7 +99,8 @@ const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
       const result = await adminBoundariesApi.previewOvertureBuildings(
         adminBoundary.pcode,
         areaId,
-        token
+        token,
+        adminBoundary.geometry
       );
 
       setBuildingCount(result.count);
@@ -180,7 +190,8 @@ const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
       const response = await adminBoundariesApi.importOvertureBuildingsAsync(
         adminBoundary.pcode,
         areaId,
-        token
+        token,
+        adminBoundary.geometry
       );
 
       console.log('Import workflow started:', response.workflow_id);
@@ -215,10 +226,10 @@ const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
         {/* Admin Boundary Info */}
         <div className="p-3 border border-tactical-accent-blue bg-tactical-accent-blue/10">
           <p className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-1">
-            Admin Boundary
+            {adminBoundary.geometry ? 'Drawn Area' : 'Admin Boundary'}
           </p>
           <p className="text-sm font-mono text-tactical-text-secondary">
-            {adminBoundary.name} ({adminBoundary.pcode})
+            {adminBoundary.geometry ? adminBoundary.name : `${adminBoundary.name} (${adminBoundary.pcode})`}
           </p>
           <p className="text-xs font-mono text-tactical-text-muted mt-1">
             Area: {areaName}
@@ -244,21 +255,36 @@ const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
 
         {!isLoadingPreview && !previewError && buildingCount !== null && !isImporting && !result && (
           <div className="p-4 border border-tactical-border-medium bg-tactical-bg-secondary">
-            <p className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-              Preview
-            </p>
-            <p className="text-sm font-mono text-tactical-text-secondary">
-              {buildingCount === 0 ? (
-                <>No buildings found in this area</>
-              ) : (
-                <>
-                  <span className="font-bold text-tactical-accent-blue">{buildingCount.toLocaleString()}</span> buildings will be added to <span className="font-bold">{areaName}</span>
-                </>
-              )}
-            </p>
-            <p className="text-xs font-mono text-tactical-text-muted mt-2">
-              Duplicate locations will be skipped automatically.
-            </p>
+            {adminBoundary.geometry ? (
+              // For drawn areas, show a simpler message
+              <>
+                <p className="text-sm font-mono text-tactical-text-secondary">
+                  Buildings from Overture Maps within the drawn area will be added to <span className="font-bold">{areaName}</span>
+                </p>
+                <p className="text-xs font-mono text-tactical-text-muted mt-2">
+                  Duplicate locations will be skipped automatically.
+                </p>
+              </>
+            ) : (
+              // For admin boundaries, show the preview count
+              <>
+                <p className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+                  Preview
+                </p>
+                <p className="text-sm font-mono text-tactical-text-secondary">
+                  {buildingCount === 0 ? (
+                    <>No buildings found in this area</>
+                  ) : (
+                    <>
+                      <span className="font-bold text-tactical-accent-blue">{buildingCount.toLocaleString()}</span> buildings will be added to <span className="font-bold">{areaName}</span>
+                    </>
+                  )}
+                </p>
+                <p className="text-xs font-mono text-tactical-text-muted mt-2">
+                  Duplicate locations will be skipped automatically.
+                </p>
+              </>
+            )}
           </div>
         )}
 

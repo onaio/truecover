@@ -58,47 +58,6 @@ code {
     border-top-color: #0a0a0a !important;
 }
 
-/* Mapbox Draw Controls Tactical UI Styling */
-.mapboxgl-ctrl-group {
-    background-color: #0a0a0a !important;
-    border: 1px solid #333333 !important;
-    border-radius: 0 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
-}
-
-.mapboxgl-ctrl-group button {
-    background-color: #0a0a0a !important;
-    border: none !important;
-    border-bottom: 1px solid #333333 !important;
-    width: 36px !important;
-    height: 36px !important;
-}
-
-.mapboxgl-ctrl-group button:last-child {
-    border-bottom: none !important;
-}
-
-.mapboxgl-ctrl-group button:hover {
-    background-color: #1a1a1a !important;
-}
-
-.mapboxgl-ctrl-group button.active {
-    background-color: #ff6b35 !important;
-}
-
-.mapboxgl-ctrl-group button.active:hover {
-    background-color: #ff8555 !important;
-}
-
-/* Make icon fills white */
-.mapboxgl-ctrl button svg {
-    fill: #ffffff !important;
-}
-
-.mapboxgl-ctrl button.active svg {
-    fill: #000000 !important;
-}
-
 /* Position draw controls */
 .mapboxgl-ctrl-top-right .mapboxgl-ctrl-group {
     margin-right: 140px !important;

@@ -76,7 +76,7 @@ const LocationsPage: React.FC = () => {
   const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
   const [planningMode, setPlanningMode] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
-  const [selectedAdminBoundaryForLocations, setSelectedAdminBoundaryForLocations] = useState<{ pcode: string; name: string } | null>(null);
+  const [selectedAdminBoundaryForLocations, setSelectedAdminBoundaryForLocations] = useState<{ pcode: string; name: string; geometry?: any } | null>(null);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedArea?.id);
   const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedArea?.id);
@@ -597,7 +597,7 @@ const LocationsPage: React.FC = () => {
                 sampledItemsCount={sampledItemsCount}
                 planningMode={planningMode}
                 onAddRoundForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundary({ pcode, name })}
-                onAddLocationsForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundaryForLocations({ pcode, name })}
+                onAddLocationsForAdminBoundary={(pcode: string, name: string, geometry?: any) => setSelectedAdminBoundaryForLocations({ pcode, name, geometry })}
               />
             </TacticalCard>
 
