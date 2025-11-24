@@ -63,3 +63,24 @@ code {
     margin-right: 140px !important;
     margin-top: 12px !important;
 }
+
+/* Highlight active draw control button */
+.mapbox-gl-draw_ctrl-draw-btn.active {
+    background-color: #ff6b35 !important;
+    color: #ffffff !important;
+}
+
+.mapbox-gl-draw_ctrl-draw-btn.active:hover {
+    background-color: #ff8555 !important;
+}
+
+/* Make draw buttons more visible */
+.mapbox-gl-draw_ctrl-draw-btn {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border-color: #333333 !important;
+}
+
+.mapbox-gl-draw_ctrl-draw-btn:hover {
+    background-color: #2a2a2a !important;
+}

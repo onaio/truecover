@@ -714,6 +714,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const handleMapClick = (event: any) => {
     const features = event.features || [];
 
+    // Check if draw control is in drawing mode - if so, skip all click handling
+    if (drawControlRef.current) {
+      const mode = drawControlRef.current.getMode();
+      if (mode === 'draw_polygon') {
+        return; // Don't handle clicks while actively drawing
+      }
+    }
+
     // Check if clicked on drawn feature first
     const drawnFeatures = features.filter((f: any) =>
       f.source && (f.source.includes('mapbox-gl-draw') || f.layer?.id?.includes('gl-draw'))
