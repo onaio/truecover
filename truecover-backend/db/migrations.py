@@ -425,9 +425,16 @@ def run_migrations():
                 FROM (
                     SELECT
                         ST_AsMVTGeom(
-                            ST_Transform(l.geometry, 3857),
+                            -- Simplify geometry based on zoom level to preserve features at all zooms
+                            CASE
+                                WHEN z < 10 THEN ST_Simplify(ST_Transform(l.geometry, 3857), 100)
+                                WHEN z < 12 THEN ST_Simplify(ST_Transform(l.geometry, 3857), 50)
+                                WHEN z < 14 THEN ST_Simplify(ST_Transform(l.geometry, 3857), 20)
+                                WHEN z < 16 THEN ST_Simplify(ST_Transform(l.geometry, 3857), 5)
+                                ELSE ST_Transform(l.geometry, 3857)
+                            END,
                             ST_TileEnvelope(z, x, y),
-                            4096, 64, true
+                            4096, 256, true
                         ) AS geom,
                         l.id::text,
                         l.external_id,
