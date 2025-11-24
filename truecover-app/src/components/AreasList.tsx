@@ -9,7 +9,8 @@ import {
   TacticalCard,
   TacticalButton,
   TacticalBadge,
-  TacticalCollapsible
+  TacticalCollapsible,
+  TacticalModal
 } from '../tactical-ui';
 
 interface AreasListProps {
@@ -25,6 +26,7 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingArea, setEditingArea] = useState<Area | null>(null);
+  const [areaToDelete, setAreaToDelete] = useState<Area | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const deleteAreaMutation = useDeleteArea();
 
@@ -84,24 +86,26 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
     setIsCreateModalOpen(true);
   };
 
-  const handleDeleteClick = async (area: Area) => {
-    if (!project) return;
+  const handleDeleteClick = (area: Area) => {
+    setAreaToDelete(area);
+  };
 
-    if (!window.confirm(`Are you sure you want to delete "${area.name}"?`)) {
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!areaToDelete || !project) return;
 
     try {
       await deleteAreaMutation.mutateAsync({
-        areaId: area.id,
+        areaId: areaToDelete.id,
         projectId: project.id
       });
-      setAreas(areas.filter(a => a.id !== area.id));
+      setAreas(areas.filter(a => a.id !== areaToDelete.id));
 
       // Clear selected area if we're deleting the currently selected area
-      if (selectedArea?.id === area.id) {
+      if (selectedArea?.id === areaToDelete.id) {
         setSelectedArea(null);
       }
+
+      setAreaToDelete(null);
     } catch (err: any) {
       console.error('Failed to delete area:', err);
       setError(err.response?.data?.error || 'Failed to delete area');
@@ -224,6 +228,40 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
       editArea={editingArea}
       onAreaUpdated={handleAreaUpdated}
     />
+
+    {/* Delete Area Confirmation Modal */}
+    {areaToDelete && (
+      <TacticalModal
+        isOpen={!!areaToDelete}
+        onClose={() => setAreaToDelete(null)}
+        title="Delete Area"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-tactical-text-secondary">
+            Are you sure you want to delete <span className="font-bold">"{areaToDelete.name}"</span>?
+          </p>
+          <p className="text-xs text-tactical-text-muted">
+            This action cannot be undone. All associated data will be deleted.
+          </p>
+          <div className="flex gap-3 justify-end pt-4 border-t border-tactical-border-medium">
+            <TacticalButton
+              variant="secondary"
+              onClick={() => setAreaToDelete(null)}
+            >
+              Cancel
+            </TacticalButton>
+            <TacticalButton
+              variant="danger"
+              onClick={handleConfirmDelete}
+              disabled={deleteAreaMutation.isPending}
+            >
+              {deleteAreaMutation.isPending ? 'Deleting...' : 'Delete Area'}
+            </TacticalButton>
+          </div>
+        </div>
+      </TacticalModal>
+    )}
     </>
   );
 };
