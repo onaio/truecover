@@ -3,9 +3,15 @@
 
 import duckdb
 import json
+import os
 from temporalio import activity
 from typing import List, Dict, Any, Tuple
 from db.connection import get_db_connection, return_db_connection
+
+OVERTURE_BUILDINGS_PATH = os.getenv(
+    'OVERTURE_BUILDINGS_PATH',
+    'az://overturemapswestus2.blob.core.windows.net/release/2025-10-22.0/theme=buildings/type=building/*'
+)
 
 
 @activity.defn
@@ -75,7 +81,7 @@ async def fetch_overture_buildings_batch(
                 ST_AsText(geometry) as geometry_wkt,
                 ST_X(ST_Centroid(geometry)) as centroid_lng,
                 ST_Y(ST_Centroid(geometry)) as centroid_lat
-            FROM read_parquet('az://overturemapswestus2.blob.core.windows.net/release/2025-10-22.0/theme=buildings/type=building/*', hive_partitioning=1)
+            FROM read_parquet('{OVERTURE_BUILDINGS_PATH}', hive_partitioning=1)
             WHERE bbox.xmin BETWEEN {bbox[0]} AND {bbox[2]}
               AND bbox.ymin BETWEEN {bbox[1]} AND {bbox[3]}
               AND ST_Within(geometry, ST_GeomFromText('{boundary_wkt}'))

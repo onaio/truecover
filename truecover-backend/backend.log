@@ -34566,3 +34566,473 @@ User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33
 127.0.0.1 - - [24/Nov/2025 22:55:38] "GET /api/areas/34d947f9-cb05-426f-801e-b127a91fda5c/rounds HTTP/1.1" 200 -
 127.0.0.1 - - [24/Nov/2025 22:55:40] "GET /api/areas/30ab8349-08e9-4591-bb73-3e07766e175a/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=200&offset=0 HTTP/1.1" 200 -
 127.0.0.1 - - [24/Nov/2025 22:55:54] "GET /api/areas/30ab8349-08e9-4591-bb73-3e07766e175a/coverage_pixel?indicator_id=b5d265e3-a338-42f4-a99c-9aa319cd2a18&limit=10000&offset=0 HTTP/1.1" 200 -
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/routes/admin_boundaries.py', reloading
+Authentication error: Server disconnected without sending a response.Authentication error: Server disconnected without sending a response.
+
+127.0.0.1 - - [25/Nov/2025 12:48:48] "[31m[1mGET /api/user/me HTTP/1.1[0m" 401 -
+127.0.0.1 - - [25/Nov/2025 12:48:48] "[31m[1mGET /api/organizations HTTP/1.1[0m" 401 -
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker startedEnrichment worker thread started
+
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 607-018-114
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/routes/admin_boundaries.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker startedEnrichment worker thread started
+
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 367-299-029
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/routes/admin_boundaries.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 725-708-308
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/temporal/activities/overture.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 592-819-145
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 491-356-532
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 101-025-956
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 487-097-813
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 158-203-087
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker startedEnrichment worker thread started
+
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 141-201-793
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker startedEnrichment worker thread started
+
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 190-521-010
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 664-997-695
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker startedEnrichment worker thread started
+
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 404-403-742
+ * Detected change in '/Users/mberg/github/truecover/truecover-backend/db/cache_overture_buildings.py', reloading
+ * Restarting with stat
+Database connection pool created successfully
+Running database migrations...
+Backfilling quadkeys for existing locations...
+No locations to backfill
+Backfilling quadkeys for existing coverage records...
+No coverage records to backfill
+Creating missing coverage records for locations...
+Error running migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Warning: Could not run migrations: duplicate key value violates unique constraint "coverage_location_id_indicator_id_key"
+DETAIL:  Key (location_id, indicator_id)=(3b69126a-ebad-48a9-9714-5650818e9a23, 09ebb739-fb60-4376-b31b-783e5b115c12) already exists.
+
+Make sure PostgreSQL is running (docker-compose up)
+Starting enrichment worker...
+Enrichment worker started
+Enrichment worker thread started
+
+🚀 Starting TrueCover Backend API on port 5001
+📝 Environment: development
+🔐 Clerk authentication enabled
+🔄 Enrichment worker: enabled
+
+API Documentation: http://localhost:5001/
+
+ * Debugger is active!
+ * Debugger PIN: 498-247-556
+127.0.0.1 - - [25/Nov/2025 13:45:28] "OPTIONS /api/organizations HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2025 13:45:28] "OPTIONS /api/organizations HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2025 13:45:28] "OPTIONS /api/user/me HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}Decoding token...
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofwwDecoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:29.381323'}
+127.0.0.1 - - [25/Nov/2025 13:45:29] "GET /api/user/me HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:29.963179'}
+127.0.0.1 - - [25/Nov/2025 13:45:29] "GET /api/organizations HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+127.0.0.1 - - [25/Nov/2025 13:45:29] "OPTIONS /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/projects HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:30.136430'}
+127.0.0.1 - - [25/Nov/2025 13:45:30] "GET /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/projects HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2025 13:45:30] "OPTIONS /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2025 13:45:30] "OPTIONS /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/areas HTTP/1.1" 200 -
+Decoding token...Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:30.234504'}
+127.0.0.1 - - [25/Nov/2025 13:45:30] "GET /api/organizations HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:30.324780'}
+127.0.0.1 - - [25/Nov/2025 13:45:30] "GET /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/indicators HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:30.342222'}
+127.0.0.1 - - [25/Nov/2025 13:45:30] "GET /api/projects/e60953ce-f553-45c2-b881-bbb73cf5aac8/areas HTTP/1.1" 200 -
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:30.489142'}
+127.0.0.1 - - [25/Nov/2025 13:45:30] "GET /api/organizations/50010e27-8b3a-462f-a857-fc3f173f835a/projects HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2025 13:45:32] "OPTIONS /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c/projects HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:32.675098'}
+127.0.0.1 - - [25/Nov/2025 13:45:32] "GET /api/organizations/1a697171-a0c0-46e2-aa59-2ba58af1b44c/projects HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2025 13:45:33] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -
+127.0.0.1 - - [25/Nov/2025 13:45:33] "OPTIONS /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/areas HTTP/1.1" 200 -
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Decoding token...
+Decoded token: {'azp': 'http://localhost:3050', 'exp': 1764096388, 'fva': [2521, -1], 'iat': 1764096328, 'iss': 'https://brave-cardinal-31.clerk.accounts.dev', 'nbf': 1764096318, 'sid': 'sess_35u1DpojfDqPluE1kN5bdTEGuBP', 'sts': 'active', 'sub': 'user_33qLhW3GQmdczsUy340LXXQofww', 'v': 2}
+Clerk user ID: user_33qLhW3GQmdczsUy340LXXQofww
+Fetching user from Clerk API...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+Got user from Clerk: mberg@ona.io
+Syncing user to database...
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:34.088350'}
+127.0.0.1 - - [25/Nov/2025 13:45:34] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/areas HTTP/1.1" 200 -
+User synced: {'id': '2b05045c-9a0d-4799-9087-4882846d3bce', 'clerk_id': 'user_33qLhW3GQmdczsUy340LXXQofww', 'email': 'mberg@ona.io', 'name': 'Matt Berg', 'organization': None, 'created_at': '2025-10-16T17:57:10.656065', 'updated_at': '2025-11-25T18:45:34.157354'}
+127.0.0.1 - - [25/Nov/2025 13:45:34] "GET /api/projects/c394fc81-e344-431d-b3ce-fe672713b8fe/indicators HTTP/1.1" 200 -

@@ -23,3 +23,6 @@ ENV/
 
 # COG cache
 cog_cache/
+
+# Parquet cache
+parquet_cache/
