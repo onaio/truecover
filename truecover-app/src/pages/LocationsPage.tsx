@@ -19,6 +19,8 @@ import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
 import PredictedCoverageSection from '../components/PredictedCoverageSection';
 import DistributionHistogram from '../components/DistributionHistogram';
+import CondensedStatsBar from '../components/CondensedStatsBar';
+import HistogramDrawer from '../components/HistogramDrawer';
 import {
   TacticalCard,
   TacticalButton,
@@ -75,6 +77,8 @@ const LocationsPage: React.FC = () => {
   const [isEnrichPixelsModalOpen, setIsEnrichPixelsModalOpen] = useState<boolean>(false);
   const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
   const [planningMode, setPlanningMode] = useState<boolean>(false);
+  const [mapMode, setMapMode] = useState<boolean>(false);
+  const [histogramDrawerOpen, setHistogramDrawerOpen] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
   const [selectedAdminBoundaryForLocations, setSelectedAdminBoundaryForLocations] = useState<{ pcode: string; name: string; geometry?: any } | null>(null);
   const { data: indicators } = useIndicators(selectedProject?.id);
@@ -289,12 +293,91 @@ const LocationsPage: React.FC = () => {
     });
   }, [enrichmentJobs]);
 
+  // Keyboard shortcuts for map mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        setMapMode(prev => !prev);
+      }
+      if (e.key === 'Escape' && mapMode) {
+        setMapMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mapMode]);
+
+  // Calculate visit stats for reuse in both layouts
+  const visitStats = useMemo(() => {
+    const totalLocations = locations?.locations?.length || 0;
+
+    let locationsToVisit = 0;
+    let locationsVisited = 0;
+
+    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+      locationsToVisit = coverageData.filter(record =>
+        record.rounds && record.rounds.length > 0
+      ).length;
+      locationsVisited = coverageData.filter(record =>
+        record.n_trials !== 0 && record.n_covered !== 0
+      ).length;
+    } else {
+      const selectedRoundNumbers = selectedRoundIds
+        .map(id => rounds?.find(r => r.id === id)?.round_number)
+        .filter((num): num is number => num !== undefined);
+
+      locationsToVisit = coverageData.filter(record =>
+        record.rounds &&
+        record.rounds.length > 0 &&
+        record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
+      ).length;
+      locationsVisited = coverageData.filter(record =>
+        record.n_trials !== 0 &&
+        record.n_covered !== 0 &&
+        record.rounds &&
+        record.rounds.some((rn: number) => selectedRoundNumbers.includes(rn))
+      ).length;
+    }
+
+    const toVisitPercent = totalLocations > 0 ? Math.round((locationsToVisit / totalLocations) * 100) : 0;
+    const visitedPercent = totalLocations > 0 ? Math.round((locationsVisited / totalLocations) * 100) : 0;
+
+    return {
+      locationsToVisit,
+      locationsToVisitPercent: toVisitPercent,
+      locationsVisited,
+      locationsVisitedPercent: visitedPercent,
+    };
+  }, [locations, coverageData, selectedRoundIds, rounds]);
+
   if (!selectedArea) {
     return null;
   }
 
   return (
     <>
+      {/* Map Mode Button - Fixed to viewport */}
+      <div style={{
+        position: 'fixed',
+        top: '16px',
+        right: '180px',
+        zIndex: 10000,
+        pointerEvents: 'auto'
+      }}>
+        <TacticalButton
+          variant={mapMode ? "primary" : "secondary"}
+          size="sm"
+          isActive={mapMode}
+          onClick={() => setMapMode(!mapMode)}
+        >
+          {mapMode ? 'Exit Map' : 'Map Mode'}
+        </TacticalButton>
+      </div>
+
       {/* Planning Mode Button - Fixed to viewport */}
       <div style={{
         position: 'fixed',
@@ -313,36 +396,210 @@ const LocationsPage: React.FC = () => {
         </TacticalButton>
       </div>
 
-      <div className="min-h-screen bg-tactical-bg-primary">
-        <TacticalHeader
-          title=""
-          subtitle=""
-        />
+      {mapMode ? (
+        /* MAP MODE LAYOUT */
+        <div className="fixed inset-0 z-40 bg-tactical-bg-primary flex flex-col">
+          {/* Header with Breadcrumb */}
+          <div className="flex-shrink-0 p-3 border-b border-tactical-border-medium">
+            <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
+              <Link
+                to="/"
+                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+              >
+                {selectedOrganization?.name || 'Organization'}
+              </Link>
+              {' / '}
+              <Link
+                to="/"
+                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+              >
+                {selectedProject?.title || 'Project'}
+              </Link>
+              {' / '}
+              <span className="text-tactical-text-primary">{selectedArea.name}</span>
+            </p>
+          </div>
 
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Breadcrumbs */}
-        <div className="mb-4">
-          <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
-            <Link
-              to="/"
-              className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+          {/* Filter Controls */}
+          <div className="flex-shrink-0 p-3 border-b border-tactical-border-medium flex gap-4 items-center flex-wrap">
+            {/* Indicator Filter */}
+            <div className="w-48 text-sm">
+              <TacticalSelect
+                value={selectedIndicatorId}
+                onChange={(value) => setSelectedIndicatorId(value)}
+                options={
+                  (indicators || []).map(ind => ({
+                    value: ind.id,
+                    label: ind.name
+                  }))
+                }
+                placeholder="Select Indicator"
+              />
+            </div>
+
+            {/* Round Filter */}
+            <div className="w-48 text-sm">
+              <TacticalMultiSelect
+                value={selectedRoundIds}
+                onChange={setSelectedRoundIds}
+                options={[
+                  { value: 'all', label: 'All Rounds' },
+                  ...(rounds || []).map(round => ({
+                    value: round.id,
+                    label: round.name || `Round ${round.round_number}`
+                  }))
+                ]}
+                placeholder="Filter by Round"
+              />
+            </div>
+
+            {/* Coverage Toggle */}
+            <TacticalButton
+              variant={interpolationMode === 'coverage' ? "primary" : "secondary"}
+              size="sm"
+              isActive={interpolationMode === 'coverage'}
+              onClick={() => setInterpolationMode(interpolationMode === 'coverage' ? 'none' : 'coverage')}
             >
-              {selectedOrganization?.name || 'Organization'}
-            </Link>
-            {' / '}
-            <Link
-              to="/"
-              className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+              Coverage
+            </TacticalButton>
+
+            {/* Uncertainty Toggle */}
+            <TacticalButton
+              variant={interpolationMode === 'uncertainty' ? "primary" : "secondary"}
+              size="sm"
+              isActive={interpolationMode === 'uncertainty'}
+              onClick={() => setInterpolationMode(interpolationMode === 'uncertainty' ? 'none' : 'uncertainty')}
             >
-              {selectedProject?.title || 'Project'}
-            </Link>
-          </p>
+              Uncertainty
+            </TacticalButton>
+
+            {/* Metadata Toggle */}
+            {pixelMetadataStats && pixelMetadataStats.metadata_fields.length > 0 && (
+              <TacticalButton
+                variant={interpolationMode === 'metadata' ? "primary" : "secondary"}
+                size="sm"
+                isActive={interpolationMode === 'metadata'}
+                onClick={() => setInterpolationMode(interpolationMode === 'metadata' ? 'none' : 'metadata')}
+              >
+                Metadata
+              </TacticalButton>
+            )}
+
+            {/* Metadata Field Selector */}
+            {(interpolationMode === 'metadata' || (interpolationMode !== 'none' && selectedMetadataField)) && pixelMetadataStats && pixelMetadataStats.metadata_fields.length > 0 && (
+              <div className="w-48 text-sm">
+                <TacticalSelect
+                  value={selectedMetadataField}
+                  onChange={(value) => setSelectedMetadataField(value)}
+                  options={
+                    pixelMetadataStats.metadata_fields
+                      .filter((field: any) => field.count > 0)
+                      .map((field: any) => ({
+                        value: field.name,
+                        label: field.name
+                      }))
+                  }
+                  placeholder="Select Metadata Field"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Condensed Stats Bar */}
+          {locations && locations.locations && (
+            <CondensedStatsBar
+              locationTotalCount={locationTotalCount}
+              pixelTotalCount={pixelTotalCount}
+              roundCount={rounds?.length || 0}
+              locationsToVisitCount={visitStats.locationsToVisit}
+              locationsToVisitPercent={visitStats.locationsToVisitPercent}
+              locationsVisitedCount={visitStats.locationsVisited}
+              locationsVisitedPercent={visitStats.locationsVisitedPercent}
+            />
+          )}
+
+          {/* Map taking remaining space */}
+          <div className="flex-1 relative overflow-hidden">
+            <MapView
+              data={{ type: 'FeatureCollection', features: [] }}
+              locations={locations}
+              mode="locations"
+              highlightRounds={mapHighlightRounds}
+              showSampled={showSampled}
+              onToggleSampled={() => setShowSampled(!showSampled)}
+              interpolationMode={interpolationMode}
+              selectedMetadataField={selectedMetadataField}
+              metadataVisualizationMode={metadataVisualizationMode}
+              showPixels={showPixels}
+              onTogglePixels={() => setShowPixels(!showPixels)}
+              pixelsBounds={pixelStats?.bounds || null}
+              onBoundsChange={setCurrentMapBounds}
+              areaId={selectedArea?.id}
+              indicatorId={selectedIndicatorId}
+              pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
+              pixelCount={pixelStats?.count || 0}
+              onGeneratePixels={() => {
+                refetchPixelStats();
+                setRefreshKey(prev => prev + 1);
+              }}
+              histogramBrushRanges={histogramBrushRanges}
+              histogramDataType={histogramTab}
+              sampledItemsCount={sampledItemsCount}
+              planningMode={planningMode}
+              onAddRoundForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundary({ pcode, name })}
+              onAddLocationsForAdminBoundary={(pcode: string, name: string, geometry?: any) => setSelectedAdminBoundaryForLocations({ pcode, name, geometry })}
+              className="h-full"
+            />
+
+            {/* Histogram Drawer */}
+            {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty' || interpolationMode === 'metadata') && (
+              <HistogramDrawer
+                isOpen={histogramDrawerOpen}
+                onToggle={() => setHistogramDrawerOpen(!histogramDrawerOpen)}
+                histogramData={histogramData}
+                interpolationMode={interpolationMode}
+                indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
+                onBrushChange={setHistogramBrushRanges}
+                histogramTab={histogramTab}
+                onTabChange={setHistogramTab}
+                locationTotalCount={locationTotalCount}
+                pixelTotalCount={pixelTotalCount}
+              />
+            )}
+          </div>
         </div>
+      ) : (
+        /* NORMAL LAYOUT */
+        <div className="min-h-screen bg-tactical-bg-primary">
+          <TacticalHeader
+            title=""
+            subtitle=""
+          />
 
-        {/* Page Title - Show Area Name */}
-        <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
-          {selectedArea.name}
-        </h1>
+        <div className="max-w-7xl mx-auto p-6">
+          {/* Breadcrumbs */}
+          <div className="mb-4">
+            <p className="text-sm text-tactical-text-dim font-mono uppercase tracking-wider">
+              <Link
+                to="/"
+                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+              >
+                {selectedOrganization?.name || 'Organization'}
+              </Link>
+              {' / '}
+              <Link
+                to="/"
+                className="hover:text-tactical-accent-orange cursor-pointer transition-colors"
+              >
+                {selectedProject?.title || 'Project'}
+              </Link>
+            </p>
+          </div>
+
+          {/* Page Title - Show Area Name */}
+          <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
+            {selectedArea.name}
+          </h1>
 
         {/* Location Summary */}
         {locations && locations.locations && (
@@ -845,7 +1102,9 @@ const LocationsPage: React.FC = () => {
             </TacticalCard>
           </>
         )}
-      </div>
+        </div>
+        </div>
+      )}
 
       {/* Location Upload Modal */}
       <LocationUploadModal
@@ -911,7 +1170,6 @@ const LocationsPage: React.FC = () => {
           setRefreshKey(prev => prev + 1);
         }}
       />
-      </div>
     </>
   );
 };

@@ -22,7 +22,7 @@ services:
     image: ghcr.io/maplibre/martin:latest
     container_name: truecover-martin
     ports:
-      - "3051:3000"
+      - "3052:3000"
     environment:
       - DATABASE_URL=postgresql://truecover:truecover@postgres:5432/truecover
     volumes:
