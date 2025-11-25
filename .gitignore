@@ -2,3 +2,4 @@ node_modules/
 pmtiles/
 geoparquet/
 *.pmtiles
+*.log
