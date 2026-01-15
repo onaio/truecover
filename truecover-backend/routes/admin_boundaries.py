@@ -12,9 +12,15 @@ import asyncio
 import json
 import duckdb
 import time
+import os
 from datetime import datetime
 
 admin_boundaries_bp = Blueprint('admin_boundaries', __name__)
+
+OVERTURE_BUILDINGS_PATH = os.getenv(
+    'OVERTURE_BUILDINGS_PATH',
+    'az://overturemapswestus2.blob.core.windows.net/release/2025-10-22.0/theme=buildings/type=building/*'
+)
 
 
 def find_duplicate_by_external_id(cursor, area_id, external_id):
@@ -191,7 +197,7 @@ def preview_overture_buildings(user, pcode):
         # First filter by bbox for performance, then by actual boundary
         count_query = f"""
             SELECT COUNT(*) as count
-            FROM read_parquet('az://overturemapswestus2.blob.core.windows.net/release/2025-10-22.0/theme=buildings/type=building/*', hive_partitioning=1)
+            FROM read_parquet('{OVERTURE_BUILDINGS_PATH}', hive_partitioning=1)
             WHERE bbox.xmin BETWEEN {bbox[0]} AND {bbox[2]}
               AND bbox.ymin BETWEEN {bbox[1]} AND {bbox[3]}
               AND ST_Within(geometry, ST_GeomFromText('{boundary_wkt}'))
@@ -298,7 +304,7 @@ def import_overture_buildings(user, pcode):
                 ST_AsText(geometry) as geometry_wkt,
                 ST_X(ST_Centroid(geometry)) as centroid_lng,
                 ST_Y(ST_Centroid(geometry)) as centroid_lat
-            FROM read_parquet('az://overturemapswestus2.blob.core.windows.net/release/2025-10-22.0/theme=buildings/type=building/*', hive_partitioning=1)
+            FROM read_parquet('{OVERTURE_BUILDINGS_PATH}', hive_partitioning=1)
             WHERE bbox.xmin BETWEEN {bbox[0]} AND {bbox[2]}
               AND bbox.ymin BETWEEN {bbox[1]} AND {bbox[3]}
               AND ST_Within(geometry, ST_GeomFromText('{boundary_wkt}'))

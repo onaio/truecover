@@ -39,6 +39,7 @@ interface MapViewProps {
   planningMode?: boolean;
   onAddRoundForAdminBoundary?: (pcode: string, name: string) => void;
   onAddLocationsForAdminBoundary?: (pcode: string, name: string, geometry?: any) => void;
+  className?: string;
 }
 
 // Helper function to extract all coordinates from any geometry type
@@ -73,7 +74,9 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary, onAddLocationsForAdminBoundary }) => {
+const MARTIN_URL = import.meta.env.VITE_MARTIN_URL || 'http://localhost:3052';
+
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary, onAddLocationsForAdminBoundary, className }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -1253,8 +1256,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   };
 
   return (
-    <div>
-      <div className="relative h-[500px] w-full border-t-0 border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden">
+    <div className={className}>
+      <div className={`relative w-full border-t-0 border-tactical-border-medium bg-tactical-bg-secondary overflow-hidden ${className ? 'h-full' : 'h-[500px]'}`}>
         <Map
           key={mapKey}
           mapboxAccessToken={mapboxToken}
@@ -1356,7 +1359,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="buildings-source"
               type="vector"
-              tiles={[`http://localhost:3051/buildings/{z}/{x}/{y}`]}
+              tiles={[`${MARTIN_URL}/buildings/{z}/{x}/{y}`]}
               minzoom={3}
               maxzoom={14}
             >
@@ -1398,7 +1401,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 key={`locations-source-${tileVersion}`}
                 id="locations-source"
                 type="vector"
-                tiles={[`http://localhost:3051/locations_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId}`]}
+                tiles={[`${MARTIN_URL}/locations_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId}`]}
                 minzoom={0}
                 maxzoom={24}
               >
@@ -1474,7 +1477,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="pixels-source"
               type="vector"
-              tiles={[`http://localhost:3051/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
+              tiles={[`${MARTIN_URL}/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
               minzoom={0}
               maxzoom={24}
             >
@@ -1696,7 +1699,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="admin-boundaries-adm0-source"
               type="vector"
-              tiles={[`http://localhost:3051/bgd_adm0/{z}/{x}/{y}`]}
+              tiles={[`${MARTIN_URL}/bgd_adm0/{z}/{x}/{y}`]}
               minzoom={0}
               maxzoom={12}
               promoteId="ADM0_PCODE"
@@ -1745,7 +1748,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="admin-boundaries-adm1-source"
               type="vector"
-              tiles={[`http://localhost:3051/bgd_adm1/{z}/{x}/{y}`]}
+              tiles={[`${MARTIN_URL}/bgd_adm1/{z}/{x}/{y}`]}
               minzoom={4}
               maxzoom={12}
               promoteId="ADM1_PCODE"
@@ -1796,7 +1799,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="admin-boundaries-adm2-source"
               type="vector"
-              tiles={[`http://localhost:3051/bgd_adm2/{z}/{x}/{y}`]}
+              tiles={[`${MARTIN_URL}/bgd_adm2/{z}/{x}/{y}`]}
               minzoom={6}
               maxzoom={14}
               promoteId="ADM2_PCODE"
@@ -1847,7 +1850,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="admin-boundaries-adm3-source"
               type="vector"
-              tiles={[`http://localhost:3051/bgd_adm3/{z}/{x}/{y}`]}
+              tiles={[`${MARTIN_URL}/bgd_adm3/{z}/{x}/{y}`]}
               minzoom={8}
               maxzoom={16}
               promoteId="ADM3_PCODE"
@@ -1898,7 +1901,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="admin-boundaries-adm4-source"
               type="vector"
-              tiles={[`http://localhost:3051/bgd_adm4/{z}/{x}/{y}`]}
+              tiles={[`${MARTIN_URL}/bgd_adm4/{z}/{x}/{y}`]}
               minzoom={10}
               maxzoom={18}
               promoteId="ADM4_PCODE"
