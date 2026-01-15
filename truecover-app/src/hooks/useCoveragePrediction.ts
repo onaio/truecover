@@ -104,7 +104,7 @@ export const useCoveragePrediction = () => {
 
     // Prepare data for prediction - keep all fields but ensure consistent types
     const cleanedFeatures = mergeResult.mergedData.features.map((feature, idx) => {
-      const props = { ...feature.properties } || {};
+      const props = { ...feature.properties };
 
       // Normalize ID to be numeric (important for pandas DataFrame)
       if (props.id !== undefined && props.id !== null) {

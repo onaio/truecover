@@ -367,7 +367,6 @@ const OrganizationSettings: React.FC<OrganizationSettingsProps> = ({
               Member Email
             </label>
             <TacticalInput
-              id="memberEmail"
               type="email"
               value={newMemberEmail}
               onChange={setNewMemberEmail}
@@ -428,7 +427,6 @@ const OrganizationSettings: React.FC<OrganizationSettingsProps> = ({
               Organization Name
             </label>
             <TacticalInput
-              id="orgNameEdit"
               type="text"
               value={editedName}
               onChange={setEditedName}

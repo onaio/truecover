@@ -202,7 +202,6 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           value={name}
           onChange={setName}
           placeholder="e.g., Round 1, Baseline Survey"
-          required
           disabled={isSubmitting}
         />
 
@@ -226,7 +225,6 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
             }))
           }
           placeholder="Select Indicator"
-          required
           disabled={isSubmitting}
         />
 
@@ -279,8 +277,6 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
               value={batchSize}
               onChange={setBatchSize}
               placeholder="10"
-              min="1"
-              required
               disabled={isSubmitting}
             />
 

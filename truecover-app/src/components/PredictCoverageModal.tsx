@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TacticalModal, TacticalButton, TacticalInput, TacticalSelect, tacticalToast } from '../tactical-ui';
+import { TacticalModal, TacticalButton, TacticalSelect, tacticalToast } from '../tactical-ui';
 import { useIndicators } from '../hooks/useIndicators';
-import { useRounds } from '../hooks/useRounds';
 import { useCoverage } from '../hooks/useCoverage';
 
 interface PredictCoverageModalProps {

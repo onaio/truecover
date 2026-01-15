@@ -225,7 +225,7 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
           ona_entity_list_id: selectedEntityListId,
           ona_entity_list_name: selectedEntityListName,
           odk_pixel_geometry_type: pixelGeometryType
-        },
+        } as any,
         token
       );
 

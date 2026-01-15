@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import { projectsApi } from '../services/api';
-import { Project } from '../types';
 
 /**
  * Hook to fetch all projects for an organization
@@ -92,7 +91,6 @@ export function useUpdateProject() {
   return useMutation({
     mutationFn: async ({
       projectId,
-      orgId,
       data
     }: {
       projectId: string;
@@ -102,6 +100,11 @@ export function useUpdateProject() {
         description?: string;
         odk_api_key?: string | null;
         odk_host_url?: string | null;
+        ona_project_id?: string | null;
+        ona_project_name?: string | null;
+        ona_entity_list_id?: string | null;
+        ona_entity_list_name?: string | null;
+        odk_pixel_geometry_type?: string | null;
       }
     }) => {
       const token = await getToken();
@@ -127,7 +130,7 @@ export function useDeleteProject() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ projectId, orgId }: { projectId: string; orgId: string }) => {
+    mutationFn: async ({ projectId }: { projectId: string; orgId: string }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');

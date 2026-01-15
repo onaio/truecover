@@ -105,7 +105,7 @@ const AppContent: React.FC = () => {
         isOpen={isCreateProjectModalOpen}
         onClose={() => setIsCreateProjectModalOpen(false)}
         organization={selectedOrganization}
-        onProjectCreated={(project) => {
+        onProjectCreated={() => {
           setIsCreateProjectModalOpen(false);
           if (refreshProjects) {
             refreshProjects();

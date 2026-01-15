@@ -42,7 +42,7 @@ const HomePage: React.FC = () => {
                 <OrganizationSelector
                   selectedOrganization={selectedOrganization}
                   onOrganizationChange={setSelectedOrganization}
-                  onRefresh={(refreshFn) => setRefreshOrganizations(() => refreshFn)}
+                  onRefresh={setRefreshOrganizations}
                   showCreateButton={false}
                 />
               </TacticalCard>
@@ -52,7 +52,7 @@ const HomePage: React.FC = () => {
                   selectedProject={selectedProject}
                   onProjectChange={setSelectedProject}
                   onCreateClick={() => setIsCreateProjectModalOpen(true)}
-                  onRefresh={(refreshFn) => setRefreshProjects(() => refreshFn)}
+                  onRefresh={setRefreshProjects}
                 />
               </TacticalCard>
             </div>

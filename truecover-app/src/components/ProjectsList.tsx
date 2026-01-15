@@ -280,7 +280,6 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ organization }) => {
               Project Title
             </label>
             <TacticalInput
-              id="projectTitle"
               type="text"
               value={newProjectTitle}
               onChange={setNewProjectTitle}

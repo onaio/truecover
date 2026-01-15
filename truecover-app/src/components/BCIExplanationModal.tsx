@@ -118,12 +118,11 @@ const BCIExplanationModal: React.FC<BCIExplanationModalProps> = ({ isOpen, onClo
       marks: [
         // Confidence interval lines
         Plot.ruleX(intervalData, {
-          x1: 'lower',
           x2: 'upper',
           y: 'location',
           stroke: '#4a9eff',
           strokeWidth: 2
-        }),
+        } as any),
         // Lower bound markers
         Plot.dot(intervalData, {
           x: 'lower',
@@ -212,7 +211,7 @@ const BCIExplanationModal: React.FC<BCIExplanationModalProps> = ({ isOpen, onClo
       isOpen={isOpen}
       onClose={onClose}
       title={`BCI Width Explanation${indicatorName ? ` - ${indicatorName}` : ''}`}
-      width="xl"
+      size="xl"
     >
       <div className="space-y-4">
         <div className="text-sm font-mono text-tactical-text-primary space-y-2">

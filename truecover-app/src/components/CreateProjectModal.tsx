@@ -105,7 +105,6 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
             Project Title
           </label>
           <TacticalInput
-            id="projectTitle"
             type="text"
             value={title}
             onChange={setTitle}

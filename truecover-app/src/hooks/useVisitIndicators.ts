@@ -214,7 +214,7 @@ export function useDeleteVisitIndicator() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ indicatorId, visitId }: { indicatorId: string; visitId: string }) => {
+    mutationFn: async ({ indicatorId }: { indicatorId: string; visitId: string }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');

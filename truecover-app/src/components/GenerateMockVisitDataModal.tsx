@@ -41,10 +41,6 @@ const GenerateMockVisitDataModal: React.FC<GenerateMockVisitDataModalProps> = ({
     }
   }, [fileData, availableRounds]);
 
-  const handleContinueToStep2 = () => {
-    setStep(2);
-  };
-
   const handleBackToStep1 = () => {
     setStep(1);
   };
@@ -214,12 +210,12 @@ const GenerateMockVisitDataModal: React.FC<GenerateMockVisitDataModalProps> = ({
             className={`flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity ${step === 1 ? 'opacity-100' : 'opacity-50'}`}
             onClick={() => setStep(1)}
           >
-            <TacticalBadge variant={step === 1 ? "primary" : "secondary"}>STEP 1</TacticalBadge>
+            <TacticalBadge variant={step === 1 ? "info" : "default"}>STEP 1</TacticalBadge>
             <span className="text-sm font-mono text-tactical-text-primary">Upload Data</span>
           </div>
           <div className="flex-1 h-px bg-tactical-border-medium"></div>
           <div className={`flex items-center gap-2 ${step === 2 ? 'opacity-100' : 'opacity-50'}`}>
-            <TacticalBadge variant={step === 2 ? "primary" : "secondary"}>STEP 2</TacticalBadge>
+            <TacticalBadge variant={step === 2 ? "info" : "default"}>STEP 2</TacticalBadge>
             <span className="text-sm font-mono text-tactical-text-primary">Configure & Export</span>
           </div>
         </div>
