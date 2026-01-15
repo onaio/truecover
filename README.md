@@ -5,7 +5,7 @@ A geospatial disease surveillance platform for planning, monitoring, and predict
 ## Prerequisites
 
 - **Python 3.12+**
-- **Node.js 18+**
+- **Bun** (JavaScript runtime & package manager) - https://bun.sh
 - **Docker** and **Docker Compose**
 - **UV** (Python package manager) - `pip install uv`
 
@@ -49,8 +49,8 @@ uv run python temporal_worker.py
 
 ```bash
 cd truecover-app
-npm install                # Install dependencies
-npm run dev                # Start on port 3050
+bun install                # Install dependencies
+bun run dev                # Start on port 3050
 ```
 
 ### 5. Open the App
