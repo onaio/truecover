@@ -3,6 +3,7 @@ import { TacticalModal, TacticalInput, TacticalButton, TacticalTextarea, Tactica
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 import { useIndicators } from '../hooks/useIndicators';
+import { usePixelMetadataStats } from '../hooks/usePixels';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -27,6 +28,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
 }) => {
   const { getToken } = useAuth();
   const { data: indicators } = useIndicators(projectId);
+  const { data: metadataStats } = usePixelMetadataStats(areaId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -38,6 +40,21 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   const [samplingTarget, setSamplingTarget] = useState<'locations' | 'pixels'>('locations');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [enablePopulationFilter, setEnablePopulationFilter] = useState(false);
+  const [minPopulation, setMinPopulation] = useState('10');
+  const [populationField, setPopulationField] = useState('');
+
+  // Get numeric metadata fields that could be used for population filtering
+  const numericMetadataFields = (metadataStats?.metadata_fields || []).filter(
+    (field: any) => field.data_type === 'integer' || field.data_type === 'float'
+  );
+
+  // Auto-select first numeric field when metadata loads
+  useEffect(() => {
+    if (numericMetadataFields.length > 0 && !populationField) {
+      setPopulationField(numericMetadataFields[0].name);
+    }
+  }, [numericMetadataFields, populationField]);
 
   // Auto-select first indicator when indicators load
   useEffect(() => {
@@ -84,6 +101,12 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           allow_revisit: allowRevisit,
           sampling_target: samplingTarget,
           admin_pcode: adminBoundaryPcode || null,
+          min_population: (samplingTarget === 'pixels' && enablePopulationFilter && populationField)
+            ? parseFloat(minPopulation)
+            : null,
+          population_field: (samplingTarget === 'pixels' && enablePopulationFilter && populationField)
+            ? populationField
+            : null,
         },
         {
           headers: {
@@ -108,6 +131,9 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         setUncertaintyField('prevalence_bci_width');
         setAllowRevisit(false);
         setSamplingTarget('locations');
+        setEnablePopulationFilter(false);
+        setMinPopulation('10');
+        setPopulationField(numericMetadataFields.length > 0 ? numericMetadataFields[0].name : '');
 
         // Close modal immediately
         onClose();
@@ -296,6 +322,56 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
                 Allow revisit to same {samplingTarget === 'locations' ? 'location' : 'pixel'}
               </label>
             </div>
+
+            {/* Population Filter - Only show for pixels when metadata fields are available */}
+            {samplingTarget === 'pixels' && numericMetadataFields.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-tactical-border-dark">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="enablePopulationFilter"
+                    checked={enablePopulationFilter}
+                    onChange={(e) => setEnablePopulationFilter(e.target.checked)}
+                    disabled={isSubmitting}
+                    className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
+                  />
+                  <label
+                    htmlFor="enablePopulationFilter"
+                    className="text-sm font-mono text-tactical-text-primary cursor-pointer select-none"
+                  >
+                    Filter by minimum population
+                  </label>
+                </div>
+
+                {enablePopulationFilter && (
+                  <div className="mt-3 ml-7 space-y-3">
+                    <TacticalSelect
+                      label="Population Field"
+                      value={populationField}
+                      onChange={setPopulationField}
+                      options={numericMetadataFields.map((field: any) => ({
+                        value: field.name,
+                        label: `${field.name}${field.unit ? ` (${field.unit})` : ''}`
+                      }))}
+                      disabled={isSubmitting}
+                    />
+
+                    <TacticalInput
+                      label="Minimum Population Threshold"
+                      type="number"
+                      value={minPopulation}
+                      onChange={setMinPopulation}
+                      placeholder="10"
+                      disabled={isSubmitting}
+                    />
+
+                    <p className="text-xs font-mono text-tactical-text-dim">
+                      Only pixels with {populationField || 'population'} ≥ {minPopulation || '10'} will be included in sampling.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         </div>
