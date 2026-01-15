@@ -4,10 +4,12 @@
 import os
 from temporalio.client import Client
 import asyncio
+import threading
 
 
 _client = None
-_client_lock = asyncio.Lock()
+_client_loop = None
+_client_lock = threading.Lock()
 
 
 async def get_temporal_client() -> Client:
@@ -17,13 +19,19 @@ async def get_temporal_client() -> Client:
     Returns:
         Temporal client instance connected to Temporal server
     """
-    global _client
+    global _client, _client_loop
 
-    async with _client_lock:
+    current_loop = asyncio.get_running_loop()
+
+    with _client_lock:
+        # If client exists but was created in a different event loop, recreate it
+        if _client is not None and _client_loop != current_loop:
+            _client = None
+
         if _client is None:
-            # Get Temporal server address from environment or use default
             temporal_host = os.getenv("TEMPORAL_HOST", "localhost:7233")
             _client = await Client.connect(temporal_host)
+            _client_loop = current_loop
 
     return _client
 
@@ -38,10 +46,10 @@ def run_async(coro):
     Returns:
         Result of the coroutine
     """
+    # Always create a fresh event loop for Flask requests
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    return loop.run_until_complete(coro)
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()

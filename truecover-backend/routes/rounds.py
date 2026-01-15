@@ -455,7 +455,8 @@ def create_round_old(user, area_id):
             for idx, cov in enumerate(locations):
                 coverage_id = str(cov[0])
                 location_id = str(cov[1])
-                geometry = json.loads(cov[2]) if cov[2] else {
+                # Always use centroid point for adaptive sampling (R function can't handle polygons)
+                geometry = {
                     'type': 'Point',
                     'coordinates': [float(cov[4]), float(cov[3])]
                 }
@@ -516,7 +517,31 @@ def create_round_old(user, area_id):
                     'details': response.text
                 }), 500
 
-            result = response.json()
+            # R function may print stdout messages before/after JSON - extract just the JSON
+            response_text = response.text
+            json_start = response_text.find('{')
+            if json_start == -1:
+                conn.rollback()
+                cursor.close()
+                return jsonify({'error': 'No JSON in response', 'details': response_text[:200]}), 500
+
+            # Find matching closing brace by counting
+            depth = 0
+            json_end = json_start
+            for i, char in enumerate(response_text[json_start:], start=json_start):
+                if char == '{':
+                    depth += 1
+                elif char == '}':
+                    depth -= 1
+                    if depth == 0:
+                        json_end = i + 1
+                        break
+
+            if json_start > 0 or json_end < len(response_text):
+                print(f"DEBUG: Extracting JSON from position {json_start} to {json_end}")
+
+            response_text = response_text[json_start:json_end]
+            result = json.loads(response_text)
 
             # Extract result if wrapped
             if result.get('function_status') == 'success' and result.get('result'):
