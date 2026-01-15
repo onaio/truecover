@@ -21,7 +21,6 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
   isOpen,
   onClose,
   areaId,
-  projectId,
   indicators,
 }) => {
   const [selectedIndicatorId, setSelectedIndicatorId] = useState('');
@@ -156,7 +155,7 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Export Data"
-      width="md"
+      size="md"
     >
       <div className="space-y-4">
         {error && (

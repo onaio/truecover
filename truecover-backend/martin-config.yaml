@@ -21,29 +21,10 @@ postgres:
       minzoom: 0
       maxzoom: 24
 
-# PMTiles sources for admin boundaries and buildings
+# PMTiles sources - scan directory for all pmtiles files
 pmtiles:
+  paths: /pmtiles/
   sources:
-    # ADM0 - Country level boundaries
-    bgd_adm0:
-      path: /pmtiles/bgd_adm0.pmtiles
-
-    # ADM1 - Division level boundaries
-    bgd_adm1:
-      path: /pmtiles/bgd_adm1.pmtiles
-
-    # ADM2 - District level boundaries
-    bgd_adm2:
-      path: /pmtiles/bgd_adm2.pmtiles
-
-    # ADM3 - Upazila level boundaries
-    bgd_adm3:
-      path: /pmtiles/bgd_adm3.pmtiles
-
-    # ADM4 - Union level boundaries
-    bgd_adm4:
-      path: /pmtiles/bgd_adm4.pmtiles
-
-    # Overture Maps buildings layer
+    # Overture Maps buildings layer - using HTTP URL (public bucket)
     buildings:
-      path: https://overturemaps-tiles-us-west-2-beta.s3.amazonaws.com/2025-10-22/buildings.pmtiles
+      path: http://overturemaps-tiles-us-west-2-beta.s3.us-west-2.amazonaws.com/2025-10-22/buildings.pmtiles

@@ -61,8 +61,9 @@ export function useEnrichmentJob(jobId: string | undefined) {
       return enrichmentApi.getJob(jobId, token);
     },
     enabled: !!jobId && isSignedIn,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 2 seconds if job is pending or processing
+      const data = query.state.data;
       if (data && (data.status === 'pending' || data.status === 'processing')) {
         return 2000;
       }
@@ -92,8 +93,9 @@ export function useEnrichmentJobs(areaId: string | undefined) {
       return enrichmentApi.listJobs(areaId, token);
     },
     enabled: !!areaId && isSignedIn,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 2 seconds if any jobs are pending or processing
+      const data = query.state.data;
       if (data?.jobs && data.jobs.some((job: any) =>
         job.status === 'pending' || job.status === 'processing'
       )) {

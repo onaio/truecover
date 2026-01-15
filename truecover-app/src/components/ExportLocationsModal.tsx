@@ -22,7 +22,6 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   areaId,
   areaName,
   projectId,
-  locations,
 }) => {
   const { getToken } = useAuth();
   const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
@@ -47,7 +46,6 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
     created_pixels: number;
     current_quadkey: string;
   } | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [pixelGeometryType, setPixelGeometryType] = useState<'centroid' | 'boundary'>('centroid');
 
@@ -151,7 +149,6 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
           setIsExporting(false);
           setExportProgress(null);
           setExportWorkflowId(null);
-          setExportError(status.error || 'Entity export failed');
           alert(`Export failed: ${status.error || 'Unknown error'}`);
         }
       } catch (err: any) {
@@ -222,7 +219,6 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 
       try {
         setIsExporting(true);
-        setExportError(null);
 
         const token = await getToken();
         if (!token) {

@@ -133,7 +133,6 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                 size="sm"
                 onClick={() => setIsCreateModalOpen(true)}
                 disabled={pixelCount === 0}
-                title={pixelCount === 0 ? "No pixels in this area" : undefined}
               >
                 + Create New Round
               </TacticalButton>

@@ -211,7 +211,6 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
     onClose();
   };
 
-  const isGeoJson = file?.name.toLowerCase().endsWith('.geojson') || file?.name.toLowerCase().endsWith('.json');
   const isCsv = file?.name.toLowerCase().endsWith('.csv');
 
   return (
@@ -241,8 +240,8 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
               <div>Features: {progress.processed_features} / {progress.total_features}</div>
               <div>Inserted: {progress.inserted_count}</div>
               <div>Updated: {progress.updated_count}</div>
-              {progress.error_count > 0 && (
-                <div className="text-tactical-accent-red">Errors: {progress.error_count}</div>
+              {(progress as any).error_count > 0 && (
+                <div className="text-tactical-accent-red">Errors: {(progress as any).error_count}</div>
               )}
             </div>
           </div>
@@ -311,7 +310,6 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
         {file && isCsv && (
           <div className="grid grid-cols-2 gap-3">
             <TacticalInput
-              id="latColumn"
               label="Latitude Column *"
               type="text"
               value={latColumn}
@@ -320,7 +318,6 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
               disabled={isLoading}
             />
             <TacticalInput
-              id="lngColumn"
               label="Longitude Column *"
               type="text"
               value={lngColumn}
@@ -334,7 +331,6 @@ const LocationUploadModal: React.FC<LocationUploadModalProps> = ({
         {file && (
           <div>
             <TacticalSelect
-              id="externalIdColumn"
               label="ID Column *"
               value={externalIdColumn}
               onChange={setExternalIdColumn}

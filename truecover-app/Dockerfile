@@ -1,23 +1,26 @@
+# ABOUTME: Multi-stage Docker build for React app using Bun.
+# ABOUTME: Produces an optimized nginx image serving the built frontend.
+
 # Build stage
-FROM node:18-alpine as build
+FROM oven/bun:alpine AS build
 
 # Accept build arguments
-ARG REACT_APP_MAPBOX_TOKEN
+ARG VITE_MAPBOX_TOKEN
 
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json bun.lock ./
 
 # Install dependencies
-RUN npm install
+RUN bun install --frozen-lockfile
 
 # Copy source files
 COPY . .
 
 # Build the React app with environment variables
-ENV REACT_APP_MAPBOX_TOKEN=${REACT_APP_MAPBOX_TOKEN}
-RUN npm run build
+ENV VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+RUN bun run build
 
 # Production stage
 FROM nginx:alpine

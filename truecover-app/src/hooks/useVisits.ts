@@ -176,7 +176,7 @@ export function useDeleteVisit() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ visitId, roundId }: { visitId: string; roundId: string }) => {
+    mutationFn: async ({ visitId }: { visitId: string; roundId: string }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');

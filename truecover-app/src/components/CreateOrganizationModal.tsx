@@ -79,7 +79,6 @@ const CreateOrganizationModal: React.FC<CreateOrganizationModalProps> = ({
             Organization Name
           </label>
           <TacticalInput
-            id="orgName"
             type="text"
             value={name}
             onChange={setName}

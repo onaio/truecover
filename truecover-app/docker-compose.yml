@@ -23,6 +23,10 @@ services:
     image: disarm/fn-adaptive-sampling:0.3.1
     ports:
       - "8083:8080"
+    environment:
+      - exec_timeout=300
+      - read_timeout=300
+      - write_timeout=300
     networks:
       - truecover-network
 

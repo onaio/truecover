@@ -91,7 +91,6 @@ export function useUpdateArea() {
   return useMutation({
     mutationFn: async ({
       areaId,
-      projectId,
       name,
       description
     }: {
@@ -123,7 +122,7 @@ export function useDeleteArea() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ areaId, projectId }: { areaId: string; projectId: string }) => {
+    mutationFn: async ({ areaId }: { areaId: string; projectId: string }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');

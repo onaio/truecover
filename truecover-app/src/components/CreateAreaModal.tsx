@@ -134,7 +134,6 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
             Area Name
           </label>
           <TacticalInput
-            id="areaName"
             type="text"
             value={name}
             onChange={setName}

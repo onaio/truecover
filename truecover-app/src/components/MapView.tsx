@@ -6,6 +6,7 @@ import { createJenksColorExpression, PREVALENCE_COLORS, UNCERTAINTY_COLORS, META
 import { Geocoder } from '@mapbox/search-js-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+// @ts-ignore
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import { useAuth } from '@clerk/clerk-react';
@@ -342,14 +343,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       }
       // If highlightRounds is specified and has values, only highlight those rounds
       if (highlightRounds && highlightRounds.length > 0) {
-        return locations.features.filter(f => {
+        return locations.features.filter((f: any) => {
           const rounds = f.properties?.rounds || [];
           return Array.isArray(rounds) && rounds.some((r: number) => highlightRounds.includes(r));
         });
       }
       // Otherwise, show all points with rounds as selected (green)
       return locations.features.filter(
-        f => f.properties?.rounds && Array.isArray(f.properties.rounds) && f.properties.rounds.length > 0
+        (f: any) => f.properties?.rounds && Array.isArray(f.properties.rounds) && f.properties.rounds.length > 0
       );
     }
     if (selectedData && selectedData.features) {
@@ -394,59 +395,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     return { min, max };
   }, [displayData]);
 
-  // Calculate coverage range for interpolation
-  const coverageRange = useMemo(() => {
-    const dataSource = mode === 'locations' && locations ? locations : data;
-    if (!dataSource || !dataSource.features || !dataSource.features.length) return { min: 0, max: 1 };
-
-    let min = Infinity;
-    let max = -Infinity;
-
-    dataSource.features.forEach(feature => {
-      const coverage = feature.properties?.prevalence_prediction;
-      if (typeof coverage === 'number' && !isNaN(coverage)) {
-        min = Math.min(min, coverage);
-        max = Math.max(max, coverage);
-      }
-    });
-
-    if (min === Infinity || max === -Infinity) {
-      return { min: 0, max: 1 };
-    }
-
-    return { min, max };
-  }, [data, locations, mode]);
-
-  // Calculate uncertainty range for interpolation
-  const uncertaintyRange = useMemo(() => {
-    const dataSource = mode === 'locations' && locations ? locations : data;
-    if (!dataSource || !dataSource.features || !dataSource.features.length) return { min: 0, max: 1 };
-
-    let min = Infinity;
-    let max = -Infinity;
-
-    dataSource.features.forEach(feature => {
-      const uncertainty = feature.properties?.prevalence_bci_width;
-      if (typeof uncertainty === 'number' && !isNaN(uncertainty)) {
-        min = Math.min(min, uncertainty);
-        max = Math.max(max, uncertainty);
-      }
-    });
-
-    if (min === Infinity || max === -Infinity) {
-      return { min: 0, max: 1 };
-    }
-
-    return { min, max };
-  }, [data, locations, mode]);
-
   // Calculate Jenks breaks color expressions for coverage
   const coverageJenksExpression = useMemo(() => {
     const dataSource = mode === 'locations' && locations ? locations : data;
     if (!dataSource || !dataSource.features || !dataSource.features.length) return null;
 
     const values: number[] = [];
-    dataSource.features.forEach(feature => {
+    dataSource.features.forEach((feature: any) => {
       const coverage = feature.properties?.prevalence_prediction;
       if (typeof coverage === 'number' && !isNaN(coverage)) {
         values.push(coverage);
@@ -464,7 +419,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     if (!dataSource || !dataSource.features || !dataSource.features.length) return null;
 
     const values: number[] = [];
-    dataSource.features.forEach(feature => {
+    dataSource.features.forEach((feature: any) => {
       const uncertainty = feature.properties?.prevalence_bci_width;
       if (typeof uncertainty === 'number' && !isNaN(uncertainty)) {
         values.push(uncertainty);
@@ -831,7 +786,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     }
   };
 
-  const handleGeneratePixelsForAdmin = async (pcode: string, name: string) => {
+  const handleGeneratePixelsForAdmin = async (pcode: string, _name: string) => {
     if (!areaId) return;
 
     try {
@@ -1299,8 +1254,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               const featureId = adminFeature.id;
               const sourceLayer = adminFeature.sourceLayer;
 
-              // Only set hover state if feature has an ID
-              if (featureId != null) {
+              // Only set hover state if feature has an ID and source layer
+              if (featureId != null && sourceLayer) {
                 const hoveredKey = `${sourceLayer}::${featureId}`;
 
                 if (hoveredAdminId !== hoveredKey) {
@@ -1414,8 +1369,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   minzoom={0}
                   filter={buildHistogramFilter(['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]])}
                   paint={{
-                    'fill-color': getPolygonFillColor(),
-                    'fill-opacity': getPolygonFillOpacity()
+                    'fill-color': getPolygonFillColor() as any,
+                    'fill-opacity': getPolygonFillOpacity() as any
                   }}
                 />
 
@@ -1428,9 +1383,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   minzoom={0}
                   filter={buildHistogramFilter(['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]])}
                   paint={{
-                    'line-color': getPolygonLineColor(),
-                    'line-width': getPolygonLineWidth(),
-                    'line-opacity': getPolygonLineOpacity()
+                    'line-color': getPolygonLineColor() as any,
+                    'line-width': getPolygonLineWidth() as any,
+                    'line-opacity': getPolygonLineOpacity() as any
                   }}
                 />
 
@@ -1444,10 +1399,10 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   filter={buildHistogramFilter(['==', ['geometry-type'], 'Point'])}
                   paint={{
                     'circle-radius': 3,
-                    'circle-color': getPointColor(),
-                    'circle-opacity': getPointOpacity(),
-                    'circle-stroke-width': getPointStrokeWidth(),
-                    'circle-stroke-color': getPointStrokeColor()
+                    'circle-color': getPointColor() as any,
+                    'circle-opacity': getPointOpacity() as any,
+                    'circle-stroke-width': getPointStrokeWidth() as any,
+                    'circle-stroke-color': getPointStrokeColor() as any
                   }}
                 />
               </Source>

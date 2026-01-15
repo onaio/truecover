@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: truecover
       POSTGRES_DB: truecover
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,7 +27,7 @@ services:
       - DATABASE_URL=postgresql://truecover:truecover@postgres:5432/truecover
     volumes:
       - ./martin-config.yaml:/config/config.yaml
-      - ../pmtiles:/pmtiles
+      - /Volumes/Biliba/github/truecover/pmtiles:/pmtiles
     command: --config /config/config.yaml
     depends_on:
       postgres:

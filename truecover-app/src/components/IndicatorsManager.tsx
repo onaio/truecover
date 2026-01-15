@@ -104,7 +104,7 @@ const IndicatorsManager: React.FC<IndicatorsManagerProps> = ({ projectId }) => {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <TacticalBadge variant="primary">
+                          <TacticalBadge variant="info">
                             {indicator.name}
                           </TacticalBadge>
                         </div>

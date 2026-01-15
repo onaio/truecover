@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../contexts/AppContext';
 import { useLocationsData } from '../hooks/useLocationsData';
 import { useInfiniteLocations } from '../hooks/useLocations';
@@ -32,7 +31,6 @@ import {
 } from '../tactical-ui';
 
 const LocationsPage: React.FC = () => {
-  const { getToken } = useAuth();
   const {
     selectedOrganization,
     selectedProject,
@@ -48,7 +46,6 @@ const LocationsPage: React.FC = () => {
     setIsLocationEditModalOpen,
     selectedLocationForEdit,
     isLoadingLocations,
-    selectedRoundFilter,
     setSelectedRoundFilter,
     mapHighlightRounds,
     setMapHighlightRounds,

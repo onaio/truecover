@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
 import { organizationsApi } from '../services/api';
-import { Organization } from '../types';
 
 /**
  * Hook to fetch all organizations

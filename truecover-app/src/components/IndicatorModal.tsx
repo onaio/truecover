@@ -148,7 +148,6 @@ const IndicatorModal: React.FC<IndicatorModalProps> = ({
           value={name}
           onChange={setName}
           placeholder="e.g., Malaria Prevalence, ITN Coverage"
-          required
           disabled={isSubmitting || isDeleting}
         />
 

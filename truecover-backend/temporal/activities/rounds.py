@@ -320,8 +320,8 @@ async def call_adaptive_sampling(
                 'prevalence_prediction': record["prevalence_prediction"],
             }
         else:
-            # Use location geometry
-            geometry = record["geometry"] or {
+            # Always use Point centroid for adaptive sampling (R function can't handle polygons)
+            geometry = {
                 'type': 'Point',
                 'coordinates': [record["longitude"], record["latitude"]]
             }
@@ -354,16 +354,42 @@ async def call_adaptive_sampling(
     }
 
     activity.logger.info(f"Calling adaptive sampling service at {SAMPLING_URL}")
+    activity.logger.info(f"Payload has {len(features)} features, batch_size={batch_size}, uncertainty_field={uncertainty_field}")
 
     response = requests.post(
         SAMPLING_URL,
         json=payload,
         headers={'Content-Type': 'application/json'},
-        timeout=120
+        timeout=300
     )
 
+    activity.logger.info(f"Response status: {response.status_code}, size: {len(response.content)} bytes")
+
     response.raise_for_status()
-    result = response.json()
+
+    # R function may print stdout messages before/after JSON - extract just the JSON
+    response_text = response.text
+    json_start = response_text.find('{')
+    if json_start == -1:
+        raise ValueError(f"No JSON found in response: {response_text[:200]}")
+
+    # Find matching closing brace by counting
+    depth = 0
+    json_end = json_start
+    for i, char in enumerate(response_text[json_start:], start=json_start):
+        if char == '{':
+            depth += 1
+        elif char == '}':
+            depth -= 1
+            if depth == 0:
+                json_end = i + 1
+                break
+
+    if json_start > 0 or json_end < len(response_text):
+        activity.logger.info(f"Extracting JSON from position {json_start} to {json_end} (total response: {len(response_text)} bytes)")
+
+    response_text = response_text[json_start:json_end]
+    result = json.loads(response_text)
 
     # Extract result if wrapped
     if result.get('function_status') == 'success' and result.get('result'):

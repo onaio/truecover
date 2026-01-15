@@ -36,7 +36,7 @@ const OrganizationManagementPage: React.FC = () => {
             selectedOrganization={selectedOrganization}
             onOrganizationChange={setSelectedOrganization}
             onCreateClick={() => setIsCreateOrgModalOpen(true)}
-            onRefresh={(refreshFn) => setRefreshOrganizations(() => refreshFn)}
+            onRefresh={setRefreshOrganizations}
           />
         </TacticalCard>
 

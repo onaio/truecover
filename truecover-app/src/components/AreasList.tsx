@@ -193,20 +193,14 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
                     <TacticalButton
                       variant="secondary"
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditClick(area);
-                      }}
+                      onClick={() => handleEditClick(area)}
                     >
                       Edit
                     </TacticalButton>
                     <TacticalButton
                       variant="danger"
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteClick(area);
-                      }}
+                      onClick={() => handleDeleteClick(area)}
                     >
                       Delete
                     </TacticalButton>

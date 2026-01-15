@@ -76,7 +76,7 @@ export const TacticalModal: React.FC<TacticalModalProps> = ({
       >
         <div className="relative bg-tactical-bg-primary border border-tactical-border-medium flex flex-col" style={{ maxHeight: '100%' }}>
           {/* Corner Brackets */}
-          <CornerBrackets size="md" />
+          <CornerBrackets size={12} />
 
           {/* Header */}
           <div className="border-b border-tactical-border-medium p-4 flex-shrink-0">

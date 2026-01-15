@@ -91,7 +91,6 @@ export function useUpdateIndicator() {
   return useMutation({
     mutationFn: async ({
       indicatorId,
-      projectId,
       name,
       description
     }: {
@@ -123,7 +122,7 @@ export function useDeleteIndicator() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ indicatorId, projectId }: { indicatorId: string; projectId: string }) => {
+    mutationFn: async ({ indicatorId }: { indicatorId: string; projectId: string }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');

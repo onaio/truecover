@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { TacticalCard, TacticalButton, TacticalCollapsible } from '../tactical-ui';
 import PredictCoverageModal from './PredictCoverageModal';
 import GenerateMockVisitDataModal from './GenerateMockVisitDataModal';
@@ -29,7 +29,6 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   areaId,
   areaName,
   projectId,
-  selectedIndicatorId,
   selectedRoundId,
   indicators,
   coverageData,
@@ -354,7 +353,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
         onClose={() => setIsAddVisitModalOpen(false)}
         areaId={areaId}
         areaName={areaName}
-        roundId={selectedRoundId}
+        roundId={selectedRoundId || ''}
         projectId={projectId}
         onSuccess={onRefetchCoverage}
       />

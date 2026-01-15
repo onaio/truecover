@@ -19,7 +19,7 @@ const TacticalShowcase: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [textareaValue, setTextareaValue] = useState('');
   const [selectValue, setSelectValue] = useState('option1');
-  const [multiSelectValue, setMultiSelectValue] = useState<string[]>(['option1']);
+  const [multiSelectValue, setMultiSelectValue] = useState<(string | number)[]>(['option1']);
   const [dateValue, setDateValue] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeButton, setActiveButton] = useState<string | null>(null);
@@ -219,7 +219,7 @@ const TacticalShowcase: React.FC = () => {
                 <TacticalInput
                   label="Standard Input"
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  onChange={setInputValue}
                   placeholder="Enter text..."
                 />
                 <TacticalInput
@@ -245,7 +245,7 @@ const TacticalShowcase: React.FC = () => {
                 <TacticalTextarea
                   label="Message"
                   value={textareaValue}
-                  onChange={(e) => setTextareaValue(e.target.value)}
+                  onChange={setTextareaValue}
                   placeholder="Enter multi-line text..."
                   rows={4}
                 />

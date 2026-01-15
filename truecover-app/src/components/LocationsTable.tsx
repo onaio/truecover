@@ -1,5 +1,5 @@
 import React from 'react';
-import { TacticalBadge, TacticalButton } from '../tactical-ui';
+import { TacticalButton } from '../tactical-ui';
 
 interface LocationsTableProps {
   locations: any;
