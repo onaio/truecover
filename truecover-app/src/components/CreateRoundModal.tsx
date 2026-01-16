@@ -49,10 +49,14 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
     (field: any) => field.data_type === 'integer' || field.data_type === 'float'
   );
 
-  // Auto-select first numeric field when metadata loads
+  // Auto-select population field if it exists, otherwise first numeric field
   useEffect(() => {
     if (numericMetadataFields.length > 0 && !populationField) {
-      setPopulationField(numericMetadataFields[0].name);
+      // Prefer a field named "population" (case-insensitive)
+      const populationFieldMatch = numericMetadataFields.find(
+        (field: any) => field.name.toLowerCase() === 'population'
+      );
+      setPopulationField(populationFieldMatch?.name || numericMetadataFields[0].name);
     }
   }, [numericMetadataFields, populationField]);
 
