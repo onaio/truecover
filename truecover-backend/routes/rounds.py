@@ -136,8 +136,21 @@ def get_round_workflow_status(user, workflow_id):
                         "status": "completed",
                         "result": result
                     }
+                elif desc.status == WorkflowExecutionStatus.FAILED:
+                    # Extract failure message from workflow history
+                    error_message = "Workflow failed"
+                    try:
+                        # Try to get the result which will raise an exception with the error
+                        await handle.result()
+                    except Exception as e:
+                        error_message = str(e)
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "failed",
+                        "error": error_message
+                    }
                 else:
-                    # Failed/cancelled
+                    # Cancelled or other status
                     return {
                         "workflow_id": workflow_id,
                         "status": desc.status.name.lower()

@@ -107,7 +107,15 @@ class RoundGenerationWorkflow:
                     start_to_close_timeout=timedelta(seconds=30),
                     retry_policy=RetryPolicy(maximum_attempts=3)
                 )
-                raise ValueError(f"No {sampling_target} found for sampling")
+                # Build descriptive error message
+                error_msg = f"No {sampling_target} found for sampling"
+                if min_population and population_field:
+                    error_msg += f" with {population_field} >= {min_population}"
+                if admin_pcode:
+                    error_msg += f" in admin boundary {admin_pcode}"
+                if not allow_revisit:
+                    error_msg += " (excluding already visited)"
+                raise ValueError(error_msg)
 
             selected_ids = sampling_results['selected_ids']
             self.total_items = sampling_results.get('total_items', len(selected_ids))
