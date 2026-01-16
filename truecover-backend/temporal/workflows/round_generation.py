@@ -46,7 +46,9 @@ class RoundGenerationWorkflow:
         uncertainty_field: str,
         allow_revisit: bool,
         sampling_target: str,
-        admin_pcode: str = None
+        admin_pcode: str = None,
+        min_population: float = None,
+        population_field: str = None
     ) -> Dict[str, Any]:
         """
         Run round generation workflow.
@@ -63,6 +65,8 @@ class RoundGenerationWorkflow:
             allow_revisit: Allow revisiting locations/pixels
             sampling_target: 'locations' or 'pixels'
             admin_pcode: Optional admin boundary filter
+            min_population: Optional minimum population threshold for pixel filtering
+            population_field: Optional metadata field name for population data
 
         Returns:
             Result summary with round details and selection count
@@ -87,7 +91,7 @@ class RoundGenerationWorkflow:
             # Pass only metadata, not the actual data
             sampling_results = await workflow.execute_activity(
                 call_adaptive_sampling,
-                args=[area_id, indicator_id, sampling_target, batch_size, uncertainty_field, allow_revisit, admin_pcode],
+                args=[area_id, indicator_id, sampling_target, batch_size, uncertainty_field, allow_revisit, admin_pcode, min_population, population_field],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(
                     initial_interval=timedelta(seconds=1),

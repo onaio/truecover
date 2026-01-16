@@ -39,6 +39,8 @@ def create_round_workflow(user, area_id):
         allow_revisit = data.get('allow_revisit', False)
         sampling_target = data.get('sampling_target', 'locations')
         admin_pcode = data.get('admin_pcode')
+        min_population = data.get('min_population')
+        population_field = data.get('population_field')
 
         if not name:
             return jsonify({'error': 'Round name is required'}), 400
@@ -66,7 +68,9 @@ def create_round_workflow(user, area_id):
                     uncertainty_field,
                     allow_revisit,
                     sampling_target,
-                    admin_pcode
+                    admin_pcode,
+                    min_population,
+                    population_field
                 ],
                 id=workflow_id,
                 task_queue="truecover-tasks"
@@ -183,6 +187,8 @@ def create_round(user, area_id):
         allow_revisit = data.get('allow_revisit', False)
         sampling_target = data.get('sampling_target', 'locations')
         admin_pcode = data.get('admin_pcode')
+        min_population = data.get('min_population')
+        population_field = data.get('population_field')
 
         if not name:
             return jsonify({'error': 'Round name is required'}), 400
@@ -202,7 +208,8 @@ def create_round(user, area_id):
                 args=[
                     area_id, name, description, start_date, end_date,
                     indicator_id, batch_size, uncertainty_field,
-                    allow_revisit, sampling_target, admin_pcode
+                    allow_revisit, sampling_target, admin_pcode,
+                    min_population, population_field
                 ],
                 id=workflow_id,
                 task_queue="truecover-tasks"

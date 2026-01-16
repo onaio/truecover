@@ -83,7 +83,9 @@ async def fetch_coverage_for_sampling(
     indicator_id: str,
     sampling_target: str,
     allow_revisit: bool,
-    admin_pcode: str = None
+    admin_pcode: str = None,
+    min_population: float = None,
+    population_field: str = None
 ) -> List[Dict[str, Any]]:
     """
     Fetch coverage data for adaptive sampling.
@@ -94,6 +96,8 @@ async def fetch_coverage_for_sampling(
         sampling_target: 'locations' or 'pixels'
         allow_revisit: Allow revisiting locations/pixels
         admin_pcode: Optional admin boundary filter
+        min_population: Optional minimum population threshold for pixel filtering
+        population_field: Optional metadata field name for population data
 
     Returns:
         List of coverage records with geometry and prediction fields
@@ -104,9 +108,22 @@ async def fetch_coverage_for_sampling(
     try:
         if sampling_target == 'pixels':
             # Fetch pixel coverage data
+            # Build population filter components if enabled
+            pop_join = ""
+            pop_filter = ""
+            pop_params = []
+
+            if min_population is not None and population_field:
+                import re
+                if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', population_field):
+                    raise ValueError(f"Invalid population field name: {population_field}")
+                pop_join = "LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey"
+                pop_filter = f"AND (pm.metadata->>'{population_field}')::float >= %s"
+                pop_params = [min_population]
+
             if allow_revisit:
                 if admin_pcode:
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
@@ -116,11 +133,13 @@ async def fetch_coverage_for_sampling(
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        {pop_join}
                         WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                          {pop_filter}
+                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode, *pop_params))
                 else:
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
@@ -130,12 +149,14 @@ async def fetch_coverage_for_sampling(
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        {pop_join}
                         WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
-                    """, (area_id, indicator_id))
+                          {pop_filter}
+                    """, (area_id, indicator_id, *pop_params))
             else:
                 # Only unvisited pixels
                 if admin_pcode:
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
@@ -145,12 +166,14 @@ async def fetch_coverage_for_sampling(
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        {pop_join}
                         WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
                           AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                          {pop_filter}
+                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode, *pop_params))
                 else:
-                    cursor.execute("""
+                    cursor.execute(f"""
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
@@ -160,9 +183,11 @@ async def fetch_coverage_for_sampling(
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
+                        {pop_join}
                         WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
-                    """, (area_id, indicator_id))
+                          {pop_filter}
+                    """, (area_id, indicator_id, *pop_params))
         else:
             # Fetch location coverage data
             if allow_revisit:
@@ -279,7 +304,9 @@ async def call_adaptive_sampling(
     batch_size: int,
     uncertainty_field: str,
     allow_revisit: bool,
-    admin_pcode: str = None
+    admin_pcode: str = None,
+    min_population: float = None,
+    population_field: str = None
 ) -> Dict[str, Any]:
     """
     Fetch coverage data and call adaptive sampling service.
@@ -292,13 +319,16 @@ async def call_adaptive_sampling(
         uncertainty_field: Field to use for uncertainty
         allow_revisit: Allow revisiting locations/pixels
         admin_pcode: Optional admin boundary filter
+        min_population: Optional minimum population threshold for pixel filtering
+        population_field: Optional metadata field name for population data
 
     Returns:
         Dict with 'selected_ids' (list of coverage IDs) and 'total_items'
     """
     # Fetch coverage data internally
     coverage_data = await fetch_coverage_for_sampling(
-        area_id, indicator_id, sampling_target, allow_revisit, admin_pcode
+        area_id, indicator_id, sampling_target, allow_revisit, admin_pcode,
+        min_population, population_field
     )
 
     activity.logger.info(f"Fetched {len(coverage_data)} {sampling_target} for adaptive sampling")
