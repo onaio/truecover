@@ -4,3 +4,4 @@ geoparquet/
 .parquet
 *.pmtiles
 *.log
+.worktrees/
