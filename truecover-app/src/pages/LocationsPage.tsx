@@ -6,14 +6,14 @@ import { useInfiniteLocations } from '../hooks/useLocations';
 import { useCoverageData, useCoverageHistogram } from '../hooks/useCoverageData';
 import { useIndicators } from '../hooks/useIndicators';
 import { useRounds } from '../hooks/useRounds';
-import { usePixelStats, useDeletePixels, usePixelMetadataStats } from '../hooks/usePixels';
+import { usePixelStats, usePixelMetadataStats } from '../hooks/usePixels';
 import { useEnrichmentJobs } from '../hooks/useEnrichment';
+import { useCampaignAreas } from '../hooks/useCampaignAreas';
 import LocationUploadModal from '../components/LocationUploadModal';
 import LocationEditModal from '../components/LocationEditModal';
 import GeneratePixelsModal from '../components/GeneratePixelsModal';
 import EnrichPixelsModal from '../components/EnrichPixelsModal';
 import AddOvertureLocationsModal from '../components/AddOvertureLocationsModal';
-import LocationsTable from '../components/LocationsTable';
 import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
 import PredictedCoverageSection from '../components/PredictedCoverageSection';
@@ -53,7 +53,6 @@ const LocationsPage: React.FC = () => {
     setMapHighlightRounds,
     loadLocations,
     handleLocationsUploaded,
-    handleEditLocation,
     handleLocationUpdated,
     handleLocationDeleted,
   } = useLocationsData();
@@ -85,13 +84,14 @@ const LocationsPage: React.FC = () => {
   const [selectedAdminBoundaryForCampaign, setSelectedAdminBoundaryForCampaign] = useState<{ pcode: string; name: string } | null>(null);
   const [drawnGeometryForCampaign, setDrawnGeometryForCampaign] = useState<any>(null);
   const [campaignAreasRefreshKey, setCampaignAreasRefreshKey] = useState(0);
+  const [showCampaignAreas, setShowCampaignAreas] = useState<boolean>(true);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedCampaign?.id);
   const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedCampaign?.id);
-  const deletePixels = useDeletePixels();
   const { data: enrichmentJobsData } = useEnrichmentJobs(selectedCampaign?.id);
   const enrichmentJobs = enrichmentJobsData?.jobs || [];
   const { data: pixelMetadataStats } = usePixelMetadataStats(selectedCampaign?.id);
+  const { data: campaignAreas } = useCampaignAreas(selectedCampaign?.id);
 
   // Compute roundId for coverage data query
   const coverageRoundId = useMemo(() => {
@@ -142,19 +142,10 @@ const LocationsPage: React.FC = () => {
     refreshKey
   );
 
-  // Use infinite query for locations table
+  // Use infinite query for locations stats
   const {
     data: locationsResult,
-    fetchNextPage: fetchNextLocationsPage,
-    hasNextPage: hasNextLocationsPage,
-    isFetchingNextPage: isFetchingNextLocationsPage,
   } = useInfiniteLocations(selectedCampaign?.id);
-
-  // Flatten all pages of location data
-  const locationsFlattened = React.useMemo(() => {
-    if (!locationsResult?.pages) return [];
-    return locationsResult.pages.flatMap(page => page.locations);
-  }, [locationsResult]);
 
   // Get total counts from first page (they're the same across all pages)
   const locationTotalCount = locationsResult?.pages?.[0]?.total_count || locations?.total_count || locations?.locations?.length || 0;
@@ -550,10 +541,14 @@ const LocationsPage: React.FC = () => {
               histogramDataType={histogramTab}
               sampledItemsCount={sampledItemsCount}
               planningMode={planningMode}
-              onAddRoundForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundary({ pcode, name })}
-              onAddLocationsForAdminBoundary={(pcode: string, name: string, geometry?: any) => setSelectedAdminBoundaryForLocations({ pcode, name, geometry })}
-              onAddAdminBoundaryToCampaign={(_id: string, pcode: string, name: string) => {
-                setSelectedAdminBoundaryForCampaign({ pcode, name });
+              onAddAdminBoundaryToCampaign={(_id: string, pcode: string, name: string, geometry?: any) => {
+                if (pcode === 'drawn' && geometry) {
+                  setDrawnGeometryForCampaign(geometry);
+                  setCampaignAreaMode('drawn');
+                } else {
+                  setSelectedAdminBoundaryForCampaign({ pcode, name });
+                  setCampaignAreaMode('admin_boundary');
+                }
                 setIsAddCampaignAreaModalOpen(true);
               }}
               className="h-full"
@@ -861,10 +856,17 @@ const LocationsPage: React.FC = () => {
                 histogramDataType={histogramTab}
                 sampledItemsCount={sampledItemsCount}
                 planningMode={planningMode}
-                onAddRoundForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundary({ pcode, name })}
-                onAddLocationsForAdminBoundary={(pcode: string, name: string, geometry?: any) => setSelectedAdminBoundaryForLocations({ pcode, name, geometry })}
-                onAddAdminBoundaryToCampaign={(_id: string, pcode: string, name: string) => {
-                  setSelectedAdminBoundaryForCampaign({ pcode, name });
+                campaignAreas={campaignAreas || []}
+                showCampaignAreas={showCampaignAreas}
+                onToggleCampaignAreas={() => setShowCampaignAreas(!showCampaignAreas)}
+                onAddAdminBoundaryToCampaign={(_id: string, pcode: string, name: string, geometry?: any) => {
+                  if (pcode === 'drawn' && geometry) {
+                    setDrawnGeometryForCampaign(geometry);
+                    setCampaignAreaMode('drawn');
+                  } else {
+                    setSelectedAdminBoundaryForCampaign({ pcode, name });
+                    setCampaignAreaMode('admin_boundary');
+                  }
                   setIsAddCampaignAreaModalOpen(true);
                 }}
               />
@@ -945,189 +947,55 @@ const LocationsPage: React.FC = () => {
               selectedAdminBoundary={selectedAdminBoundary}
               onClearAdminBoundary={() => setSelectedAdminBoundary(null)}
               pixelCount={pixelStats?.count || 0}
+              indicatorId={selectedIndicatorId}
             />
 
-            {/* Locations Table */}
-            <TacticalCard padding="lg">
+            {/* Campaign Areas Section - Primary workflow entry point */}
+            <CampaignAreasManager
+              key={campaignAreasRefreshKey}
+              campaignId={selectedCampaign?.id || ''}
+            />
+
+            {/* Buildings Stats */}
+            <TacticalCard padding="lg" className="mt-6">
               <TacticalCollapsible
-                title="Locations"
+                title="Buildings"
                 defaultCollapsed={true}
                 collapsedSummary={(() => {
                   if (!locationsResult) {
                     return '(Loading...)';
                   }
                   const count = locationTotalCount;
-                  return `(${count} ${count === 1 ? 'Location' : 'Locations'})`;
+                  return `(${count.toLocaleString()} ${count === 1 ? 'Building' : 'Buildings'})`;
                 })()}
-                actionButton={
-                  <TacticalButton
-                    variant="primary"
-                    size="sm"
-                    onClick={() => setIsLocationUploadModalOpen(true)}
-                  >
-                    + Add Locations
-                  </TacticalButton>
-                }
               >
-                <div className="border border-tactical-border-medium -mx-6 -mb-6">
-                  <LocationsTable
-                    locations={{ locations: locationsFlattened }}
-                    onEditLocation={handleEditLocation}
-                    onLoadMore={() => fetchNextLocationsPage()}
-                    hasMore={hasNextLocationsPage}
-                    isLoadingMore={isFetchingNextLocationsPage}
-                  />
-                </div>
-              </TacticalCollapsible>
-            </TacticalCard>
-
-            {/* Campaign Areas Section */}
-            <div className="mt-6">
-              <CampaignAreasManager
-                key={campaignAreasRefreshKey}
-                campaignId={selectedCampaign?.id || ''}
-                onAddAdminBoundary={() => {
-                  setCampaignAreaMode('admin_boundary');
-                  tacticalToast.info('Click on an admin boundary on the map to add it to this campaign');
-                }}
-                onDrawArea={() => {
-                  setCampaignAreaMode('drawn');
-                  tacticalToast.info('Draw mode: Click on the map to start drawing a polygon');
-                }}
-              />
-            </div>
-
-            {/* Pixels Section */}
-            <TacticalCard padding="lg" className="mt-6">
-              <TacticalCollapsible
-                title="Pixels"
-                defaultCollapsed={true}
-                collapsedSummary={
-                  pixelStats?.count
-                    ? `(${pixelStats.count.toLocaleString()} pixels at level ${pixelStats.level})`
-                    : '(No pixels)'
-                }
-              >
-                <div className="space-y-4">
-                  {pixelStats?.count && pixelStats.count > 0 ? (
-                    <>
-                      <div className="flex justify-between items-center p-4 bg-tactical-bg-secondary border border-tactical-border-medium">
-                        <div className="space-y-1">
-                          <div className="font-mono text-xs text-tactical-text-muted">Zoom Level</div>
-                          <div className="font-mono text-lg text-tactical-text-primary">{pixelStats.level}</div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="font-mono text-xs text-tactical-text-muted">Pixel Count</div>
-                          <div className="font-mono text-lg text-tactical-text-primary">
-                            {pixelStats.count.toLocaleString()}
-                          </div>
-                        </div>
+                <div className="p-4 bg-tactical-bg-secondary border border-tactical-border-medium">
+                  <div className="grid grid-cols-3 gap-6">
+                    <div>
+                      <div className="font-mono text-xs text-tactical-text-muted uppercase tracking-wider">Total</div>
+                      <div className="font-mono text-2xl text-tactical-text-primary">
+                        {locationTotalCount.toLocaleString()}
                       </div>
-
-                      {/* Metadata Stats */}
-                      {pixelMetadataStats && pixelMetadataStats.total_enriched > 0 && (
-                        <div className="p-4 bg-tactical-bg-tertiary border border-tactical-border-medium">
-                          <div className="mb-3 font-mono font-bold text-xs text-tactical-text-muted uppercase tracking-wider">
-                            Pixel Metadata
-                          </div>
-                          <div className="mb-3">
-                            <div className="font-mono text-xs text-tactical-text-muted">Enriched Pixels</div>
-                            <div className="font-mono text-lg text-tactical-text-primary">
-                              {pixelMetadataStats.total_enriched.toLocaleString()} / {pixelStats.count.toLocaleString()}
-                              <span className="text-tactical-text-muted text-sm ml-2">
-                                ({((pixelMetadataStats.total_enriched / pixelStats.count) * 100).toFixed(1)}%)
-                              </span>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            {pixelMetadataStats.metadata_fields.map((field: any) => (
-                              field.count > 0 && (
-                                <div key={field.name} className="p-2 bg-tactical-bg-secondary border border-tactical-border-dark">
-                                  <div className="flex justify-between items-start mb-1">
-                                    <div>
-                                      <div className="font-mono text-xs font-bold text-tactical-text-primary">
-                                        {field.name}
-                                      </div>
-                                      {field.description && (
-                                        <div className="font-mono text-xs text-tactical-text-dim">
-                                          {field.description}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="font-mono text-xs text-tactical-text-muted">
-                                      {field.count.toLocaleString()} pixels
-                                    </div>
-                                  </div>
-                                  {field.min !== undefined && field.max !== undefined && (
-                                    <div className="font-mono text-xs text-tactical-text-secondary">
-                                      Range: {field.min.toLocaleString()} - {field.max.toLocaleString()}
-                                      {field.unit && ` ${field.unit}`}
-                                      {field.avg !== undefined && (
-                                        <span className="text-tactical-text-dim ml-2">
-                                          (avg: {field.avg.toLocaleString()})
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex gap-3">
-                        <TacticalButton
-                          variant="primary"
-                          size="md"
-                          onClick={() => setIsGeneratePixelsModalOpen(true)}
-                        >
-                          Regenerate Pixels
-                        </TacticalButton>
-                        <TacticalButton
-                          variant="primary"
-                          size="md"
-                          onClick={() => setIsEnrichPixelsModalOpen(true)}
-                        >
-                          Enrich Pixels
-                        </TacticalButton>
-                        <TacticalButton
-                          variant="danger"
-                          size="md"
-                          onClick={async () => {
-                            if (window.confirm('Are you sure you want to delete all pixels? This cannot be undone.')) {
-                              try {
-                                await deletePixels.mutateAsync({ campaignId: selectedCampaign?.id || '' });
-                                await refetchPixelStats();
-                                setRefreshKey(prev => prev + 1);
-                              } catch (error: any) {
-                                alert(`Error deleting pixels: ${error.message || 'Unknown error'}`);
-                              }
-                            }
-                          }}
-                          disabled={deletePixels.isPending}
-                        >
-                          {deletePixels.isPending ? 'Deleting...' : 'Delete All Pixels'}
-                        </TacticalButton>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-tactical-text-muted mb-4 font-mono text-sm">
-                        No pixels generated yet. Generate pixels to visualize quadkey grids on the map.
-                      </p>
-                      <TacticalButton
-                        variant="primary"
-                        size="md"
-                        onClick={() => setIsGeneratePixelsModalOpen(true)}
-                      >
-                        Generate Pixels
-                      </TacticalButton>
                     </div>
-                  )}
+                    <div>
+                      <div className="font-mono text-xs text-tactical-text-muted uppercase tracking-wider">From Overture</div>
+                      <div className="font-mono text-2xl text-tactical-text-primary">
+                        {/* TODO: Track source in locations table */}
+                        -
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-mono text-xs text-tactical-text-muted uppercase tracking-wider">Uploaded</div>
+                      <div className="font-mono text-2xl text-tactical-text-primary">
+                        {/* TODO: Track source in locations table */}
+                        -
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </TacticalCollapsible>
             </TacticalCard>
+
           </>
         )}
         </div>

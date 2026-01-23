@@ -20,7 +20,8 @@ async def create_round_record(
     start_date: str,
     end_date: str,
     indicator_id: str,
-    sampling_target: str
+    sampling_target: str,
+    sampling_method: str = 'simple'
 ) -> Dict[str, Any]:
     """
     Create a new round record in database.
@@ -33,6 +34,7 @@ async def create_round_record(
         end_date: End date
         indicator_id: Indicator ID
         sampling_target: 'locations' or 'pixels'
+        sampling_method: 'simple' or 'stratified_cluster'
 
     Returns:
         Round record details
@@ -51,10 +53,10 @@ async def create_round_record(
 
         # Create round
         cursor.execute("""
-            INSERT INTO rounds (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at, sampling_target
-        """, (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target))
+            INSERT INTO rounds (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target, sampling_method)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at, sampling_target, sampling_method
+        """, (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target, sampling_method))
 
         row = cursor.fetchone()
         conn.commit()
@@ -71,6 +73,7 @@ async def create_round_record(
             "created_at": row[6].isoformat() if row[6] else None,
             "updated_at": row[7].isoformat() if row[7] else None,
             "sampling_target": row[8] if len(row) > 8 else 'locations',
+            "sampling_method": row[9] if len(row) > 9 else 'simple',
         }
     finally:
         cursor.close()

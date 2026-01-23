@@ -83,32 +83,110 @@ def get_admin_boundary_bounds(user, pcode):
             return_db_connection(conn)
 
 
-@admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/pixel-summary', methods=['GET'])
+@admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/children', methods=['GET'])
 @require_auth
-def get_pixel_summary(user, pcode):
-    """Get population summary for pixels in an admin boundary by PCODE and campaign_id"""
-    campaign_id = request.args.get('campaign_id')
-
-    if not campaign_id:
-        return jsonify({'error': 'campaign_id parameter is required'}), 400
-
+def get_admin_boundary_children(user, pcode):
+    """Get child boundaries for a given PCODE with optional population data"""
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Query pixels filtered by pcode and campaign_id, joined with pixel_metadata
+        # Find the level of the given pcode
+        cursor.execute("""
+            SELECT level,
+                   adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+            FROM admin_boundaries
+            WHERE adm0_pcode = %s OR adm1_pcode = %s OR adm2_pcode = %s
+               OR adm3_pcode = %s OR adm4_pcode = %s
+            LIMIT 1
+        """, (pcode, pcode, pcode, pcode, pcode))
+
+        parent = cursor.fetchone()
+        if not parent:
+            return jsonify({'error': f'Admin boundary not found for PCODE: {pcode}'}), 404
+
+        parent_level = parent[0]
+        child_level = parent_level + 1
+
+        if child_level > 4:
+            return jsonify({'children': [], 'message': 'No child level exists'}), 200
+
+        # Build the parent pcode column name
+        parent_col = f'adm{parent_level}_pcode'
+
+        # Query for children at the next level with population from pixels
+        cursor.execute(f"""
+            SELECT DISTINCT
+                ab.name,
+                ab.level,
+                CASE
+                    WHEN ab.level = 1 THEN ab.adm1_pcode
+                    WHEN ab.level = 2 THEN ab.adm2_pcode
+                    WHEN ab.level = 3 THEN ab.adm3_pcode
+                    WHEN ab.level = 4 THEN ab.adm4_pcode
+                END as pcode,
+                ab.{parent_col} as parent_pcode,
+                COALESCE(
+                    (SELECT SUM(p.population)
+                     FROM pixels p
+                     WHERE p.adm{child_level}_pcode =
+                           CASE
+                               WHEN ab.level = 1 THEN ab.adm1_pcode
+                               WHEN ab.level = 2 THEN ab.adm2_pcode
+                               WHEN ab.level = 3 THEN ab.adm3_pcode
+                               WHEN ab.level = 4 THEN ab.adm4_pcode
+                           END
+                     AND p.population IS NOT NULL
+                    ), 0
+                ) as population
+            FROM admin_boundaries ab
+            WHERE ab.level = %s AND ab.{parent_col} = %s
+            ORDER BY ab.name
+        """, (child_level, pcode))
+
+        children = cursor.fetchall()
+
+        result = [{
+            'name': row[0],
+            'level': row[1],
+            'pcode': row[2],
+            'parent_pcode': row[3],
+            'population': int(row[4]) if row[4] else 0
+        } for row in children]
+
+        cursor.close()
+        return jsonify({'children': result}), 200
+
+    except Exception as e:
+        print(f"Error fetching admin boundary children: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to fetch admin boundary children'}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/pixel-summary', methods=['GET'])
+@require_auth
+def get_pixel_summary(user, pcode):
+    """Get population summary for pixels in an admin boundary by PCODE from global pixels table"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Query global pixels table filtered by admin boundary PCODE
         cursor.execute("""
             SELECT
-                COUNT(p.quadkey) as pixel_count,
-                COALESCE(SUM((pm.metadata->>'population')::numeric), 0) as total_population,
-                COALESCE(AVG((pm.metadata->>'population')::numeric), 0) as avg_population,
-                COUNT(CASE WHEN pm.metadata->>'population' IS NOT NULL THEN 1 END) as pixels_with_data
-            FROM pixels p
-            LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
-            WHERE p.campaign_id = %s
-              AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-        """, (campaign_id, pcode, pcode, pcode, pcode))
+                COUNT(quadkey) as pixel_count,
+                COALESCE(SUM(population), 0) as total_population,
+                COALESCE(AVG(population), 0) as avg_population,
+                COUNT(CASE WHEN population IS NOT NULL THEN 1 END) as pixels_with_data
+            FROM pixels
+            WHERE adm1_pcode = %s OR adm2_pcode = %s OR adm3_pcode = %s OR adm4_pcode = %s
+        """, (pcode, pcode, pcode, pcode))
 
         result = cursor.fetchone()
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { TacticalCard, TacticalButton, TacticalBadge, TacticalCollapsible } from '../tactical-ui';
 import CreateRoundModal from './CreateRoundModal';
 import ExportLocationsModal from './ExportLocationsModal';
+import { StratifiedClusterSamplingWizard } from './StratifiedClusterSamplingWizard';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -29,14 +30,16 @@ interface RoundsManagerProps {
   selectedAdminBoundary?: { pcode: string; name: string } | null;
   onClearAdminBoundary?: () => void;
   pixelCount?: number;
+  indicatorId?: string;
 }
 
-const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0 }) => {
+const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0, indicatorId }) => {
   const { getToken } = useAuth();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isStratifiedWizardOpen, setIsStratifiedWizardOpen] = useState(false);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -128,6 +131,15 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
               >
                 Export Locations to Visit
               </TacticalButton>
+              {selectedAdminBoundary && indicatorId && (
+                <TacticalButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsStratifiedWizardOpen(true)}
+                >
+                  Stratified Sampling
+                </TacticalButton>
+              )}
               <TacticalButton
                 variant="primary"
                 size="sm"
@@ -271,6 +283,25 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
         projectId={projectId}
         locations={locations}
       />
+
+      {selectedAdminBoundary && indicatorId && (
+        <StratifiedClusterSamplingWizard
+          isOpen={isStratifiedWizardOpen}
+          onClose={() => {
+            setIsStratifiedWizardOpen(false);
+            setRefreshKey(prev => prev + 1);
+            if (onClearAdminBoundary) {
+              onClearAdminBoundary();
+            }
+          }}
+          campaignId={campaignId}
+          projectId={projectId}
+          startingPcode={selectedAdminBoundary.pcode}
+          startingName={selectedAdminBoundary.name}
+          indicatorId={indicatorId}
+          onRoundCreated={handleRoundCreated}
+        />
+      )}
     </>
   );
 };

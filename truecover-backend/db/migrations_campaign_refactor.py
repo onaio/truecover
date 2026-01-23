@@ -462,5 +462,89 @@ def run_campaign_refactor_migration():
             return_db_connection(conn)
 
 
+def run_stratified_cluster_sampling_migration():
+    """
+    Add support for stratified cluster sampling.
+
+    This migration:
+    1. Adds sampling_method column to rounds table
+    2. Creates cluster_sampling_config table
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        print("=" * 60)
+        print("STRATIFIED CLUSTER SAMPLING MIGRATION")
+        print("=" * 60)
+
+        # Step 1: Add sampling_method column to rounds
+        print("\n[Step 1] Adding sampling_method column to rounds...")
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                              WHERE table_name = 'rounds' AND column_name = 'sampling_method') THEN
+                    ALTER TABLE rounds ADD COLUMN sampling_method TEXT DEFAULT 'simple';
+                END IF;
+            END $$;
+        """)
+        print("  - Added sampling_method column to rounds table")
+
+        # Step 2: Create cluster_sampling_config table
+        print("\n[Step 2] Creating cluster_sampling_config table...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cluster_sampling_config (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+                campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+                starting_pcode TEXT NOT NULL,
+                categories JSONB NOT NULL,
+                upazila_count INTEGER NOT NULL,
+                unions_per_upazila INTEGER NOT NULL,
+                pixels_per_union INTEGER NOT NULL,
+                population_weighted BOOLEAN DEFAULT FALSE,
+                category_weights JSONB,
+                min_population INTEGER,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        print("  - Created cluster_sampling_config table")
+
+        # Step 3: Create indexes
+        print("\n[Step 3] Creating indexes...")
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_cluster_sampling_config_round_id
+            ON cluster_sampling_config(round_id);
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_cluster_sampling_config_campaign_id
+            ON cluster_sampling_config(campaign_id);
+        """)
+        print("  - Created indexes on cluster_sampling_config")
+
+        conn.commit()
+        cursor.close()
+
+        print("\n" + "=" * 60)
+        print("STRATIFIED CLUSTER SAMPLING MIGRATION COMPLETED")
+        print("=" * 60)
+
+        return True
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"\nERROR: Migration failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
 if __name__ == "__main__":
     run_campaign_refactor_migration()
+    run_stratified_cluster_sampling_migration()
