@@ -7,17 +7,17 @@ postgres:
 
   # Define function-based sources for dynamic filtering
   functions:
-    # Function to serve pixels filtered by area_id
-    pixels_by_area:
+    # Function to serve pixels filtered by campaign_id
+    pixels_by_campaign:
       schema: public
-      function: pixels_by_area
+      function: pixels_by_campaign
       minzoom: 0
       maxzoom: 24
 
-    # Function to serve locations filtered by area_id
-    locations_by_area:
+    # Function to serve locations filtered by campaign_id
+    locations_by_campaign:
       schema: public
-      function: locations_by_area
+      function: locations_by_campaign
       minzoom: 0
       maxzoom: 24
 
