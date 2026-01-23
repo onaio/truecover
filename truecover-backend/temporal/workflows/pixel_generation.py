@@ -11,9 +11,8 @@ with workflow.unsafe.imports_passed_through():
         convert_geojson_to_wkt,
         fetch_admin_boundary_geometry,
         delete_existing_pixels,
-        generate_tile_data,
-        insert_pixel_batch,
-        create_default_coverage_pixels_for_batch,
+        generate_and_insert_tiles,
+        create_default_coverage_pixels_for_area,
     )
 
 
@@ -90,75 +89,40 @@ class PixelGenerationWorkflow:
             )
             workflow.logger.info(f"Deleted {deleted_count} existing pixels")
 
-        # Activity 3: Generate tile data
-        tile_data = await workflow.execute_activity(
-            generate_tile_data,
-            args=[bbox, level, admin_geometry_wkt],
-            start_to_close_timeout=timedelta(minutes=10),
+        # Activity 3: Generate tiles and insert directly into database
+        # This combined activity avoids passing large tile data through Temporal's payload
+        result = await workflow.execute_activity(
+            generate_and_insert_tiles,
+            args=[area_id, bbox, level, admin_geometry_wkt],
+            start_to_close_timeout=timedelta(minutes=30),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )
 
-        self.total_tiles = len(tile_data)
-        workflow.logger.info(f"Generated {self.total_tiles} tiles")
+        self.total_tiles = result["total_generated"]
+        self.pixels_inserted = result["total_inserted"]
+        workflow.logger.info(f"Generated {self.total_tiles} tiles, inserted {self.pixels_inserted}")
 
-        if not tile_data:
-            workflow.logger.warning("No tiles generated")
+        if self.pixels_inserted == 0:
+            workflow.logger.warning("No pixels inserted")
             return {
                 "success": True,
                 "count": 0,
                 "level": level
             }
 
-        # Activity 4: Insert pixels in batches
-        batch_size = 500
-        total_inserted = 0
-        all_quadkeys = []
-
-        for i in range(0, len(tile_data), batch_size):
-            batch = tile_data[i:i+batch_size]
-            batch_num = i // batch_size + 1
-            total_batches = (len(tile_data) + batch_size - 1) // batch_size
-
-            workflow.logger.info(f"Inserting batch {batch_num}/{total_batches}")
-
-            inserted = await workflow.execute_activity(
-                insert_pixel_batch,
-                args=[area_id, batch],
-                start_to_close_timeout=timedelta(minutes=5),
-                retry_policy=RetryPolicy(maximum_attempts=3)
-            )
-
-            total_inserted += inserted
-            all_quadkeys.extend([tile["quadkey"] for tile in batch])
-            self.pixels_inserted = total_inserted
-
-        workflow.logger.info(f"Inserted {total_inserted} pixels total")
-
-        # Activity 5: Create default coverage_pixel records in batches
-        coverage_batch_size = 1000
-        total_coverage_created = 0
-
-        for i in range(0, len(all_quadkeys), coverage_batch_size):
-            batch_quadkeys = all_quadkeys[i:i+coverage_batch_size]
-            batch_num = i // coverage_batch_size + 1
-            total_batches = (len(all_quadkeys) + coverage_batch_size - 1) // coverage_batch_size
-
-            workflow.logger.info(f"Creating coverage_pixel records batch {batch_num}/{total_batches}")
-
-            created = await workflow.execute_activity(
-                create_default_coverage_pixels_for_batch,
-                args=[area_id, batch_quadkeys],
-                start_to_close_timeout=timedelta(minutes=5),
-                retry_policy=RetryPolicy(maximum_attempts=3)
-            )
-
-            total_coverage_created += created
+        # Activity 4: Create default coverage_pixel records
+        total_coverage_created = await workflow.execute_activity(
+            create_default_coverage_pixels_for_area,
+            args=[area_id],
+            start_to_close_timeout=timedelta(minutes=10),
+            retry_policy=RetryPolicy(maximum_attempts=3)
+        )
 
         workflow.logger.info(f"Created {total_coverage_created} coverage_pixel records")
 
         return {
             "success": True,
-            "count": total_inserted,
+            "count": self.pixels_inserted,
             "level": level,
             "coverage_pixels_created": total_coverage_created
         }

@@ -2,7 +2,7 @@
 # ABOUTME: Generates quadkey pixels and creates default coverage records
 
 from temporalio import activity
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 import mercantile
 
 from db.connection import get_db_connection, return_db_connection
@@ -103,201 +103,186 @@ async def delete_existing_pixels(area_id: str) -> int:
 
 
 @activity.defn
-async def generate_tile_data(
+async def generate_and_insert_tiles(
+    area_id: str,
     bbox: List[float],
     level: int,
     admin_geometry_wkt: str = None
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
-    Generate tile data for the given bounding box.
+    Generate tiles for the given bounding box and insert them directly into the database.
+
+    This activity handles both generation and insertion to avoid passing large tile
+    data through Temporal's payload system, which has a ~2MB size limit.
 
     Args:
+        area_id: Area ID to associate pixels with
         bbox: [min_lng, min_lat, max_lng, max_lat]
         level: Zoom level
         admin_geometry_wkt: Optional admin boundary geometry WKT for filtering
 
     Returns:
-        List of tile data with quadkey, geometry, and coordinates
+        Summary dict with total_generated and total_inserted counts
     """
     min_lng, min_lat, max_lng, max_lat = bbox
 
     # Generate tiles using mercantile
     tiles = list(mercantile.tiles(min_lng, min_lat, max_lng, max_lat, zooms=[level]))
+    total_generated = len(tiles)
 
-    activity.logger.info(f"Generated {len(tiles)} tiles at level {level}")
+    activity.logger.info(f"Generated {total_generated} tiles at level {level}")
 
-    # Convert tiles to data format with coordinates
-    all_tiles = []
-    for tile in tiles:
-        quadkey = mercantile.quadkey(tile)
-        bounds = mercantile.bounds(tile)
+    if total_generated == 0:
+        return {"total_generated": 0, "total_inserted": 0}
 
-        # Calculate centroid
-        centroid_lng = (bounds.west + bounds.east) / 2
-        centroid_lat = (bounds.south + bounds.north) / 2
-
-        # Create polygon geometry WKT
-        geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"
-
-        all_tiles.append({
-            "quadkey": quadkey,
-            "geometry_wkt": geometry_wkt,
-            "latitude": centroid_lat,
-            "longitude": centroid_lng,
-            "level": level
-        })
-
-    # Filter by admin boundary if provided (batch operation)
-    if admin_geometry_wkt:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        try:
-            # Create temporary table with all tile centroids
-            centroids = [(t["longitude"], t["latitude"], t["quadkey"]) for t in all_tiles]
-
-            # Batch check which centroids are within the admin boundary
-            cursor.execute("""
-                WITH tile_points AS (
-                    SELECT
-                        unnest(%s::decimal[]) as lng,
-                        unnest(%s::decimal[]) as lat,
-                        unnest(%s::text[]) as quadkey
-                )
-                SELECT quadkey
-                FROM tile_points
-                WHERE ST_Contains(
-                    ST_GeomFromText(%s, 4326),
-                    ST_SetSRID(ST_MakePoint(lng, lat), 4326)
-                )
-            """, (
-                [c[0] for c in centroids],
-                [c[1] for c in centroids],
-                [c[2] for c in centroids],
-                admin_geometry_wkt
-            ))
-
-            # Get set of quadkeys that are within boundary
-            valid_quadkeys = {row[0] for row in cursor.fetchall()}
-
-            # Filter tiles to only those within boundary
-            tile_data = [t for t in all_tiles if t["quadkey"] in valid_quadkeys]
-
-            activity.logger.info(f"Filtered to {len(tile_data)} tiles after admin boundary check")
-        finally:
-            cursor.close()
-            return_db_connection(conn)
-    else:
-        tile_data = all_tiles
-
-    return tile_data
-
-
-@activity.defn
-async def insert_pixel_batch(
-    area_id: str,
-    batch: List[Dict[str, Any]]
-) -> int:
-    """
-    Insert a batch of pixels into the database.
-
-    Args:
-        area_id: Area ID
-        batch: List of tile data
-
-    Returns:
-        Number of pixels inserted
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        # Extract data into lists
-        quadkeys = [p["quadkey"] for p in batch]
-        area_ids = [area_id] * len(batch)
-        geometries = [p["geometry_wkt"] for p in batch]
-        latitudes = [p["latitude"] for p in batch]
-        longitudes = [p["longitude"] for p in batch]
-        levels = [p["level"] for p in batch]
+        # Process tiles in batches to manage memory and transaction size
+        batch_size = 500
+        total_inserted = 0
 
-        # Batch insert with admin boundary lookup
-        cursor.execute("""
-            WITH pixel_data AS (
+        for batch_start in range(0, len(tiles), batch_size):
+            batch_tiles = tiles[batch_start:batch_start + batch_size]
+
+            # Convert batch tiles to data format
+            batch_data = []
+            for tile in batch_tiles:
+                quadkey = mercantile.quadkey(tile)
+                bounds = mercantile.bounds(tile)
+
+                centroid_lng = (bounds.west + bounds.east) / 2
+                centroid_lat = (bounds.south + bounds.north) / 2
+
+                geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"
+
+                batch_data.append({
+                    "quadkey": quadkey,
+                    "geometry_wkt": geometry_wkt,
+                    "latitude": centroid_lat,
+                    "longitude": centroid_lng,
+                    "level": level
+                })
+
+            # Filter by admin boundary if provided
+            if admin_geometry_wkt:
+                centroids = [(t["longitude"], t["latitude"], t["quadkey"]) for t in batch_data]
+
+                cursor.execute("""
+                    WITH tile_points AS (
+                        SELECT
+                            unnest(%s::decimal[]) as lng,
+                            unnest(%s::decimal[]) as lat,
+                            unnest(%s::text[]) as quadkey
+                    )
+                    SELECT quadkey
+                    FROM tile_points
+                    WHERE ST_Contains(
+                        ST_GeomFromText(%s, 4326),
+                        ST_SetSRID(ST_MakePoint(lng, lat), 4326)
+                    )
+                """, (
+                    [c[0] for c in centroids],
+                    [c[1] for c in centroids],
+                    [c[2] for c in centroids],
+                    admin_geometry_wkt
+                ))
+
+                valid_quadkeys = {row[0] for row in cursor.fetchall()}
+                batch_data = [t for t in batch_data if t["quadkey"] in valid_quadkeys]
+
+            if not batch_data:
+                continue
+
+            # Insert batch into database
+            quadkeys = [p["quadkey"] for p in batch_data]
+            area_ids = [area_id] * len(batch_data)
+            geometries = [p["geometry_wkt"] for p in batch_data]
+            latitudes = [p["latitude"] for p in batch_data]
+            longitudes = [p["longitude"] for p in batch_data]
+            levels = [p["level"] for p in batch_data]
+
+            cursor.execute("""
+                WITH pixel_data AS (
+                    SELECT
+                        unnest(%s::text[]) as quadkey,
+                        unnest(%s::uuid[]) as area_id,
+                        unnest(%s::text[]) as geometry_wkt,
+                        unnest(%s::decimal[]) as latitude,
+                        unnest(%s::decimal[]) as longitude,
+                        unnest(%s::integer[]) as level
+                ),
+                pixels_with_admin AS (
+                    SELECT
+                        pd.quadkey,
+                        pd.area_id,
+                        pd.geometry_wkt,
+                        pd.latitude,
+                        pd.longitude,
+                        pd.level,
+                        ab.adm1_pcode,
+                        ab.adm2_pcode,
+                        ab.adm3_pcode,
+                        ab.adm4_pcode
+                    FROM pixel_data pd
+                    LEFT JOIN LATERAL (
+                        SELECT adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+                        FROM admin_boundaries
+                        WHERE ST_Contains(geometry, ST_SetSRID(ST_MakePoint(pd.longitude, pd.latitude), 4326))
+                        ORDER BY level DESC
+                        LIMIT 1
+                    ) ab ON true
+                )
+                INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode)
                 SELECT
-                    unnest(%s::text[]) as quadkey,
-                    unnest(%s::uuid[]) as area_id,
-                    unnest(%s::text[]) as geometry_wkt,
-                    unnest(%s::decimal[]) as latitude,
-                    unnest(%s::decimal[]) as longitude,
-                    unnest(%s::integer[]) as level
-            ),
-            pixels_with_admin AS (
-                SELECT
-                    pd.quadkey,
-                    pd.area_id,
-                    pd.geometry_wkt,
-                    pd.latitude,
-                    pd.longitude,
-                    pd.level,
-                    ab.adm1_pcode,
-                    ab.adm2_pcode,
-                    ab.adm3_pcode,
-                    ab.adm4_pcode
-                FROM pixel_data pd
-                LEFT JOIN LATERAL (
-                    SELECT adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
-                    FROM admin_boundaries
-                    WHERE ST_Contains(geometry, ST_SetSRID(ST_MakePoint(pd.longitude, pd.latitude), 4326))
-                    ORDER BY level DESC
-                    LIMIT 1
-                ) ab ON true
-            )
-            INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode)
-            SELECT
-                quadkey,
-                area_id,
-                ST_GeomFromText(geometry_wkt, 4326),
-                latitude,
-                longitude,
-                level,
-                adm1_pcode,
-                adm2_pcode,
-                adm3_pcode,
-                adm4_pcode
-            FROM pixels_with_admin
-            ON CONFLICT (area_id, quadkey) DO UPDATE SET
-                geometry = EXCLUDED.geometry,
-                latitude = EXCLUDED.latitude,
-                longitude = EXCLUDED.longitude,
-                level = EXCLUDED.level,
-                adm1_pcode = EXCLUDED.adm1_pcode,
-                adm2_pcode = EXCLUDED.adm2_pcode,
-                adm3_pcode = EXCLUDED.adm3_pcode,
-                adm4_pcode = EXCLUDED.adm4_pcode,
-                updated_at = NOW()
-        """, (quadkeys, area_ids, geometries, latitudes, longitudes, levels))
+                    quadkey,
+                    area_id,
+                    ST_GeomFromText(geometry_wkt, 4326),
+                    latitude,
+                    longitude,
+                    level,
+                    adm1_pcode,
+                    adm2_pcode,
+                    adm3_pcode,
+                    adm4_pcode
+                FROM pixels_with_admin
+                ON CONFLICT (area_id, quadkey) DO UPDATE SET
+                    geometry = EXCLUDED.geometry,
+                    latitude = EXCLUDED.latitude,
+                    longitude = EXCLUDED.longitude,
+                    level = EXCLUDED.level,
+                    adm1_pcode = EXCLUDED.adm1_pcode,
+                    adm2_pcode = EXCLUDED.adm2_pcode,
+                    adm3_pcode = EXCLUDED.adm3_pcode,
+                    adm4_pcode = EXCLUDED.adm4_pcode,
+                    updated_at = NOW()
+            """, (quadkeys, area_ids, geometries, latitudes, longitudes, levels))
 
-        inserted_count = cursor.rowcount
-        conn.commit()
+            total_inserted += cursor.rowcount
+            conn.commit()
 
-        activity.logger.info(f"Inserted {inserted_count} pixels")
-        return inserted_count
+            batch_num = batch_start // batch_size + 1
+            total_batches = (len(tiles) + batch_size - 1) // batch_size
+            activity.logger.info(f"Inserted batch {batch_num}/{total_batches}: {cursor.rowcount} pixels")
+
+        activity.logger.info(f"Completed: generated {total_generated}, inserted {total_inserted} pixels")
+        return {"total_generated": total_generated, "total_inserted": total_inserted}
+
     finally:
         cursor.close()
         return_db_connection(conn)
 
 
 @activity.defn
-async def create_default_coverage_pixels_for_batch(
-    area_id: str,
-    quadkeys: List[str]
-) -> int:
+async def create_default_coverage_pixels_for_area(area_id: str) -> int:
     """
-    Create default coverage_pixel records for new pixels.
+    Create default coverage_pixel records for all pixels in an area.
+
+    Queries the database for quadkeys to avoid passing large lists through Temporal.
 
     Args:
         area_id: Area ID
-        quadkeys: List of quadkeys
 
     Returns:
         Number of coverage_pixel records created
@@ -306,9 +291,6 @@ async def create_default_coverage_pixels_for_batch(
     cursor = conn.cursor()
 
     try:
-        if not quadkeys:
-            return 0
-
         # Get the project_id from the area
         cursor.execute("""
             SELECT project_id FROM areas WHERE id = %s
@@ -332,41 +314,33 @@ async def create_default_coverage_pixels_for_batch(
             activity.logger.info(f"No indicators found for project {project_id}")
             return 0
 
-        # Build list of records to create
-        # Only create records for quadkey/indicator combos that don't exist
+        indicator_ids = [str(row[0]) for row in indicators]
+
+        # Insert coverage_pixel records for all pixel/indicator combinations
+        # that don't already exist, using a single efficient query
         cursor.execute("""
-            SELECT DISTINCT quadkey, indicator_id
-            FROM coverage_pixel
-            WHERE quadkey = ANY(%s) AND area_id = %s
-        """, (quadkeys, area_id))
+            INSERT INTO coverage_pixel (
+                quadkey, area_id, indicator_id, version,
+                n_trials, n_covered, rounds,
+                exceedance_probability, exceedance_uncertainty,
+                prevalence_bci_width, prevalence_prediction
+            )
+            SELECT
+                p.quadkey,
+                p.area_id,
+                i.indicator_id,
+                0, 0, 0, '{}', 0, 0, 0, 0
+            FROM pixels p
+            CROSS JOIN (SELECT unnest(%s::uuid[]) as indicator_id) i
+            WHERE p.area_id = %s
+            ON CONFLICT (area_id, quadkey, indicator_id) DO NOTHING
+        """, (indicator_ids, area_id))
 
-        existing = {(row[0], str(row[1])) for row in cursor.fetchall()}
+        created_count = cursor.rowcount
+        conn.commit()
 
-        records_to_create = []
-        for quadkey in quadkeys:
-            for indicator_row in indicators:
-                indicator_id = str(indicator_row[0])
-                if (quadkey, indicator_id) not in existing:
-                    records_to_create.append((quadkey, area_id, indicator_id))
-
-        # Batch insert new records
-        if records_to_create:
-            cursor.executemany("""
-                INSERT INTO coverage_pixel (
-                    quadkey, area_id, indicator_id, version,
-                    n_trials, n_covered, rounds,
-                    exceedance_probability, exceedance_uncertainty,
-                    prevalence_bci_width, prevalence_prediction
-                )
-                VALUES (%s, %s, %s, 0, 0, 0, '{}', 0, 0, 0, 0)
-            """, records_to_create)
-
-            conn.commit()
-            activity.logger.info(f"Created {len(records_to_create)} coverage_pixel records")
-            return len(records_to_create)
-        else:
-            activity.logger.info("No new coverage_pixel records needed")
-            return 0
+        activity.logger.info(f"Created {created_count} coverage_pixel records for area {area_id}")
+        return created_count
 
     finally:
         cursor.close()
