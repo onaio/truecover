@@ -5,6 +5,7 @@ import ExportLocationsModal from './ExportLocationsModal';
 import { StratifiedClusterSamplingWizard } from './StratifiedClusterSamplingWizard';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
+import { useIndicators } from '../hooks/useIndicators';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -35,6 +36,7 @@ interface RoundsManagerProps {
 
 const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0, indicatorId }) => {
   const { getToken } = useAuth();
+  const { data: indicators } = useIndicators(projectId);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -43,6 +45,9 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Use provided indicatorId or fall back to first indicator
+  const effectiveIndicatorId = indicatorId || indicators?.[0]?.id || '';
 
 
   const loadRounds = useCallback(async () => {
@@ -131,15 +136,14 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
               >
                 Export Locations to Visit
               </TacticalButton>
-              {selectedAdminBoundary && indicatorId && (
-                <TacticalButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIsStratifiedWizardOpen(true)}
-                >
-                  Stratified Sampling
-                </TacticalButton>
-              )}
+              <TacticalButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsStratifiedWizardOpen(true)}
+                disabled={!selectedAdminBoundary}
+              >
+                Stratified Cluster Sampling
+              </TacticalButton>
               <TacticalButton
                 variant="primary"
                 size="sm"
@@ -284,24 +288,22 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
         locations={locations}
       />
 
-      {selectedAdminBoundary && indicatorId && (
-        <StratifiedClusterSamplingWizard
-          isOpen={isStratifiedWizardOpen}
-          onClose={() => {
-            setIsStratifiedWizardOpen(false);
-            setRefreshKey(prev => prev + 1);
-            if (onClearAdminBoundary) {
-              onClearAdminBoundary();
-            }
-          }}
-          campaignId={campaignId}
-          projectId={projectId}
-          startingPcode={selectedAdminBoundary.pcode}
-          startingName={selectedAdminBoundary.name}
-          indicatorId={indicatorId}
-          onRoundCreated={handleRoundCreated}
-        />
-      )}
+      <StratifiedClusterSamplingWizard
+        isOpen={isStratifiedWizardOpen}
+        onClose={() => {
+          setIsStratifiedWizardOpen(false);
+          setRefreshKey(prev => prev + 1);
+          if (onClearAdminBoundary) {
+            onClearAdminBoundary();
+          }
+        }}
+        campaignId={campaignId}
+        projectId={projectId}
+        startingPcode={selectedAdminBoundary?.pcode || ''}
+        startingName={selectedAdminBoundary?.name || ''}
+        indicatorId={effectiveIndicatorId}
+        onRoundCreated={handleRoundCreated}
+      />
     </>
   );
 };
