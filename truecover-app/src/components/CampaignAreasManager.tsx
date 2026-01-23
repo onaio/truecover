@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { campaignAreasApi } from '../services/api';
+import { campaignAreasApi, enrichmentApi } from '../services/api';
 import {
   TacticalCard,
   TacticalButton,
@@ -24,27 +24,39 @@ interface CampaignArea {
     max_lat: number;
   } | null;
   pixel_count: number;
+  sampled_count: number;
+  total_population: number;
+  building_count: number;
+  division_name: string | null;
+  district_name: string | null;
+  upazila_name: string | null;
+  union_name: string | null;
   created_at: string;
 }
 
 interface CampaignAreasManagerProps {
   campaignId: string;
-  onAddAdminBoundary?: () => void;
-  onDrawArea?: () => void;
+  indicatorId?: string;
+  onRefresh?: () => void;
 }
 
 const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   campaignId,
-  onAddAdminBoundary,
-  onDrawArea
+  indicatorId,
+  onRefresh
 }) => {
   const { getToken } = useAuth();
   const [areas, setAreas] = useState<CampaignArea[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [computingAreaId, setComputingAreaId] = useState<string | null>(null);
+  const [enrichingAreaId, setEnrichingAreaId] = useState<string | null>(null);
   const [areaToDelete, setAreaToDelete] = useState<CampaignArea | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [areaToEdit, setAreaToEdit] = useState<CampaignArea | null>(null);
+  const [sampleCount, setSampleCount] = useState<number>(50);
+  const [isSampling, setIsSampling] = useState(false);
+  const [samplingWorkflows, setSamplingWorkflows] = useState<Map<string, { workflowId: string; status: string }>>(new Map());
 
   useEffect(() => {
     if (campaignId) {
@@ -110,6 +122,27 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     }
   };
 
+  const handleEnrichAllPixels = async () => {
+    setEnrichingAreaId('all');
+
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      // Use WorldPop population data source for enrichment
+      await enrichmentApi.createJob(campaignId, { data_source_id: 'worldpop' }, token);
+      tacticalToast.success('Pixel enrichment started. This may take a few minutes.');
+
+      // Note: onRefresh could be called to reload data after enrichment completes
+      // For now, we just show the toast
+    } catch (err: any) {
+      console.error('Failed to start pixel enrichment:', err);
+      tacticalToast.error(err.response?.data?.error || 'Failed to start pixel enrichment');
+    } finally {
+      setEnrichingAreaId(null);
+    }
+  };
+
   const handleDeleteArea = async () => {
     if (!areaToDelete) return;
 
@@ -123,6 +156,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
       tacticalToast.success('Area removed');
       setAreas(areas.filter(a => a.id !== areaToDelete.id));
       setAreaToDelete(null);
+      onRefresh?.();
     } catch (err: any) {
       console.error('Failed to delete area:', err);
       tacticalToast.error(err.response?.data?.error || 'Failed to remove area');
@@ -131,7 +165,101 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     }
   };
 
+  const handleSample = async (resample: boolean = false) => {
+    if (!areaToEdit || !indicatorId) return;
+
+    setIsSampling(true);
+    const areaId = areaToEdit.id;
+
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const result = await campaignAreasApi.samplePixels(
+        areaId,
+        {
+          indicator_id: indicatorId,
+          sample_count: sampleCount,
+          resample
+        },
+        token
+      );
+
+      // Track the workflow
+      setSamplingWorkflows(prev => new Map(prev).set(areaId, {
+        workflowId: result.workflow_id,
+        status: 'running'
+      }));
+
+      tacticalToast.success(`Sampling ${sampleCount} pixels${resample ? ' (resample)' : ''}...`);
+      setAreaToEdit(null);
+
+      // Start polling for status
+      pollWorkflowStatus(areaId, result.workflow_id);
+    } catch (err: any) {
+      console.error('Failed to sample pixels:', err);
+      tacticalToast.error(err.response?.data?.error || 'Failed to start sampling');
+    } finally {
+      setIsSampling(false);
+    }
+  };
+
+  const pollWorkflowStatus = async (areaId: string, workflowId: string) => {
+    const token = await getToken();
+    if (!token) return;
+
+    const poll = async () => {
+      try {
+        const status = await campaignAreasApi.getSamplingStatus(workflowId, token);
+
+        if (status.status === 'completed') {
+          // Remove from tracking
+          setSamplingWorkflows(prev => {
+            const next = new Map(prev);
+            next.delete(areaId);
+            return next;
+          });
+
+          tacticalToast.success(`Sampling complete: ${status.result?.pixels_sampled || 0} pixels sampled`);
+          loadAreas();
+        } else if (status.status === 'failed') {
+          setSamplingWorkflows(prev => {
+            const next = new Map(prev);
+            next.delete(areaId);
+            return next;
+          });
+
+          tacticalToast.error(`Sampling failed: ${status.error || 'Unknown error'}`);
+        } else {
+          // Still running, update status and continue polling
+          setSamplingWorkflows(prev => new Map(prev).set(areaId, {
+            workflowId,
+            status: status.progress?.status || 'running'
+          }));
+
+          // Poll again in 2 seconds
+          setTimeout(poll, 2000);
+        }
+      } catch (err) {
+        console.error('Error polling workflow status:', err);
+        // Continue polling on error
+        setTimeout(poll, 3000);
+      }
+    };
+
+    // Start polling
+    poll();
+  };
+
+  const openEditModal = (area: CampaignArea) => {
+    setAreaToEdit(area);
+    setSampleCount(area.sampled_count > 0 ? area.sampled_count : 50);
+  };
+
   const totalPixels = areas.reduce((sum, area) => sum + (area.pixel_count || 0), 0);
+  const totalSampled = areas.reduce((sum, area) => sum + (area.sampled_count || 0), 0);
+  const totalPopulation = areas.reduce((sum, area) => sum + (area.total_population || 0), 0);
+  const totalBuildings = areas.reduce((sum, area) => sum + (area.building_count || 0), 0);
 
   return (
     <>
@@ -141,30 +269,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
           defaultCollapsed={false}
           collapsedSummary={
             !isLoading
-              ? `(${areas.length} ${areas.length === 1 ? 'Area' : 'Areas'}, ${totalPixels.toLocaleString()} pixels)`
+              ? `(${areas.length} ${areas.length === 1 ? 'Area' : 'Areas'}, ${totalPixels.toLocaleString()} Pixels, Pop: ${totalPopulation.toLocaleString()})`
               : undefined
-          }
-          actionButton={
-            <div className="flex gap-2">
-              {onAddAdminBoundary && (
-                <TacticalButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={onAddAdminBoundary}
-                >
-                  + Admin Boundary
-                </TacticalButton>
-              )}
-              {onDrawArea && (
-                <TacticalButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={onDrawArea}
-                >
-                  + Draw Area
-                </TacticalButton>
-              )}
-            </div>
           }
         >
           {error && (
@@ -187,35 +293,15 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
               <p className="text-sm text-tactical-text-dim mb-3">
                 No areas defined for this campaign
               </p>
-              <p className="text-xs text-tactical-text-muted mb-4">
-                Add admin boundaries or draw custom areas to define the campaign coverage
+              <p className="text-xs text-tactical-text-muted">
+                Enable planning mode and click on admin boundaries or draw shapes on the map to add areas
               </p>
-              <div className="flex gap-2 justify-center">
-                {onAddAdminBoundary && (
-                  <TacticalButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={onAddAdminBoundary}
-                  >
-                    Add Admin Boundary
-                  </TacticalButton>
-                )}
-                {onDrawArea && (
-                  <TacticalButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={onDrawArea}
-                  >
-                    Draw Area
-                  </TacticalButton>
-                )}
-              </div>
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Compute All Pixels Button */}
-              {areas.some(a => a.pixel_count === 0) && (
-                <div className="flex justify-end mb-2">
+              {/* Top-level action buttons */}
+              <div className="flex justify-end gap-2 mb-2">
+                {areas.some(a => a.pixel_count === 0) && (
                   <TacticalButton
                     variant="primary"
                     size="sm"
@@ -230,76 +316,142 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                       'Compute All Pixels'
                     )}
                   </TacticalButton>
-                </div>
-              )}
+                )}
+                {areas.some(a => a.pixel_count > 0) && (
+                  <TacticalButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleEnrichAllPixels}
+                    disabled={enrichingAreaId !== null}
+                  >
+                    {enrichingAreaId === 'all' ? (
+                      <span className="tactical-loading-dots">
+                        Enriching<span>.</span><span>.</span><span>.</span>
+                      </span>
+                    ) : (
+                      'Enrich All Pixels'
+                    )}
+                  </TacticalButton>
+                )}
+              </div>
 
-              {areas.map((area) => (
-                <div
-                  key={area.id}
-                  className="group border border-tactical-border-medium bg-tactical-bg-secondary p-4"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+              {/* Areas Table */}
+              <div className="w-full overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
+                <table className="tactical-table text-tactical-text-secondary w-full">
+                  <thead>
+                    <tr className="sticky top-0 z-10">
+                      <th className="bg-tactical-bg-secondary text-left">Name</th>
+                      <th className="bg-tactical-bg-secondary text-left">Division</th>
+                      <th className="bg-tactical-bg-secondary text-left">District</th>
+                      <th className="bg-tactical-bg-secondary text-left">Upazila</th>
+                      <th className="bg-tactical-bg-secondary text-left">Union</th>
+                      <th className="bg-tactical-bg-secondary text-right">Sampled / Pixels</th>
+                      <th className="bg-tactical-bg-secondary text-right">Population</th>
+                      <th className="bg-tactical-bg-secondary text-right">Buildings</th>
+                      <th className="bg-tactical-bg-secondary text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {areas.map((area) => (
+                      <tr key={area.id} className="group hover:bg-tactical-bg-tertiary transition-colors">
+                        <td className="font-mono font-bold text-tactical-text-primary">
                           {area.name || area.admin_boundary_name || 'Unnamed Area'}
-                        </h4>
-                        <TacticalBadge variant={area.area_type === 'admin_boundary' ? 'info' : 'warning'}>
-                          {area.area_type === 'admin_boundary' ? 'ADMIN' : 'DRAWN'}
-                        </TacticalBadge>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-tactical-text-muted">
-                        <span>
-                          {area.pixel_count > 0 ? (
-                            <span className="text-tactical-accent-green">
-                              {area.pixel_count.toLocaleString()} pixels
+                        </td>
+                        <td className="text-tactical-text-muted">
+                          {area.division_name || '—'}
+                        </td>
+                        <td className="text-tactical-text-muted">
+                          {area.district_name || '—'}
+                        </td>
+                        <td className="text-tactical-text-muted">
+                          {area.upazila_name || '—'}
+                        </td>
+                        <td className="text-tactical-text-muted">
+                          {area.union_name || '—'}
+                        </td>
+                        <td className="text-right font-mono">
+                          {area.pixel_count === 0 ? (
+                            <span className="text-tactical-accent-red">—</span>
+                          ) : samplingWorkflows.has(area.id) ? (
+                            <span className="text-tactical-accent-yellow tactical-loading-dots">
+                              {samplingWorkflows.get(area.id)?.status || 'sampling'}<span>.</span><span>.</span><span>.</span>
                             </span>
                           ) : (
-                            <span className="text-tactical-text-dim">No pixels computed</span>
+                            <span>
+                              <span className={area.sampled_count > 0 ? 'text-tactical-accent-green' : 'text-tactical-text-muted'}>
+                                {area.sampled_count.toLocaleString()}
+                              </span>
+                              <span className="text-tactical-text-muted"> / </span>
+                              {area.pixel_count.toLocaleString()}
+                            </span>
                           )}
+                        </td>
+                        <td className="text-right font-mono">
+                          {area.total_population.toLocaleString()}
+                        </td>
+                        <td className="text-right font-mono">
+                          {area.building_count.toLocaleString()}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            {area.pixel_count === 0 && (
+                              <TacticalButton
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleComputePixels(area.id)}
+                                disabled={computingAreaId !== null}
+                              >
+                                {computingAreaId === area.id ? '...' : 'Compute'}
+                              </TacticalButton>
+                            )}
+                            {area.pixel_count > 0 && indicatorId && (
+                              <TacticalButton
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => openEditModal(area)}
+                                disabled={samplingWorkflows.has(area.id)}
+                              >
+                                {samplingWorkflows.has(area.id) ? 'Sampling...' : area.sampled_count > 0 ? 'Edit' : 'Sample'}
+                              </TacticalButton>
+                            )}
+                            <TacticalButton
+                              variant="danger"
+                              size="sm"
+                              onClick={() => setAreaToDelete(area)}
+                            >
+                              Remove
+                            </TacticalButton>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-tactical-border-medium bg-tactical-bg-tertiary font-bold">
+                      <td className="text-tactical-text-primary">
+                        Total ({areas.length} {areas.length === 1 ? 'area' : 'areas'})
+                      </td>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                      <td className="text-right font-mono font-bold text-tactical-text-primary">
+                        <span className={totalSampled > 0 ? 'text-tactical-accent-green' : ''}>
+                          {totalSampled.toLocaleString()}
                         </span>
-                        {area.bbox && (
-                          <span className="text-xs text-tactical-text-dim">
-                            bbox: [{area.bbox.min_lng.toFixed(2)}, {area.bbox.min_lat.toFixed(2)}] to [{area.bbox.max_lng.toFixed(2)}, {area.bbox.max_lat.toFixed(2)}]
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {area.pixel_count === 0 && (
-                        <TacticalButton
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleComputePixels(area.id)}
-                          disabled={computingAreaId !== null}
-                        >
-                          {computingAreaId === area.id ? (
-                            <span className="tactical-loading-dots">
-                              Computing<span>.</span><span>.</span><span>.</span>
-                            </span>
-                          ) : (
-                            'Compute Pixels'
-                          )}
-                        </TacticalButton>
-                      )}
-                      <TacticalButton
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setAreaToDelete(area)}
-                      >
-                        Remove
-                      </TacticalButton>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Summary */}
-              <div className="pt-3 border-t border-tactical-border-medium">
-                <p className="text-sm text-tactical-text-muted">
-                  Total: <span className="font-bold text-tactical-text-primary">{areas.length}</span> areas,
-                  <span className="font-bold text-tactical-accent-green ml-1">{totalPixels.toLocaleString()}</span> pixels
-                </p>
+                        <span className="text-tactical-text-muted"> / </span>
+                        {totalPixels.toLocaleString()}
+                      </td>
+                      <td className="text-right font-mono font-bold text-tactical-text-primary">
+                        {totalPopulation.toLocaleString()}
+                      </td>
+                      <td className="text-right font-mono font-bold text-tactical-text-primary">
+                        {totalBuildings.toLocaleString()}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
           )}
@@ -335,6 +487,70 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
               >
                 {isDeleting ? 'Removing...' : 'Remove Area'}
               </TacticalButton>
+            </div>
+          </div>
+        </TacticalModal>
+      )}
+
+      {/* Edit/Sample Modal */}
+      {areaToEdit && (
+        <TacticalModal
+          isOpen={!!areaToEdit}
+          onClose={() => setAreaToEdit(null)}
+          title={areaToEdit.sampled_count > 0 ? 'Edit Area Sampling' : 'Sample Area'}
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-tactical-text-secondary mb-2">
+                <span className="font-bold">{areaToEdit.name || areaToEdit.admin_boundary_name || 'Area'}</span>
+              </p>
+              <p className="text-xs text-tactical-text-muted">
+                {areaToEdit.pixel_count.toLocaleString()} total pixels
+                {areaToEdit.sampled_count > 0 && (
+                  <span className="text-tactical-accent-green"> ({areaToEdit.sampled_count.toLocaleString()} currently sampled)</span>
+                )}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-tactical-text-muted mb-1">
+                Number of pixels to sample
+              </label>
+              <input
+                type="number"
+                value={sampleCount}
+                onChange={(e) => setSampleCount(Math.max(1, parseInt(e.target.value) || 1))}
+                min={1}
+                max={areaToEdit.pixel_count}
+                className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-tactical-border-medium">
+              <TacticalButton
+                variant="secondary"
+                onClick={() => setAreaToEdit(null)}
+              >
+                Cancel
+              </TacticalButton>
+              {areaToEdit.sampled_count > 0 ? (
+                <TacticalButton
+                  variant="primary"
+                  onClick={() => handleSample(true)}
+                  disabled={isSampling}
+                >
+                  {isSampling ? 'Resampling...' : 'Resample'}
+                </TacticalButton>
+              ) : (
+                <TacticalButton
+                  variant="primary"
+                  onClick={() => handleSample(false)}
+                  disabled={isSampling}
+                >
+                  {isSampling ? 'Sampling...' : 'Sample'}
+                </TacticalButton>
+              )}
             </div>
           </div>
         </TacticalModal>

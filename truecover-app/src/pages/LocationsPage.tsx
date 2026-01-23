@@ -541,6 +541,9 @@ const LocationsPage: React.FC = () => {
               histogramDataType={histogramTab}
               sampledItemsCount={sampledItemsCount}
               planningMode={planningMode}
+              campaignAreas={campaignAreas || []}
+              showCampaignAreas={showCampaignAreas}
+              onToggleCampaignAreas={() => setShowCampaignAreas(!showCampaignAreas)}
               onAddAdminBoundaryToCampaign={(_id: string, pcode: string, name: string, geometry?: any) => {
                 if (pcode === 'drawn' && geometry) {
                   setDrawnGeometryForCampaign(geometry);
@@ -954,6 +957,7 @@ const LocationsPage: React.FC = () => {
             <CampaignAreasManager
               key={campaignAreasRefreshKey}
               campaignId={selectedCampaign?.id || ''}
+              indicatorId={selectedIndicatorId}
             />
 
             {/* Buildings Stats */}

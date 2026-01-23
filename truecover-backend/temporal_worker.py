@@ -16,7 +16,8 @@ from temporal.workflows.round_generation import RoundGenerationWorkflow
 from temporal.workflows.pixel_generation import PixelGenerationWorkflow
 from temporal.workflows.visit_upload import VisitUploadWorkflow
 from temporal.workflows.entity_export import EntityExportWorkflow
-from temporal.workflows.stratified_cluster_sampling import StratifiedClusterSamplingWorkflow
+from temporal.workflows.stratified_cluster_sampling import StratifiedClusterSamplingWorkflow, UnionPixelSamplingWorkflow
+from temporal.workflows.campaign_area_sampling import CampaignAreaSamplingWorkflow
 
 # Import activities
 from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels, visits, entity_export, cluster_sampling
@@ -89,6 +90,8 @@ async def main():
             VisitUploadWorkflow,
             EntityExportWorkflow,
             StratifiedClusterSamplingWorkflow,
+            UnionPixelSamplingWorkflow,
+            CampaignAreaSamplingWorkflow,
         ],
         activities=all_activities,
     )

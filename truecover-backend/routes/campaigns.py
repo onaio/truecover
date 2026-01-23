@@ -274,6 +274,7 @@ def list_campaign_areas(user, campaign_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Use cached statistics columns for fast loading
         cursor.execute("""
             SELECT
                 ca.id, ca.campaign_id, ca.name, ca.area_type,
@@ -282,9 +283,21 @@ def list_campaign_areas(user, campaign_id):
                 ca.bbox_min_lng, ca.bbox_min_lat, ca.bbox_max_lng, ca.bbox_max_lat,
                 ca.created_at, ca.updated_at,
                 ab.name as admin_boundary_name,
-                (SELECT COUNT(*) FROM pixel_area pa WHERE pa.campaign_area_id = ca.id) as pixel_count
+                COALESCE(ca.cached_pixel_count, 0) as pixel_count,
+                COALESCE(ca.cached_population, 0) as total_population,
+                COALESCE(ca.cached_building_count, 0) as building_count,
+                div.name as division_name,
+                dist.name as district_name,
+                upz.name as upazila_name,
+                uni.name as union_name,
+                COALESCE(ca.cached_sampled_count, 0) as sampled_count
             FROM campaign_areas ca
             LEFT JOIN admin_boundaries ab ON ca.admin_boundary_id = ab.id
+            -- Get parent boundary names using the pcode hierarchy
+            LEFT JOIN admin_boundaries div ON div.adm1_pcode = ab.adm1_pcode AND div.level = 1
+            LEFT JOIN admin_boundaries dist ON dist.adm2_pcode = ab.adm2_pcode AND dist.level = 2
+            LEFT JOIN admin_boundaries upz ON upz.adm3_pcode = ab.adm3_pcode AND upz.level = 3
+            LEFT JOIN admin_boundaries uni ON uni.adm4_pcode = ab.adm4_pcode AND uni.level = 4
             WHERE ca.campaign_id = %s
             ORDER BY ca.created_at DESC
         """, (campaign_id,))
@@ -307,7 +320,14 @@ def list_campaign_areas(user, campaign_id):
                 'created_at': row[10].isoformat() if row[10] else None,
                 'updated_at': row[11].isoformat() if row[11] else None,
                 'admin_boundary_name': row[12],
-                'pixel_count': row[13] or 0
+                'pixel_count': row[13] or 0,
+                'total_population': int(row[14]) if row[14] else 0,
+                'building_count': row[15] or 0,
+                'division_name': row[16],
+                'district_name': row[17],
+                'upazila_name': row[18],
+                'union_name': row[19],
+                'sampled_count': row[20] or 0
             }
             areas.append(area)
 
@@ -350,18 +370,24 @@ def add_campaign_area(user, campaign_id):
         bbox = None
         admin_boundary_id = None
 
+        cached_pixel_count = 0
+        cached_population = 0
+
         if area_type == 'admin_boundary':
-            # Get geometry, name, and id from admin_boundaries table by pcode
+            # Get geometry, name, id, and pre-computed stats from admin_boundaries table by pcode
             cursor.execute("""
-                SELECT id, name, ST_AsText(geometry),
-                       ST_XMin(geometry), ST_YMin(geometry),
-                       ST_XMax(geometry), ST_YMax(geometry)
-                FROM admin_boundaries
-                WHERE adm0_pcode = %s
-                   OR adm1_pcode = %s
-                   OR adm2_pcode = %s
-                   OR adm3_pcode = %s
-                   OR adm4_pcode = %s
+                SELECT ab.id, ab.name, ST_AsText(ab.geometry),
+                       ST_XMin(ab.geometry), ST_YMin(ab.geometry),
+                       ST_XMax(ab.geometry), ST_YMax(ab.geometry),
+                       COALESCE(abs.pixel_count, 0),
+                       COALESCE(abs.population, 0)
+                FROM admin_boundaries ab
+                LEFT JOIN admin_boundary_stats abs ON abs.admin_boundary_id = ab.id
+                WHERE ab.adm0_pcode = %s
+                   OR ab.adm1_pcode = %s
+                   OR ab.adm2_pcode = %s
+                   OR ab.adm3_pcode = %s
+                   OR ab.adm4_pcode = %s
                 LIMIT 1
             """, (admin_boundary_pcode, admin_boundary_pcode, admin_boundary_pcode,
                   admin_boundary_pcode, admin_boundary_pcode))
@@ -379,6 +405,8 @@ def add_campaign_area(user, campaign_id):
                 'max_lng': float(ab_data[5]),
                 'max_lat': float(ab_data[6])
             }
+            cached_pixel_count = ab_data[7] or 0
+            cached_population = ab_data[8] or 0
         else:
             # For drawn areas, convert GeoJSON to WKT and calculate bbox
             from shapely.geometry import shape
@@ -392,20 +420,45 @@ def add_campaign_area(user, campaign_id):
                 'max_lat': bounds[3]
             }
 
+            # Detect admin boundaries using centroid
+            centroid = geom.centroid
+            cursor.execute("""
+                SELECT id
+                FROM admin_boundaries
+                WHERE ST_Contains(geometry, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+                ORDER BY level DESC
+                LIMIT 1
+            """, (centroid.x, centroid.y))
+            ab_result = cursor.fetchone()
+            if ab_result:
+                admin_boundary_id = str(ab_result[0])
+
         cursor.execute("""
             INSERT INTO campaign_areas (
                 campaign_id, name, area_type, admin_boundary_id, geometry,
-                bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat
+                bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
+                cached_pixel_count, cached_population
             )
-            VALUES (%s, %s, %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s, %s, %s)
             RETURNING id, created_at, updated_at
         """, (
             campaign_id, name, area_type, admin_boundary_id, geometry_wkt,
-            bbox['min_lng'], bbox['min_lat'], bbox['max_lng'], bbox['max_lat']
+            bbox['min_lng'], bbox['min_lat'], bbox['max_lng'], bbox['max_lat'],
+            cached_pixel_count, cached_population
         ))
 
         result = cursor.fetchone()
         campaign_area_id = str(result[0])
+
+        # For admin boundary areas, copy pixel mappings from pre-computed table
+        if area_type == 'admin_boundary' and admin_boundary_id:
+            cursor.execute("""
+                INSERT INTO pixel_area (quadkey, campaign_area_id)
+                SELECT quadkey, %s
+                FROM admin_boundary_pixels
+                WHERE admin_boundary_id = %s
+                ON CONFLICT (quadkey, campaign_area_id) DO NOTHING
+            """, (campaign_area_id, admin_boundary_id))
 
         conn.commit()
         cursor.close()
@@ -417,6 +470,8 @@ def add_campaign_area(user, campaign_id):
             'area_type': area_type,
             'admin_boundary_id': admin_boundary_id,
             'bbox': bbox,
+            'pixel_count': cached_pixel_count,
+            'total_population': int(cached_population),
             'created_at': result[1].isoformat() if result[1] else None,
             'updated_at': result[2].isoformat() if result[2] else None
         }), 201
@@ -515,6 +570,33 @@ def compute_pixels_for_area(user, area_id):
 
         inserted_count = cursor.rowcount
 
+        # Update cached statistics
+        cursor.execute("""
+            WITH pixel_stats AS (
+                SELECT
+                    COUNT(*) as pixel_count,
+                    COALESCE(SUM(p.population), 0) as total_population
+                FROM pixel_area pa
+                JOIN pixels p ON pa.quadkey = p.quadkey
+                WHERE pa.campaign_area_id = %s
+            ),
+            location_counts AS (
+                SELECT COUNT(l.id) as building_count
+                FROM campaign_areas ca
+                LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
+                    AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+                    AND ST_Intersects(l.geometry, ca.geometry)
+                WHERE ca.id = %s
+            )
+            UPDATE campaign_areas
+            SET
+                cached_pixel_count = (SELECT pixel_count FROM pixel_stats),
+                cached_population = (SELECT total_population FROM pixel_stats),
+                cached_building_count = (SELECT building_count FROM location_counts)
+            WHERE id = %s
+        """, (area_id, area_id, area_id))
+
         conn.commit()
         cursor.close()
 
@@ -558,10 +640,12 @@ def compute_all_pixels_for_campaign(user, campaign_id):
 
         total_pixels = 0
         for (area_id,) in areas:
+            area_id_str = str(area_id)
+
             # Delete existing
             cursor.execute("""
                 DELETE FROM pixel_area WHERE campaign_area_id = %s
-            """, (area_id,))
+            """, (area_id_str,))
 
             # Insert new
             cursor.execute("""
@@ -571,9 +655,36 @@ def compute_all_pixels_for_campaign(user, campaign_id):
                 JOIN campaign_areas ca ON ST_Intersects(p.geometry, ca.geometry)
                 WHERE ca.id = %s
                 ON CONFLICT (quadkey, campaign_area_id) DO NOTHING
-            """, (area_id, area_id))
+            """, (area_id_str, area_id_str))
 
             total_pixels += cursor.rowcount
+
+            # Update cached statistics for this area
+            cursor.execute("""
+                WITH pixel_stats AS (
+                    SELECT
+                        COUNT(*) as pixel_count,
+                        COALESCE(SUM(p.population), 0) as total_population
+                    FROM pixel_area pa
+                    JOIN pixels p ON pa.quadkey = p.quadkey
+                    WHERE pa.campaign_area_id = %s
+                ),
+                location_counts AS (
+                    SELECT COUNT(l.id) as building_count
+                    FROM campaign_areas ca
+                    LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
+                        AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                        AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+                        AND ST_Intersects(l.geometry, ca.geometry)
+                    WHERE ca.id = %s
+                )
+                UPDATE campaign_areas
+                SET
+                    cached_pixel_count = (SELECT pixel_count FROM pixel_stats),
+                    cached_population = (SELECT total_population FROM pixel_stats),
+                    cached_building_count = (SELECT building_count FROM location_counts)
+                WHERE id = %s
+            """, (area_id_str, area_id_str, area_id_str))
 
         conn.commit()
         cursor.close()
@@ -646,3 +757,152 @@ def get_campaign_pixels_stats(user, campaign_id):
     finally:
         if conn:
             return_db_connection(conn)
+
+
+@campaigns_bp.route('/api/campaign-areas/<area_id>/sample', methods=['POST'])
+@require_auth
+def sample_campaign_area(user, area_id):
+    """
+    Sample pixels from a campaign area using adaptive sampling.
+    Creates coverage_pixel records if they don't exist, then samples.
+    """
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.campaign_area_sampling import CampaignAreaSamplingWorkflow
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get campaign_id and check access
+        cursor.execute("""
+            SELECT campaign_id FROM campaign_areas WHERE id = %s
+        """, (area_id,))
+        result = cursor.fetchone()
+        if not result:
+            cursor.close()
+            return jsonify({'error': 'Campaign area not found'}), 404
+
+        campaign_id = str(result[0])
+        if not check_campaign_access(user['id'], campaign_id):
+            cursor.close()
+            return jsonify({'error': 'Access denied'}), 403
+
+        cursor.close()
+
+        data = request.get_json() or {}
+        sample_count = data.get('sample_count', 50)
+        indicator_id = data.get('indicator_id')
+        resample = data.get('resample', False)
+
+        if not indicator_id:
+            return jsonify({'error': 'indicator_id is required'}), 400
+
+        # Start workflow
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"area-sampling-{area_id}-{timestamp}"
+
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                CampaignAreaSamplingWorkflow.run,
+                args=[
+                    campaign_id,
+                    indicator_id,
+                    area_id,
+                    sample_count,
+                    resample
+                ],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'area_id': area_id,
+            'status': 'started',
+            'message': f'Sampling {sample_count} pixels from area'
+        }), 202
+
+    except Exception as e:
+        print(f"Error starting area sampling: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start sampling', 'details': str(e)}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@campaigns_bp.route('/api/campaign-areas/sample/<workflow_id>/status', methods=['GET'])
+@require_auth
+def get_area_sampling_status(user, workflow_id):
+    """Get status of area sampling workflow"""
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.campaign_area_sampling import CampaignAreaSamplingWorkflow
+    from temporalio.client import WorkflowExecutionStatus
+
+    try:
+        async def get_status():
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            try:
+                desc = await handle.describe()
+
+                if desc.status == WorkflowExecutionStatus.RUNNING:
+                    try:
+                        progress = await handle.query(CampaignAreaSamplingWorkflow.get_progress)
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": progress
+                        }
+                    except Exception:
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": None
+                        }
+                elif desc.status == WorkflowExecutionStatus.COMPLETED:
+                    result = await handle.result()
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "completed",
+                        "result": result
+                    }
+                elif desc.status == WorkflowExecutionStatus.FAILED:
+                    error_message = "Workflow failed"
+                    try:
+                        await handle.result()
+                    except Exception as e:
+                        error_message = str(e)
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "failed",
+                        "error": error_message
+                    }
+                else:
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": desc.status.name.lower()
+                    }
+            except Exception as e:
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "failed",
+                    "error": str(e)
+                }
+
+        status = run_async(get_status())
+        return jsonify(status), 200
+
+    except Exception as e:
+        print(f"Error getting sampling workflow status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get workflow status', 'details': str(e)}), 500

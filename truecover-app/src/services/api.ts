@@ -321,6 +321,49 @@ export const campaignAreasApi = {
       }
     );
     return response.data;
+  },
+
+  async samplePixels(
+    areaId: string,
+    data: {
+      indicator_id: string;
+      sample_count: number;
+      resample?: boolean;
+    },
+    token: string
+  ): Promise<{ workflow_id: string; area_id: string; status: string; message: string }> {
+    const response = await axios.post(
+      `${API_URL}/api/campaign-areas/${areaId}/sample`,
+      data,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async getSamplingStatus(
+    workflowId: string,
+    token: string
+  ): Promise<{
+    workflow_id: string;
+    status: 'running' | 'completed' | 'failed';
+    progress?: { status: string; pixels_sampled: number; round_number?: number };
+    result?: { pixels_sampled: number; round_number: number };
+    error?: string;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/campaign-areas/sample/${workflowId}/status`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
   }
 };
 
@@ -678,6 +721,26 @@ export const enrichmentApi = {
 
 // Admin Boundaries API calls
 export const adminBoundariesApi = {
+  async getChildren(pcode: string, token: string): Promise<{
+    children: Array<{
+      pcode: string;
+      name: string;
+      level: number;
+      parent_pcode: string;
+      population: number;
+    }>;
+  }> {
+    const response = await axios.get(
+      `${API_URL}/api/admin-boundaries/${pcode}/children`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
   async getBounds(pcode: string, token: string): Promise<{ name: string; level: number; bbox: [number, number, number, number] }> {
     const response = await axios.get(
       `${API_URL}/api/admin-boundaries/${pcode}/bounds`,
@@ -690,14 +753,14 @@ export const adminBoundariesApi = {
     return response.data;
   },
 
-  async getPixelSummary(pcode: string, campaignId: string, token: string): Promise<{
+  async getPixelSummary(pcode: string, token: string): Promise<{
     pixel_count: number;
     total_population: number;
     avg_population: number;
     pixels_with_data: number;
   }> {
     const response = await axios.get(
-      `${API_URL}/api/admin-boundaries/${pcode}/pixel-summary?campaign_id=${campaignId}`,
+      `${API_URL}/api/admin-boundaries/${pcode}/pixel-summary`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
