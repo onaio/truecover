@@ -140,7 +140,6 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
                 variant="secondary"
                 size="sm"
                 onClick={() => setIsStratifiedWizardOpen(true)}
-                disabled={!selectedAdminBoundary}
               >
                 Stratified Round
               </TacticalButton>
