@@ -11,9 +11,7 @@ with workflow.unsafe.imports_passed_through():
         fetch_enrichment_job,
         fetch_cog_url,
         download_cog,
-        fetch_area_pixels,
-        enrich_pixel_batch,
-        update_pixel_metadata,
+        enrich_area_pixels,
         update_job_progress,
         mark_job_completed,
         mark_job_failed,
@@ -93,63 +91,38 @@ class PixelEnrichmentWorkflow:
 
             workflow.logger.info(f"COG downloaded to: {cog_path}")
 
-            # Activity 4: Fetch pixels
-            pixels = await workflow.execute_activity(
-                fetch_area_pixels,
-                args=[area_id],
-                start_to_close_timeout=timedelta(minutes=2),
+            # Activity 4: Fetch, enrich, and update all pixels
+            # This combined activity handles batching internally to avoid payload limits
+            result = await workflow.execute_activity(
+                enrich_area_pixels,
+                args=[
+                    area_id,
+                    cog_path,
+                    statistic,
+                    metadata_field_name,
+                    metadata_field_description,
+                    metadata_field_type,
+                    metadata_field_unit
+                ],
+                start_to_close_timeout=timedelta(minutes=30),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
 
-            self.pixels_total = len(pixels)
-            workflow.logger.info(f"Fetched {self.pixels_total} pixels")
+            self.pixels_total = result["pixels_total"]
+            self.pixels_processed = result["pixels_total"]
+            total_updated = result["pixels_updated"]
 
-            # Activity 5: Process pixels in batches
-            batch_size = 100
-            total_updated = 0
+            workflow.logger.info(f"Enrichment complete: {total_updated}/{self.pixels_total} pixels updated")
 
-            for i in range(0, len(pixels), batch_size):
-                batch = pixels[i:i+batch_size]
-                batch_num = i // batch_size + 1
-                total_batches = (len(pixels) + batch_size - 1) // batch_size
+            # Update final progress
+            await workflow.execute_activity(
+                update_job_progress,
+                args=[job_id, self.pixels_processed],
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(maximum_attempts=3)
+            )
 
-                workflow.logger.info(f"Processing batch {batch_num}/{total_batches}")
-
-                # Enrich batch
-                results = await workflow.execute_activity(
-                    enrich_pixel_batch,
-                    args=[batch, cog_path, statistic],
-                    start_to_close_timeout=timedelta(minutes=5),
-                    retry_policy=RetryPolicy(maximum_attempts=3)
-                )
-
-                # Update metadata
-                if results:
-                    updated = await workflow.execute_activity(
-                        update_pixel_metadata,
-                        args=[
-                            results,
-                            metadata_field_name,
-                            metadata_field_description,
-                            metadata_field_type,
-                            metadata_field_unit
-                        ],
-                        start_to_close_timeout=timedelta(minutes=1),
-                        retry_policy=RetryPolicy(maximum_attempts=3)
-                    )
-                    total_updated += updated
-
-                # Update progress
-                self.pixels_processed = min(i + batch_size, len(pixels))
-
-                await workflow.execute_activity(
-                    update_job_progress,
-                    args=[job_id, self.pixels_processed],
-                    start_to_close_timeout=timedelta(seconds=30),
-                    retry_policy=RetryPolicy(maximum_attempts=3)
-                )
-
-            # Activity 6: Mark job as completed
+            # Activity 5: Mark job as completed
             await workflow.execute_activity(
                 mark_job_completed,
                 args=[job_id],

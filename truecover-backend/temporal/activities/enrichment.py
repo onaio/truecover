@@ -218,107 +218,37 @@ async def download_cog(cog_url: str) -> str:
 
 
 @activity.defn
-async def fetch_area_pixels(area_id: str) -> List[Dict[str, Any]]:
-    """
-    Fetch all pixels for an area.
-
-    Args:
-        area_id: Area ID
-
-    Returns:
-        List of pixels with quadkey and geometry
-    """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("""
-            SELECT quadkey, ST_AsText(geometry) as wkt_geometry
-            FROM pixels
-            WHERE area_id = %s
-        """, (area_id,))
-
-        pixels = cursor.fetchall()
-
-        activity.logger.info(f"Fetched {len(pixels)} pixels for area {area_id}")
-
-        return [
-            {
-                "quadkey": p[0],
-                "wkt_geometry": p[1]
-            }
-            for p in pixels
-        ]
-    finally:
-        cursor.close()
-        return_db_connection(conn)
-
-
-@activity.defn
-async def enrich_pixel_batch(
-    batch: List[Dict[str, Any]],
+async def enrich_area_pixels(
+    area_id: str,
     cog_path: str,
-    statistic: str
-) -> List[Dict[str, Any]]:
-    """
-    Extract statistics from COG for a batch of pixels.
-
-    Args:
-        batch: List of pixels with quadkey and geometry
-        cog_path: Local path to COG file
-        statistic: Statistic to compute (mean, median, etc.)
-
-    Returns:
-        List of enrichment results with quadkey and value
-    """
-    from rasterstats import zonal_stats
-    import geopandas as gpd
-    from shapely import wkt
-
-    activity.logger.info(f"Processing batch of {len(batch)} pixels with statistic '{statistic}'")
-
-    # Convert to GeoDataFrame
-    quadkeys = [p["quadkey"] for p in batch]
-    geometries = [wkt.loads(p["wkt_geometry"]) for p in batch]
-    gdf = gpd.GeoDataFrame({'quadkey': quadkeys}, geometry=geometries, crs='EPSG:4326')
-
-    # Run zonal stats
-    stats = zonal_stats(gdf, cog_path, stats=[statistic])
-
-    # Build results
-    results = []
-    for quadkey, stat_result in zip(quadkeys, stats):
-        if stat_result and statistic in stat_result and stat_result[statistic] is not None:
-            results.append({
-                "quadkey": quadkey,
-                "value": stat_result[statistic]
-            })
-
-    activity.logger.info(f"Extracted statistics for {len(results)}/{len(batch)} pixels")
-    return results
-
-
-@activity.defn
-async def update_pixel_metadata(
-    results: List[Dict[str, Any]],
+    statistic: str,
     metadata_field_name: str,
     metadata_field_description: str,
     metadata_field_type: str,
     metadata_field_unit: str
-) -> int:
+) -> Dict[str, Any]:
     """
-    Update pixel_metadata table with enrichment results.
+    Fetch, enrich, and update all pixels for an area.
+
+    This combined activity handles the entire enrichment process to avoid
+    passing large pixel data through Temporal's payload system.
 
     Args:
-        results: List of results with quadkey and value
+        area_id: Area ID
+        cog_path: Local path to COG file
+        statistic: Statistic to compute (mean, median, etc.)
         metadata_field_name: Name of metadata field
         metadata_field_description: Description of metadata field
         metadata_field_type: Data type of metadata field
         metadata_field_unit: Unit of metadata field
 
     Returns:
-        Number of pixels updated
+        Summary dict with pixels_total and pixels_updated counts
     """
+    from rasterstats import zonal_stats
+    import geopandas as gpd
+    from shapely import wkt
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -339,28 +269,77 @@ async def update_pixel_metadata(
             metadata_field_type,
             metadata_field_unit
         ))
-
-        # Prepare updates
-        updates = []
-        for result in results:
-            metadata_dict = {metadata_field_name: result["value"]}
-            metadata_json = json.dumps(metadata_dict)
-            updates.append((result["quadkey"], metadata_json))
-
-        # Bulk upsert
-        if updates:
-            cursor.executemany("""
-                INSERT INTO pixel_metadata (quadkey, metadata)
-                VALUES (%s, %s::jsonb)
-                ON CONFLICT (quadkey)
-                DO UPDATE SET
-                    metadata = pixel_metadata.metadata || EXCLUDED.metadata,
-                    updated_at = NOW()
-            """, updates)
-
         conn.commit()
-        activity.logger.info(f"Updated {len(updates)} pixel metadata records")
-        return len(updates)
+
+        # Get total pixel count
+        cursor.execute("""
+            SELECT COUNT(*) FROM pixels WHERE area_id = %s
+        """, (area_id,))
+        total_pixels = cursor.fetchone()[0]
+
+        activity.logger.info(f"Processing {total_pixels} pixels for area {area_id}")
+
+        if total_pixels == 0:
+            return {"pixels_total": 0, "pixels_updated": 0}
+
+        # Process in batches using cursor-based pagination
+        batch_size = 500
+        total_updated = 0
+        offset = 0
+
+        while offset < total_pixels:
+            # Fetch batch of pixels
+            cursor.execute("""
+                SELECT quadkey, ST_AsText(geometry) as wkt_geometry
+                FROM pixels
+                WHERE area_id = %s
+                ORDER BY quadkey
+                LIMIT %s OFFSET %s
+            """, (area_id, batch_size, offset))
+
+            batch_rows = cursor.fetchall()
+            if not batch_rows:
+                break
+
+            batch_num = offset // batch_size + 1
+            total_batches = (total_pixels + batch_size - 1) // batch_size
+            activity.logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch_rows)} pixels)")
+
+            # Convert to GeoDataFrame
+            quadkeys = [row[0] for row in batch_rows]
+            geometries = [wkt.loads(row[1]) for row in batch_rows]
+            gdf = gpd.GeoDataFrame({'quadkey': quadkeys}, geometry=geometries, crs='EPSG:4326')
+
+            # Run zonal stats
+            stats = zonal_stats(gdf, cog_path, stats=[statistic])
+
+            # Build results and update metadata
+            updates = []
+            for quadkey, stat_result in zip(quadkeys, stats):
+                if stat_result and statistic in stat_result and stat_result[statistic] is not None:
+                    metadata_dict = {metadata_field_name: stat_result[statistic]}
+                    metadata_json = json.dumps(metadata_dict)
+                    updates.append((quadkey, metadata_json))
+
+            # Bulk upsert metadata
+            if updates:
+                cursor.executemany("""
+                    INSERT INTO pixel_metadata (quadkey, metadata)
+                    VALUES (%s, %s::jsonb)
+                    ON CONFLICT (quadkey)
+                    DO UPDATE SET
+                        metadata = pixel_metadata.metadata || EXCLUDED.metadata,
+                        updated_at = NOW()
+                """, updates)
+                conn.commit()
+                total_updated += len(updates)
+
+            activity.logger.info(f"Batch {batch_num}: extracted stats for {len(updates)}/{len(batch_rows)} pixels")
+            offset += batch_size
+
+        activity.logger.info(f"Enrichment complete: {total_updated}/{total_pixels} pixels updated")
+        return {"pixels_total": total_pixels, "pixels_updated": total_updated}
+
     finally:
         cursor.close()
         return_db_connection(conn)
