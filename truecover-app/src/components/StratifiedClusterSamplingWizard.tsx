@@ -34,8 +34,6 @@ interface StratifiedClusterSamplingWizardProps {
   onClose: () => void;
   areaId: string;
   projectId: string;
-  startingPcode: string;
-  startingName: string;
   indicatorId: string;
   onRoundCreated: () => void;
 }
@@ -47,8 +45,6 @@ export const StratifiedClusterSamplingWizard: React.FC<
   onClose,
   areaId,
   projectId: _projectId,
-  startingPcode,
-  startingName,
   indicatorId,
   onRoundCreated,
 }) => {
@@ -59,7 +55,12 @@ export const StratifiedClusterSamplingWizard: React.FC<
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1 state
+  // Step 1 state - Division selection
+  const [divisions, setDivisions] = useState<AdminBoundary[]>([]);
+  const [selectedDivision, setSelectedDivision] = useState<string>('');
+  const [selectedDivisionName, setSelectedDivisionName] = useState<string>('');
+
+  // Step 2 state - Categorization
   const [children, setChildren] = useState<AdminBoundary[]>([]);
   const [categories, setCategories] = useState<Categories>({
     high_risk: [],
@@ -68,7 +69,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
     uncategorized: [],
   });
 
-  // Step 2 state
+  // Step 3 state - Parameters
   const [roundName, setRoundName] = useState('');
   const [upazilaCount, setUpazilaCount] = useState('3');
   const [unionsPerUpazila, setUnionsPerUpazila] = useState('2');
@@ -76,19 +77,45 @@ export const StratifiedClusterSamplingWizard: React.FC<
   const [populationWeighted, setPopulationWeighted] = useState(false);
   const [minPopulation, setMinPopulation] = useState('');
 
-  // Fetch children on mount
+  // Fetch divisions on mount
   useEffect(() => {
-    if (isOpen && startingPcode) {
+    if (isOpen) {
+      fetchDivisions();
+    }
+  }, [isOpen]);
+
+  // Fetch children when division selected
+  useEffect(() => {
+    if (selectedDivision) {
       fetchChildren();
     }
-  }, [isOpen, startingPcode]);
+  }, [selectedDivision]);
+
+  const fetchDivisions = async () => {
+    setIsLoading(true);
+    try {
+      const token = await getToken();
+      // Fetch level-1 divisions (children of country BD)
+      const response = await axios.get(
+        `${API_URL}/api/admin-boundaries/BD/children`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setDivisions(response.data.children || []);
+    } catch (error) {
+      console.error('Error fetching divisions:', error);
+      tacticalToast.error('Failed to load divisions');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchChildren = async () => {
+    if (!selectedDivision) return;
     setIsLoading(true);
     try {
       const token = await getToken();
       const response = await axios.get(
-        `${API_URL}/api/admin-boundaries/${startingPcode}/children`,
+        `${API_URL}/api/admin-boundaries/${selectedDivision}/children`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -106,6 +133,20 @@ export const StratifiedClusterSamplingWizard: React.FC<
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDivisionChange = (pcode: string) => {
+    setSelectedDivision(pcode);
+    const div = divisions.find(d => d.pcode === pcode);
+    setSelectedDivisionName(div?.name || '');
+    // Reset categorization when division changes
+    setCategories({
+      high_risk: [],
+      low_risk: [],
+      hard_to_reach: [],
+      uncategorized: [],
+    });
+    setChildren([]);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -165,7 +206,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
         `${API_URL}/api/areas/${areaId}/rounds/stratified-cluster`,
         {
           name: roundName.trim(),
-          starting_pcode: startingPcode,
+          starting_pcode: selectedDivision,
           categories: {
             high_risk: categories.high_risk,
             low_risk: categories.low_risk,
@@ -204,8 +245,53 @@ export const StratifiedClusterSamplingWizard: React.FC<
       {step === 1 && (
         <div>
           <div className="mb-4 text-zinc-300">
-            <span className="text-cyan-400">{startingName}</span> - Drag areas
-            into categories. All areas must be categorized to proceed.
+            Select a division to start stratified cluster sampling.
+          </div>
+
+          {isLoading ? (
+            <div className="text-center py-8 text-zinc-400">Loading divisions...</div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  Division
+                </label>
+                <select
+                  value={selectedDivision}
+                  onChange={(e) => handleDivisionChange(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-600 rounded text-zinc-100 focus:border-cyan-500 focus:outline-none"
+                >
+                  <option value="">Select a division...</option>
+                  {divisions.map((div) => (
+                    <option key={div.pcode} value={div.pcode}>
+                      {div.name} {div.population ? `(Pop: ${div.population.toLocaleString()})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end mt-6">
+            <TacticalButton onClick={onClose} variant="secondary">
+              Cancel
+            </TacticalButton>
+            <TacticalButton
+              onClick={() => setStep(2)}
+              disabled={!selectedDivision}
+              className="ml-2"
+            >
+              Next
+            </TacticalButton>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div>
+          <div className="mb-4 text-zinc-300">
+            <span className="text-cyan-400">{selectedDivisionName}</span> - Drag districts
+            into categories. All districts must be categorized to proceed.
           </div>
 
           {isLoading ? (
@@ -299,22 +385,27 @@ export const StratifiedClusterSamplingWizard: React.FC<
             </DndContext>
           )}
 
-          <div className="flex justify-end mt-4">
-            <TacticalButton onClick={onClose} variant="secondary">
-              Cancel
+          <div className="flex justify-between mt-4">
+            <TacticalButton onClick={() => setStep(1)} variant="secondary">
+              Back
             </TacticalButton>
-            <TacticalButton
-              onClick={() => setStep(2)}
-              disabled={!canProceedStep1}
-              className="ml-2"
-            >
-              Next
-            </TacticalButton>
+            <div>
+              <TacticalButton onClick={onClose} variant="secondary">
+                Cancel
+              </TacticalButton>
+              <TacticalButton
+                onClick={() => setStep(3)}
+                disabled={!canProceedStep1}
+                className="ml-2"
+              >
+                Next
+              </TacticalButton>
+            </div>
           </div>
         </div>
       )}
 
-      {step === 2 && (
+      {step === 3 && (
         <div>
           <div className="space-y-4">
             <TacticalInput
@@ -380,7 +471,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
           </div>
 
           <div className="flex justify-between mt-6">
-            <TacticalButton onClick={() => setStep(1)} variant="secondary">
+            <TacticalButton onClick={() => setStep(2)} variant="secondary">
               Back
             </TacticalButton>
             <div>

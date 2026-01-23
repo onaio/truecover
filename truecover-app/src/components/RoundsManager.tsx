@@ -136,9 +136,8 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                 variant="secondary"
                 size="sm"
                 onClick={() => setShowStratifiedWizard(true)}
-                disabled={!selectedAdminBoundary}
               >
-                Stratified Cluster Sampling
+                Stratified Round
               </TacticalButton>
               <TacticalButton
                 variant="primary"
@@ -288,14 +287,9 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
         isOpen={showStratifiedWizard}
         onClose={() => {
           setShowStratifiedWizard(false);
-          if (onClearAdminBoundary) {
-            onClearAdminBoundary();
-          }
         }}
         areaId={areaId}
         projectId={projectId}
-        startingPcode={selectedAdminBoundary?.pcode || ''}
-        startingName={selectedAdminBoundary?.name || ''}
         indicatorId={indicators?.[0]?.id || ''}
         onRoundCreated={handleRoundCreated}
       />
