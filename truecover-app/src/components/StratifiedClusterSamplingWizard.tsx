@@ -8,7 +8,6 @@ import {
   TacticalModal,
   TacticalButton,
   TacticalInput,
-  TacticalSelect,
   tacticalToast,
 } from '../tactical-ui';
 import { DraggableAreaCard } from './DraggableAreaCard';
@@ -47,12 +46,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
   isOpen,
   onClose,
   areaId,
-  projectId,
+  projectId: _projectId,
   startingPcode,
   startingName,
   indicatorId,
   onRoundCreated,
 }) => {
+  // projectId may be used in future enhancements
+  void _projectId;
   const { getToken } = useAuth();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -160,7 +161,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
     setIsSubmitting(true);
     try {
       const token = await getToken();
-      const response = await axios.post(
+      await axios.post(
         `${API_URL}/api/areas/${areaId}/rounds/stratified-cluster`,
         {
           name: roundName.trim(),
@@ -319,32 +320,28 @@ export const StratifiedClusterSamplingWizard: React.FC<
             <TacticalInput
               label="Round Name"
               value={roundName}
-              onChange={(e) => setRoundName(e.target.value)}
+              onChange={setRoundName}
               placeholder="e.g., Round 1 - District Survey"
-              required
             />
 
             <div className="grid grid-cols-3 gap-4">
               <TacticalInput
                 label="Upazilas to Select"
                 type="number"
-                min="1"
                 value={upazilaCount}
-                onChange={(e) => setUpazilaCount(e.target.value)}
+                onChange={setUpazilaCount}
               />
               <TacticalInput
                 label="Unions per Upazila"
                 type="number"
-                min="1"
                 value={unionsPerUpazila}
-                onChange={(e) => setUnionsPerUpazila(e.target.value)}
+                onChange={setUnionsPerUpazila}
               />
               <TacticalInput
                 label="Pixels per Union"
                 type="number"
-                min="1"
                 value={pixelsPerUnion}
-                onChange={(e) => setPixelsPerUnion(e.target.value)}
+                onChange={setPixelsPerUnion}
               />
             </div>
 
@@ -363,9 +360,8 @@ export const StratifiedClusterSamplingWizard: React.FC<
             <TacticalInput
               label="Minimum Population (optional)"
               type="number"
-              min="0"
               value={minPopulation}
-              onChange={(e) => setMinPopulation(e.target.value)}
+              onChange={setMinPopulation}
               placeholder="e.g., 10"
             />
 
