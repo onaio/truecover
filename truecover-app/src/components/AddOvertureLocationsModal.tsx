@@ -9,7 +9,7 @@ import { useAuth } from '@clerk/clerk-react';
 interface AddOvertureLocationsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   areaName: string;
   adminBoundary: { pcode: string; name: string; geometry?: any } | null;
   onImportComplete?: () => void;
@@ -34,7 +34,7 @@ interface ImportResult {
 const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   areaName,
   adminBoundary,
   onImportComplete
@@ -98,7 +98,7 @@ const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
 
       const result = await adminBoundariesApi.previewOvertureBuildings(
         adminBoundary.pcode,
-        areaId,
+        campaignId,
         token,
         adminBoundary.geometry
       );
@@ -189,7 +189,7 @@ const AddOvertureLocationsModal: React.FC<AddOvertureLocationsModalProps> = ({
       // Start async import workflow
       const response = await adminBoundariesApi.importOvertureBuildingsAsync(
         adminBoundary.pcode,
-        areaId,
+        campaignId,
         token,
         adminBoundary.geometry
       );

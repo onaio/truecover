@@ -59,14 +59,14 @@ class PixelEnrichmentWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
 
-            area_id = job_details["area_id"]
+            campaign_id = job_details["campaign_id"]
             statistic = job_details["statistic"]
             metadata_field_name = job_details["metadata_field_name"]
             metadata_field_description = job_details["metadata_field_description"]
             metadata_field_type = job_details["metadata_field_type"]
             metadata_field_unit = job_details["metadata_field_unit"]
 
-            workflow.logger.info(f"Job details: area={area_id}, statistic={statistic}")
+            workflow.logger.info(f"Job details: area={campaign_id}, statistic={statistic}")
 
             # Activity 2: Fetch COG URL
             cog_url = await workflow.execute_activity(
@@ -96,7 +96,7 @@ class PixelEnrichmentWorkflow:
             result = await workflow.execute_activity(
                 enrich_area_pixels,
                 args=[
-                    area_id,
+                    campaign_id,
                     cog_path,
                     statistic,
                     metadata_field_name,

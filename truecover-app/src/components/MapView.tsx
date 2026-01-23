@@ -29,7 +29,7 @@ interface MapViewProps {
   onTogglePixels?: () => void;
   pixelsBounds?: [number, number, number, number] | null;
   onBoundsChange?: (bounds: [number, number, number, number]) => void;
-  areaId?: string;
+  campaignId?: string;
   indicatorId?: string;
   pixelVersion?: string | null;
   pixelCount?: number;
@@ -40,6 +40,7 @@ interface MapViewProps {
   planningMode?: boolean;
   onAddRoundForAdminBoundary?: (pcode: string, name: string) => void;
   onAddLocationsForAdminBoundary?: (pcode: string, name: string, geometry?: any) => void;
+  onAddAdminBoundaryToCampaign?: (id: string, pcode: string, name: string) => void;
   className?: string;
 }
 
@@ -77,7 +78,7 @@ const getCentroid = (geometry: any): [number, number] => {
 
 const MARTIN_URL = import.meta.env.VITE_MARTIN_URL || 'http://localhost:3052';
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, areaId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary, onAddLocationsForAdminBoundary, className }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary, onAddLocationsForAdminBoundary, onAddAdminBoundaryToCampaign, className }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -133,7 +134,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Reset bounds when area changes or pixel bounds/count changes to trigger recalculation
   React.useEffect(() => {
     initialBoundsRef.current = undefined;
-  }, [areaId, pixelsBounds, pixelCount]);
+  }, [campaignId, pixelsBounds, pixelCount]);
 
   // Keyboard shortcut for geocoder modal (Cmd+K or Ctrl+K)
   React.useEffect(() => {
@@ -332,7 +333,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     if (mapInstance && bounds) {
       mapInstance.fitBounds(bounds, { padding: 40, duration: 1000 });
     }
-  }, [mapInstance, bounds, areaId]);
+  }, [mapInstance, bounds, campaignId]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
@@ -735,7 +736,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       });
 
       // Fetch population summary if this is an admin boundary and we have an area
-      if (selectedFeature.properties?.level !== undefined && areaId) {
+      if (selectedFeature.properties?.level !== undefined && campaignId) {
         const level = selectedFeature.properties.level;
         const pcode = selectedFeature.properties[`ADM${level}_PCODE`];
 
@@ -745,7 +746,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
           getToken().then(token => {
             if (token) {
-              adminBoundariesApi.getPixelSummary(pcode, areaId, token)
+              adminBoundariesApi.getPixelSummary(pcode, campaignId, token)
                 .then(summary => {
                   setPopulationSummary(summary);
                   setLoadingPopulation(false);
@@ -787,7 +788,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   };
 
   const handleGeneratePixelsForAdmin = async (pcode: string, _name: string) => {
-    if (!areaId) return;
+    if (!campaignId) return;
 
     try {
       const token = await getToken();
@@ -809,7 +810,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   };
 
   const handleGeneratePixelsForDrawnArea = () => {
-    if (!drawnFeature || !areaId) return;
+    if (!drawnFeature || !campaignId) return;
 
     // Calculate bounding box from drawn feature
     const coords = extractCoordinates(drawnFeature.geometry);
@@ -843,7 +844,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   };
 
   const handleConfirmPixelGeneration = async () => {
-    if (!pendingAdminPixelGen || !areaId) return;
+    if (!pendingAdminPixelGen || !campaignId) return;
 
     try {
       const token = await getToken();
@@ -854,7 +855,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
       // Start the workflow
       const response = await pixelsApi.generate(
-        areaId,
+        campaignId,
         pendingAdminPixelGen.bbox,
         18,
         token,
@@ -1229,7 +1230,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           projection="globe"
           interactiveLayerIds={isPredictionData
             ? ['prediction-heatmap', 'prediction-points', 'prediction-polygons-fill', 'prediction-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4', 'gl-draw-polygon-fill-inactive.cold', 'gl-draw-polygon-stroke-inactive.cold', 'gl-draw-polygon-fill-active.cold', 'gl-draw-polygon-stroke-active.cold']
-            : mode === 'locations' && areaId && indicatorId
+            : mode === 'locations' && campaignId && indicatorId
               ? showPixels
                 ? ['pixels-fill-layer', 'pixels-line-layer', 'locations-points', 'locations-polygons-fill', 'locations-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4', 'gl-draw-polygon-fill-inactive.cold', 'gl-draw-polygon-stroke-inactive.cold', 'gl-draw-polygon-fill-active.cold', 'gl-draw-polygon-stroke-active.cold']
                 : ['locations-points', 'locations-polygons-fill', 'locations-polygons-outline', 'admin-boundaries-adm0-fill', 'admin-boundaries-adm1-fill', 'admin-boundaries-adm2-fill', 'admin-boundaries-adm3-fill', 'admin-boundaries-adm4-fill', 'admin-boundaries-adm0', 'admin-boundaries-adm1', 'admin-boundaries-adm2', 'admin-boundaries-adm3', 'admin-boundaries-adm4', 'gl-draw-polygon-fill-inactive.cold', 'gl-draw-polygon-stroke-inactive.cold', 'gl-draw-polygon-fill-active.cold', 'gl-draw-polygon-stroke-active.cold']
@@ -1349,14 +1350,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               <Layer {...predictionPolygonOutlineLayer} />
               <Layer {...predictionLayer} />
             </Source>
-          ) : !isPredictionData && mode === 'locations' && areaId && indicatorId ? (
+          ) : !isPredictionData && mode === 'locations' && campaignId && indicatorId ? (
             <>
               {/* Vector tiles for locations - use when we have IDs and no GeoJSON override */}
               <Source
                 key={`locations-source-${tileVersion}`}
                 id="locations-source"
                 type="vector"
-                tiles={[`${MARTIN_URL}/locations_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId}`]}
+                tiles={[`${MARTIN_URL}/locations_by_area/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId}`]}
                 minzoom={0}
                 maxzoom={24}
               >
@@ -1428,11 +1429,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           ) : null}
 
           {/* Pixels layer from Martin */}
-          {showPixels && areaId && (
+          {showPixels && campaignId && (
             <Source
               id="pixels-source"
               type="vector"
-              tiles={[`${MARTIN_URL}/pixels_by_area/{z}/{x}/{y}?area_id=${areaId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
+              tiles={[`${MARTIN_URL}/pixels_by_area/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
               minzoom={0}
               maxzoom={24}
             >
@@ -1921,7 +1922,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   </div>
 
                   {/* Generate Pixels button */}
-                  {areaId && (
+                  {campaignId && (
                     <button
                       onClick={handleGeneratePixelsForDrawnArea}
                       className="w-full px-3 py-2 bg-tactical-accent-orange hover:bg-opacity-80 text-black font-mono text-sm font-bold uppercase tracking-wider transition-all"
@@ -1970,7 +1971,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   )}
 
                   {/* Population Summary */}
-                  {areaId && (
+                  {campaignId && (
                     <div className="mt-3 pt-3 border-t border-tactical-border-medium">
                       <div className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
                         Population Summary
@@ -2013,8 +2014,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     </div>
                   )}
 
-                  {/* Generate Pixels button - only show when planning mode is enabled and areaId exists */}
-                  {planningMode && areaId && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
+                  {/* Generate Pixels button - only show when planning mode is enabled and campaignId exists */}
+                  {planningMode && campaignId && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
                     <button
                       onClick={() => handleGeneratePixelsForAdmin(
                         popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`],
@@ -2053,6 +2054,21 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                       className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-blue hover:bg-opacity-80 text-black"
                     >
                       Add Locations
+                    </button>
+                  )}
+
+                  {/* Add to Campaign button */}
+                  {onAddAdminBoundaryToCampaign && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
+                    <button
+                      onClick={() => {
+                        const pcode = popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`];
+                        const name = popupInfo.properties[`ADM${popupInfo.properties.level}_EN`];
+                        onAddAdminBoundaryToCampaign(pcode, pcode, name);
+                        setPopupInfo(null);
+                      }}
+                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-cyan hover:bg-opacity-80 text-black"
+                    >
+                      Add to Campaign
                     </button>
                   )}
                 </div>

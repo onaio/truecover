@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
-from auth.helpers import check_area_access
+from auth.helpers import check_campaign_access
 from db.connection import get_db_connection, return_db_connection
 import json
 import requests
@@ -12,9 +12,9 @@ rounds_bp = Blueprint('rounds', __name__)
 SAMPLING_URL = os.getenv('DOCKER_FN_SAMPLING_URL', 'http://localhost:8083')
 
 
-@rounds_bp.route('/api/areas/<area_id>/rounds/workflow', methods=['POST'])
+@rounds_bp.route('/api/campaigns/<campaign_id>/rounds/workflow', methods=['POST'])
 @require_auth
-def create_round_workflow(user, area_id):
+def create_round_workflow(user, campaign_id):
     """Create a new round using Temporal workflow"""
     from datetime import datetime
     from temporal.client import get_temporal_client, run_async
@@ -22,7 +22,7 @@ def create_round_workflow(user, area_id):
 
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         data = request.get_json()
@@ -50,7 +50,7 @@ def create_round_workflow(user, area_id):
 
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"round-generation-{area_id}-{indicator_id}-{timestamp}"
+        workflow_id = f"round-generation-{campaign_id}-{indicator_id}-{timestamp}"
 
         # Start workflow
         async def start_workflow():
@@ -58,7 +58,7 @@ def create_round_workflow(user, area_id):
             handle = await client.start_workflow(
                 RoundGenerationWorkflow.run,
                 args=[
-                    area_id,
+                    campaign_id,
                     name,
                     description,
                     start_date,
@@ -173,9 +173,9 @@ def get_round_workflow_status(user, workflow_id):
         return jsonify({'error': 'Failed to get workflow status', 'details': str(e)}), 500
 
 
-@rounds_bp.route('/api/areas/<area_id>/rounds', methods=['POST'])
+@rounds_bp.route('/api/campaigns/<campaign_id>/rounds', methods=['POST'])
 @require_auth
-def create_round(user, area_id):
+def create_round(user, campaign_id):
     """Create a new round and run adaptive sampling using Temporal workflow"""
     from datetime import datetime
     from temporal.client import get_temporal_client, run_async
@@ -183,7 +183,7 @@ def create_round(user, area_id):
 
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         data = request.get_json()
@@ -211,7 +211,7 @@ def create_round(user, area_id):
 
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"round-generation-{area_id}-{timestamp}"
+        workflow_id = f"round-generation-{campaign_id}-{timestamp}"
 
         # Start workflow
         async def start_workflow():
@@ -219,7 +219,7 @@ def create_round(user, area_id):
             handle = await client.start_workflow(
                 RoundGenerationWorkflow.run,
                 args=[
-                    area_id, name, description, start_date, end_date,
+                    campaign_id, name, description, start_date, end_date,
                     indicator_id, batch_size, uncertainty_field,
                     allow_revisit, sampling_target, admin_pcode,
                     min_population, population_field
@@ -246,14 +246,14 @@ def create_round(user, area_id):
         return jsonify({'error': 'Failed to start round generation', 'details': str(e)}), 500
 
 
-@rounds_bp.route('/api/areas/<area_id>/rounds_old', methods=['POST'])
+@rounds_bp.route('/api/campaigns/<campaign_id>/rounds_old', methods=['POST'])
 @require_auth
-def create_round_old(user, area_id):
+def create_round_old(user, campaign_id):
     """OLD SYNCHRONOUS VERSION - Create a new round and run adaptive sampling on locations"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         data = request.get_json()
@@ -284,16 +284,16 @@ def create_round_old(user, area_id):
         cursor.execute("""
             SELECT COALESCE(MAX(round_number), 0) + 1
             FROM rounds
-            WHERE area_id = %s
-        """, (area_id,))
+            WHERE campaign_id = %s
+        """, (campaign_id,))
         round_number = cursor.fetchone()[0]
 
         # Create the round
         cursor.execute("""
-            INSERT INTO rounds (area_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target)
+            INSERT INTO rounds (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at, sampling_target
-        """, (area_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target))
+        """, (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target))
 
         round_data = cursor.fetchone()
         round_id = str(round_data[0])
@@ -313,9 +313,9 @@ def create_round_old(user, area_id):
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
                 else:
                     cursor.execute("""
                         SELECT
@@ -327,8 +327,8 @@ def create_round_old(user, area_id):
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
-                    """, (area_id, indicator_id))
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                    """, (campaign_id, indicator_id))
             else:
                 # Only include pixels that have NOT been visited in any round
                 if admin_pcode:
@@ -342,10 +342,10 @@ def create_round_old(user, area_id):
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
                           AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
                 else:
                     cursor.execute("""
                         SELECT
@@ -357,9 +357,9 @@ def create_round_old(user, area_id):
                             cp.prevalence_bci_width, cp.prevalence_prediction
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
-                    """, (area_id, indicator_id))
+                    """, (campaign_id, indicator_id))
         else:
             # Fetch coverage data for locations
             if allow_revisit:
@@ -377,9 +377,9 @@ def create_round_old(user, area_id):
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
                         LEFT JOIN admin_boundaries ab ON ST_Contains(ab.geometry, l.geometry)
-                        WHERE c.area_id = %s AND c.indicator_id = %s
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
                           AND (ab.adm1_pcode = %s OR ab.adm2_pcode = %s OR ab.adm3_pcode = %s OR ab.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
                 else:
                     cursor.execute("""
                         SELECT
@@ -392,8 +392,8 @@ def create_round_old(user, area_id):
                             l.properties, l.external_id
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
-                        WHERE c.area_id = %s AND c.indicator_id = %s
-                    """, (area_id, indicator_id))
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
+                    """, (campaign_id, indicator_id))
             else:
                 # Only include locations that have NOT been visited in any round
                 if admin_pcode:
@@ -409,10 +409,10 @@ def create_round_old(user, area_id):
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
                         LEFT JOIN admin_boundaries ab ON ST_Contains(ab.geometry, l.geometry)
-                        WHERE c.area_id = %s AND c.indicator_id = %s
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
                           AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
                           AND (ab.adm1_pcode = %s OR ab.adm2_pcode = %s OR ab.adm3_pcode = %s OR ab.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
                 else:
                     cursor.execute("""
                         SELECT
@@ -425,9 +425,9 @@ def create_round_old(user, area_id):
                             l.properties, l.external_id
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
-                        WHERE c.area_id = %s AND c.indicator_id = %s
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
                           AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
-                    """, (area_id, indicator_id))
+                    """, (campaign_id, indicator_id))
 
         locations = cursor.fetchall()
 
@@ -516,7 +516,7 @@ def create_round_old(user, area_id):
         }
 
         print(f"\n{'='*60}")
-        print(f"CREATING ROUND {round_number} FOR AREA {area_id}")
+        print(f"CREATING ROUND {round_number} FOR AREA {campaign_id}")
         print(f"Total locations to process: {len(features)}")
         print(f"Batch size: {batch_size}")
         print(f"{'='*60}\n")
@@ -670,14 +670,14 @@ def create_round_old(user, area_id):
             return_db_connection(conn)
 
 
-@rounds_bp.route('/api/areas/<area_id>/rounds', methods=['GET'])
+@rounds_bp.route('/api/campaigns/<campaign_id>/rounds', methods=['GET'])
 @require_auth
-def list_rounds(user, area_id):
+def list_rounds(user, campaign_id):
     """Get all rounds for an area"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -688,9 +688,9 @@ def list_rounds(user, area_id):
                 id, round_number, name, description,
                 start_date, end_date, created_at, updated_at, sampling_target
             FROM rounds
-            WHERE area_id = %s
+            WHERE campaign_id = %s
             ORDER BY round_number ASC
-        """, (area_id,))
+        """, (campaign_id,))
 
         rounds = []
         for row in cursor.fetchall():
@@ -698,16 +698,16 @@ def list_rounds(user, area_id):
             cursor.execute("""
                 SELECT COUNT(DISTINCT location_id)
                 FROM coverage
-                WHERE area_id = %s AND %s = ANY(rounds)
-            """, (area_id, row[1]))
+                WHERE campaign_id = %s AND %s = ANY(rounds)
+            """, (campaign_id, row[1]))
             location_count = cursor.fetchone()[0]
 
             # Count pixels in this round (from coverage_pixel table)
             cursor.execute("""
                 SELECT COUNT(DISTINCT quadkey)
                 FROM coverage_pixel
-                WHERE area_id = %s AND %s = ANY(rounds)
-            """, (area_id, row[1]))
+                WHERE campaign_id = %s AND %s = ANY(rounds)
+            """, (campaign_id, row[1]))
             pixel_count = cursor.fetchone()[0]
 
             rounds.append({
@@ -740,14 +740,14 @@ def list_rounds(user, area_id):
             return_db_connection(conn)
 
 
-@rounds_bp.route('/api/areas/<area_id>/rounds/<round_id>', methods=['GET'])
+@rounds_bp.route('/api/campaigns/<campaign_id>/rounds/<round_id>', methods=['GET'])
 @require_auth
-def get_round(user, area_id, round_id):
+def get_round(user, campaign_id, round_id):
     """Get details of a specific round"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -758,8 +758,8 @@ def get_round(user, area_id, round_id):
                 id, round_number, name, description,
                 start_date, end_date, created_at, updated_at
             FROM rounds
-            WHERE id = %s AND area_id = %s
-        """, (round_id, area_id))
+            WHERE id = %s AND campaign_id = %s
+        """, (round_id, campaign_id))
 
         row = cursor.fetchone()
         if not row:
@@ -770,8 +770,8 @@ def get_round(user, area_id, round_id):
         cursor.execute("""
             SELECT COUNT(DISTINCT location_id)
             FROM coverage
-            WHERE area_id = %s AND %s = ANY(rounds)
-        """, (area_id, row[1]))
+            WHERE campaign_id = %s AND %s = ANY(rounds)
+        """, (campaign_id, row[1]))
         location_count = cursor.fetchone()[0]
 
         round_data = {
@@ -797,14 +797,14 @@ def get_round(user, area_id, round_id):
             return_db_connection(conn)
 
 
-@rounds_bp.route('/api/areas/<area_id>/rounds/<round_id>', methods=['PUT'])
+@rounds_bp.route('/api/campaigns/<campaign_id>/rounds/<round_id>', methods=['PUT'])
 @require_auth
-def update_round(user, area_id, round_id):
+def update_round(user, campaign_id, round_id):
     """Update round metadata"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         data = request.get_json()
@@ -817,8 +817,8 @@ def update_round(user, area_id, round_id):
         # Verify round exists
         cursor.execute("""
             SELECT id FROM rounds
-            WHERE id = %s AND area_id = %s
-        """, (round_id, area_id))
+            WHERE id = %s AND campaign_id = %s
+        """, (round_id, campaign_id))
 
         if not cursor.fetchone():
             cursor.close()
@@ -833,14 +833,14 @@ def update_round(user, area_id, round_id):
                 start_date = COALESCE(%s, start_date),
                 end_date = COALESCE(%s, end_date),
                 updated_at = NOW()
-            WHERE id = %s AND area_id = %s
+            WHERE id = %s AND campaign_id = %s
         """, (
             data.get('name'),
             data.get('description'),
             data.get('start_date'),
             data.get('end_date'),
             round_id,
-            area_id
+            campaign_id
         ))
 
         conn.commit()
@@ -858,14 +858,14 @@ def update_round(user, area_id, round_id):
             return_db_connection(conn)
 
 
-@rounds_bp.route('/api/areas/<area_id>/rounds/<round_id>', methods=['DELETE'])
+@rounds_bp.route('/api/campaigns/<campaign_id>/rounds/<round_id>', methods=['DELETE'])
 @require_auth
-def delete_round(user, area_id, round_id):
+def delete_round(user, campaign_id, round_id):
     """Delete a round and remove it from all coverage entries"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -874,8 +874,8 @@ def delete_round(user, area_id, round_id):
         # Get round number before deleting
         cursor.execute("""
             SELECT round_number FROM rounds
-            WHERE id = %s AND area_id = %s
-        """, (round_id, area_id))
+            WHERE id = %s AND campaign_id = %s
+        """, (round_id, campaign_id))
 
         result = cursor.fetchone()
         if not result:
@@ -889,14 +889,14 @@ def delete_round(user, area_id, round_id):
             UPDATE coverage
             SET rounds = array_remove(rounds, %s),
                 updated_at = NOW()
-            WHERE area_id = %s AND %s = ANY(rounds)
-        """, (round_number, area_id, round_number))
+            WHERE campaign_id = %s AND %s = ANY(rounds)
+        """, (round_number, campaign_id, round_number))
 
         # Delete the round
         cursor.execute("""
             DELETE FROM rounds
-            WHERE id = %s AND area_id = %s
-        """, (round_id, area_id))
+            WHERE id = %s AND campaign_id = %s
+        """, (round_id, campaign_id))
 
         conn.commit()
         cursor.close()

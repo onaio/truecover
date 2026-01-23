@@ -3,11 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { TacticalCard, TacticalButton, TacticalHeader } from '../tactical-ui';
 
-const AreaDetailPage: React.FC = () => {
+const CampaignDetailPage: React.FC = () => {
   const navigate = useNavigate();
-  const { selectedOrganization, selectedProject, selectedArea, setSelectedArea } = useAppContext();
+  const { selectedOrganization, selectedProject, selectedCampaign, setSelectedCampaign } = useAppContext();
 
-  if (!selectedArea) return null;
+  if (!selectedCampaign) return null;
 
   return (
     <div className="min-h-screen bg-tactical-bg-primary">
@@ -20,7 +20,7 @@ const AreaDetailPage: React.FC = () => {
             size="sm"
             onClick={() => {
               navigate('/');
-              setSelectedArea(null);
+              setSelectedCampaign(null);
             }}
           >
             Back
@@ -49,15 +49,15 @@ const AreaDetailPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Area Name */}
+          {/* Campaign Name */}
           <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-8">
-            {selectedArea.name}
+            {selectedCampaign.name}
           </h1>
 
-          {/* Area Description */}
-          {selectedArea.description && (
+          {/* Campaign Description */}
+          {selectedCampaign.description && (
             <TacticalCard padding="lg" className="mb-6">
-              <p className="text-sm text-tactical-text-muted">{selectedArea.description}</p>
+              <p className="text-sm text-tactical-text-muted">{selectedCampaign.description}</p>
             </TacticalCard>
           )}
 
@@ -65,7 +65,7 @@ const AreaDetailPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TacticalCard
               hoverable
-              onClick={() => navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedArea?.id}/locations`)}
+              onClick={() => navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedCampaign?.id}/locations`)}
               padding="none"
               className="overflow-hidden"
             >
@@ -80,7 +80,7 @@ const AreaDetailPage: React.FC = () => {
                   Locations
                 </h2>
                 <p className="text-sm text-tactical-text-muted leading-relaxed">
-                  Manage and visualize location data for your survey area
+                  Manage and visualize location data for your survey campaign
                 </p>
               </div>
             </TacticalCard>
@@ -139,4 +139,4 @@ const AreaDetailPage: React.FC = () => {
   );
 };
 
-export default AreaDetailPage;
+export default CampaignDetailPage;

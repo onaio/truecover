@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
-from auth.helpers import check_area_access
+from auth.helpers import check_campaign_access
 from db.connection import get_db_connection, return_db_connection
 from routes.locations import calculate_quadkey
 import requests
@@ -11,14 +11,14 @@ import sys
 coverage_bp = Blueprint('coverage', __name__)
 
 
-def create_default_coverage_pixels(cursor, area_id, quadkeys):
+def create_default_coverage_pixels(cursor, campaign_id, quadkeys):
     """
     Create default coverage_pixel records for newly created pixels.
     Creates records for all indicators in the project with zero values.
 
     Args:
         cursor: Database cursor
-        area_id: UUID of the area
+        campaign_id: UUID of the area
         quadkeys: List of quadkeys to create coverage_pixel records for
     """
     if not quadkeys:
@@ -28,10 +28,10 @@ def create_default_coverage_pixels(cursor, area_id, quadkeys):
         # Get the project_id from the area
         cursor.execute("""
             SELECT project_id FROM areas WHERE id = %s
-        """, (area_id,))
+        """, (campaign_id,))
         result = cursor.fetchone()
         if not result:
-            print(f"Warning: Could not find area {area_id}")
+            print(f"Warning: Could not find area {campaign_id}")
             return
 
         project_id = result[0]
@@ -55,18 +55,18 @@ def create_default_coverage_pixels(cursor, area_id, quadkeys):
                 # Check if coverage_pixel entry already exists
                 cursor.execute("""
                     SELECT id FROM coverage_pixel
-                    WHERE quadkey = %s AND indicator_id = %s AND area_id = %s AND version = 0
-                """, (quadkey, indicator_id, area_id))
+                    WHERE quadkey = %s AND indicator_id = %s AND campaign_id = %s AND version = 0
+                """, (quadkey, indicator_id, campaign_id))
 
                 if not cursor.fetchone():
                     # Doesn't exist, add to batch insert
-                    records_to_create.append((quadkey, area_id, indicator_id))
+                    records_to_create.append((quadkey, campaign_id, indicator_id))
 
         # Batch insert new coverage_pixel records with default values
         if records_to_create:
             cursor.executemany("""
                 INSERT INTO coverage_pixel (
-                    quadkey, area_id, indicator_id, version,
+                    quadkey, campaign_id, indicator_id, version,
                     n_trials, n_covered, rounds,
                     exceedance_probability, exceedance_uncertainty,
                     prevalence_bci_width, prevalence_prediction
@@ -82,13 +82,13 @@ def create_default_coverage_pixels(cursor, area_id, quadkeys):
         # Don't fail the pixel creation if this fails
 
 
-def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
+def update_coverage_pixel(cursor, campaign_id, indicator_id, quadkeys=None):
     """
     Update coverage_pixel table by aggregating coverage data by quadkey.
 
     Args:
         cursor: Database cursor
-        area_id: UUID of the area
+        campaign_id: UUID of the area
         indicator_id: UUID of the indicator
         quadkeys: Optional list of specific quadkeys to update. If None, updates all quadkeys for this area/indicator.
     """
@@ -102,11 +102,11 @@ def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
                 array_agg(DISTINCT unnest) as all_rounds
             FROM coverage c
             LEFT JOIN LATERAL unnest(c.rounds) ON true
-            WHERE c.area_id = %s
+            WHERE c.campaign_id = %s
               AND c.indicator_id = %s
               AND c.quadkey IS NOT NULL
         """
-        params = [area_id, indicator_id]
+        params = [campaign_id, indicator_id]
 
         # Filter by specific quadkeys if provided
         if quadkeys:
@@ -134,8 +134,8 @@ def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
             # Check if coverage_pixel entry exists
             cursor.execute("""
                 SELECT id FROM coverage_pixel
-                WHERE quadkey = %s AND indicator_id = %s AND area_id = %s AND version = 0
-            """, (quadkey, indicator_id, area_id))
+                WHERE quadkey = %s AND indicator_id = %s AND campaign_id = %s AND version = 0
+            """, (quadkey, indicator_id, campaign_id))
 
             existing = cursor.fetchone()
 
@@ -153,15 +153,15 @@ def update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None):
                 # Insert new record with predictions defaulting to 0
                 cursor.execute("""
                     INSERT INTO coverage_pixel (
-                        quadkey, area_id, indicator_id, version,
+                        quadkey, campaign_id, indicator_id, version,
                         n_trials, n_covered, rounds,
                         exceedance_probability, exceedance_uncertainty,
                         prevalence_bci_width, prevalence_prediction
                     )
                     VALUES (%s, %s, %s, 0, %s, %s, %s, 0, 0, 0, 0)
-                """, (quadkey, area_id, indicator_id, capped_trials, capped_covered, rounds))
+                """, (quadkey, campaign_id, indicator_id, capped_trials, capped_covered, rounds))
 
-        print(f"Updated {len(aggregated_data)} coverage_pixel records for area {area_id}, indicator {indicator_id}")
+        print(f"Updated {len(aggregated_data)} coverage_pixel records for area {campaign_id}, indicator {indicator_id}")
 
     except Exception as e:
         print(f"Error updating coverage_pixel: {e}")
@@ -224,14 +224,14 @@ def predict_coverage(user):
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
-        area_id = data.get('area_id')
+        campaign_id = data.get('campaign_id')
         indicator_id = data.get('indicator_id')
 
-        if not area_id or not indicator_id:
-            return jsonify({'error': 'area_id and indicator_id are required'}), 400
+        if not campaign_id or not indicator_id:
+            return jsonify({'error': 'campaign_id and indicator_id are required'}), 400
 
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -241,7 +241,7 @@ def predict_coverage(user):
         cursor.execute("""
             SELECT
                 l.id,
-                l.area_id,
+                l.campaign_id,
                 ST_AsGeoJSON(l.geometry) as geometry,
                 c.n_trials,
                 c.n_covered,
@@ -250,8 +250,8 @@ def predict_coverage(user):
             FROM locations l
             JOIN coverage c ON l.id = c.location_id
             WHERE c.indicator_id = %s
-              AND l.area_id = %s
-        """, (indicator_id, area_id))
+              AND l.campaign_id = %s
+        """, (indicator_id, campaign_id))
 
         location_data = cursor.fetchall()
 
@@ -267,7 +267,7 @@ def predict_coverage(user):
         features = []
         location_coords = {}  # Map location_id -> (lat, lng) for quadkey calculation
         for row in location_data:
-            location_id, area_id_db, geometry_json, n_trials, n_covered, latitude, longitude = row
+            location_id, campaign_id_db, geometry_json, n_trials, n_covered, latitude, longitude = row
 
             # Store coordinates for later quadkey calculation
             location_coords[str(location_id)] = (latitude, longitude)
@@ -452,8 +452,8 @@ def predict_coverage(user):
             FROM coverage_pixel cp
             JOIN pixels p ON cp.quadkey = p.quadkey
             WHERE cp.indicator_id = %s
-              AND cp.area_id = %s
-        """, (indicator_id, area_id))
+              AND cp.campaign_id = %s
+        """, (indicator_id, campaign_id))
 
         pixel_data = cursor.fetchall()
 
@@ -546,7 +546,7 @@ def predict_coverage(user):
                                     updated_at = NOW()
                                 WHERE quadkey = %s
                                   AND indicator_id = %s
-                                  AND area_id = %s
+                                  AND campaign_id = %s
                             """, (
                                 props.get('exceedance_probability'),
                                 props.get('exceedance_uncertainty'),
@@ -554,7 +554,7 @@ def predict_coverage(user):
                                 props.get('prevalence_prediction'),
                                 quadkey,
                                 indicator_id,
-                                area_id
+                                campaign_id
                             ))
 
                             if cursor.rowcount > 0:
@@ -605,14 +605,14 @@ def predict_coverage(user):
             return_db_connection(conn)
 
 
-@coverage_bp.route('/api/areas/<area_id>/coverage', methods=['GET'])
+@coverage_bp.route('/api/campaigns/<campaign_id>/coverage', methods=['GET'])
 @require_auth
-def list_area_coverage(user, area_id):
+def list_area_coverage(user, campaign_id):
     """Get all coverage records for an area with optional filtering"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -626,8 +626,8 @@ def list_area_coverage(user, area_id):
         offset = request.args.get('offset', type=int, default=0)
 
         # Build base WHERE clause for both queries
-        where_clause = "WHERE c.area_id = %s"
-        params = [area_id]
+        where_clause = "WHERE c.campaign_id = %s"
+        params = [campaign_id]
 
         if indicator_id:
             where_clause += " AND c.indicator_id = %s"
@@ -645,7 +645,7 @@ def list_area_coverage(user, area_id):
         # Build data query
         query = f"""
             SELECT
-                c.id, c.location_id, c.area_id, c.indicator_id, c.version,
+                c.id, c.location_id, c.campaign_id, c.indicator_id, c.version,
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
@@ -668,7 +668,7 @@ def list_area_coverage(user, area_id):
             coverage_records.append({
                 'id': str(row[0]),
                 'location_id': str(row[1]),
-                'area_id': str(row[2]),
+                'campaign_id': str(row[2]),
                 'indicator_id': str(row[3]),
                 'version': row[4],
                 'n_trials': row[5],
@@ -704,14 +704,14 @@ def list_area_coverage(user, area_id):
             return_db_connection(conn)
 
 
-@coverage_bp.route('/api/areas/<area_id>/coverage/geojson', methods=['GET'])
+@coverage_bp.route('/api/campaigns/<campaign_id>/coverage/geojson', methods=['GET'])
 @require_auth
-def get_coverage_geojson(user, area_id):
+def get_coverage_geojson(user, campaign_id):
     """Get coverage data as GeoJSON with geometries from locations table"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -723,7 +723,7 @@ def get_coverage_geojson(user, area_id):
         # Build dynamic query - left join coverage with locations
         query = """
             SELECT
-                c.id, c.location_id, c.area_id, c.indicator_id, c.version,
+                c.id, c.location_id, c.campaign_id, c.indicator_id, c.version,
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
@@ -735,9 +735,9 @@ def get_coverage_geojson(user, area_id):
             FROM coverage c
             LEFT JOIN locations l ON c.location_id = l.id
             LEFT JOIN indicators i ON c.indicator_id = i.id
-            WHERE c.area_id = %s
+            WHERE c.campaign_id = %s
         """
-        params = [area_id]
+        params = [campaign_id]
 
         if indicator_id:
             query += " AND c.indicator_id = %s"
@@ -857,7 +857,7 @@ def get_coverage_by_version(user, indicator_id, version):
 
         cursor.execute("""
             SELECT
-                c.id, c.location_id, c.area_id, c.indicator_id, c.version,
+                c.id, c.location_id, c.campaign_id, c.indicator_id, c.version,
                 c.n_trials, c.n_covered,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction,
@@ -875,7 +875,7 @@ def get_coverage_by_version(user, indicator_id, version):
             coverage_records.append({
                 'id': str(row[0]),
                 'location_id': str(row[1]),
-                'area_id': str(row[2]),
+                'campaign_id': str(row[2]),
                 'indicator_id': str(row[3]),
                 'version': row[4],
                 'n_trials': row[5],
@@ -913,9 +913,9 @@ def delete_coverage_version(user, indicator_id, version):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verify user has access by checking area_id
+        # Verify user has access by checking campaign_id
         cursor.execute("""
-            SELECT DISTINCT area_id FROM coverage
+            SELECT DISTINCT campaign_id FROM coverage
             WHERE indicator_id = %s AND version = %s
             LIMIT 1
         """, (indicator_id, version))
@@ -925,8 +925,8 @@ def delete_coverage_version(user, indicator_id, version):
             cursor.close()
             return jsonify({'error': 'Coverage version not found'}), 404
 
-        area_id = str(result[0])
-        if not check_area_access(user['id'], area_id):
+        campaign_id = str(result[0])
+        if not check_campaign_access(user['id'], campaign_id):
             cursor.close()
             return jsonify({'error': 'Access denied'}), 403
 
@@ -951,14 +951,14 @@ def delete_coverage_version(user, indicator_id, version):
             return_db_connection(conn)
 
 
-@coverage_bp.route('/api/areas/<area_id>/coverage_pixel', methods=['GET'])
+@coverage_bp.route('/api/campaigns/<campaign_id>/coverage_pixel', methods=['GET'])
 @require_auth
-def list_area_coverage_pixel(user, area_id):
+def list_area_coverage_pixel(user, campaign_id):
     """Get all coverage_pixel records for an area with optional filtering"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -973,8 +973,8 @@ def list_area_coverage_pixel(user, area_id):
         offset = request.args.get('offset', type=int, default=0)
 
         # Build base WHERE clause for both queries
-        where_clause = "WHERE cp.area_id = %s"
-        params = [area_id]
+        where_clause = "WHERE cp.campaign_id = %s"
+        params = [campaign_id]
 
         if indicator_id:
             where_clause += " AND cp.indicator_id = %s"
@@ -984,7 +984,7 @@ def list_area_coverage_pixel(user, area_id):
             where_clause += """
                 AND EXISTS (
                     SELECT 1 FROM locations l
-                    WHERE l.quadkey = cp.quadkey AND l.area_id = cp.area_id
+                    WHERE l.quadkey = cp.quadkey AND l.campaign_id = cp.campaign_id
                 )
             """
 
@@ -1000,7 +1000,7 @@ def list_area_coverage_pixel(user, area_id):
         # Build data query
         query = f"""
             SELECT
-                cp.id, cp.quadkey, cp.area_id, cp.indicator_id, cp.version,
+                cp.id, cp.quadkey, cp.campaign_id, cp.indicator_id, cp.version,
                 cp.n_trials, cp.n_covered,
                 cp.exceedance_probability, cp.exceedance_uncertainty,
                 cp.prevalence_bci_width, cp.prevalence_prediction,
@@ -1012,7 +1012,7 @@ def list_area_coverage_pixel(user, area_id):
             FROM coverage_pixel cp
             JOIN indicators i ON cp.indicator_id = i.id
             LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-            LEFT JOIN pixel_location_counts plc ON cp.quadkey = plc.quadkey AND cp.area_id = plc.area_id
+            LEFT JOIN pixel_location_counts plc ON cp.quadkey = plc.quadkey AND cp.campaign_id = plc.campaign_id
             {where_clause}
             LIMIT %s OFFSET %s
         """
@@ -1025,7 +1025,7 @@ def list_area_coverage_pixel(user, area_id):
             coverage_pixel_records.append({
                 'id': str(row[0]),
                 'quadkey': row[1],
-                'area_id': str(row[2]),
+                'campaign_id': str(row[2]),
                 'indicator_id': str(row[3]),
                 'version': row[4],
                 'n_trials': row[5],
@@ -1060,14 +1060,14 @@ def list_area_coverage_pixel(user, area_id):
             return_db_connection(conn)
 
 
-@coverage_bp.route('/api/areas/<area_id>/coverage/histogram', methods=['GET'])
+@coverage_bp.route('/api/campaigns/<campaign_id>/coverage/histogram', methods=['GET'])
 @require_auth
-def get_coverage_histogram(user, area_id):
+def get_coverage_histogram(user, campaign_id):
     """Get histogram data for coverage using PostgreSQL aggregation"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -1090,9 +1090,9 @@ def get_coverage_histogram(user, area_id):
         range_query = f"""
             SELECT MIN({value_column}) as min_val, MAX({value_column}) as max_val, COUNT(*) as count
             FROM {table_name}
-            WHERE area_id = %s AND indicator_id = %s AND {value_column} IS NOT NULL
+            WHERE campaign_id = %s AND indicator_id = %s AND {value_column} IS NOT NULL
         """
-        cursor.execute(range_query, (area_id, indicator_id))
+        cursor.execute(range_query, (campaign_id, indicator_id))
         range_result = cursor.fetchone()
         min_val, max_val, count = range_result
 
@@ -1135,7 +1135,7 @@ def get_coverage_histogram(user, area_id):
                         MIN({value_column}) as min_val,
                         MAX({value_column}) as max_val
                     FROM coverage
-                    WHERE area_id = %s
+                    WHERE campaign_id = %s
                         AND indicator_id = %s
                         AND {value_column} IS NOT NULL
                 ),
@@ -1150,7 +1150,7 @@ def get_coverage_histogram(user, area_id):
                         MIN({value_column}) as bin_min,
                         MAX({value_column}) as bin_max
                     FROM coverage
-                    WHERE area_id = %s
+                    WHERE campaign_id = %s
                         AND indicator_id = %s
                         AND {value_column} IS NOT NULL
                     GROUP BY bucket
@@ -1165,7 +1165,7 @@ def get_coverage_histogram(user, area_id):
                     (SELECT max_val FROM value_range) as overall_max
                 FROM histogram
             """
-            params = (area_id, indicator_id, num_bins, area_id, indicator_id)
+            params = (campaign_id, indicator_id, num_bins, campaign_id, indicator_id)
         else:
             # Use coverage_pixel table
             query = f"""
@@ -1174,7 +1174,7 @@ def get_coverage_histogram(user, area_id):
                         MIN({value_column}) as min_val,
                         MAX({value_column}) as max_val
                     FROM coverage_pixel
-                    WHERE area_id = %s
+                    WHERE campaign_id = %s
                         AND indicator_id = %s
                         AND {value_column} IS NOT NULL
                 ),
@@ -1189,7 +1189,7 @@ def get_coverage_histogram(user, area_id):
                         MIN({value_column}) as bin_min,
                         MAX({value_column}) as bin_max
                     FROM coverage_pixel
-                    WHERE area_id = %s
+                    WHERE campaign_id = %s
                         AND indicator_id = %s
                         AND {value_column} IS NOT NULL
                     GROUP BY bucket
@@ -1204,7 +1204,7 @@ def get_coverage_histogram(user, area_id):
                     (SELECT max_val FROM value_range) as overall_max
                 FROM histogram
             """
-            params = (area_id, indicator_id, num_bins, area_id, indicator_id)
+            params = (campaign_id, indicator_id, num_bins, campaign_id, indicator_id)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -1275,26 +1275,26 @@ def predict_coverage_workflow(user):
         if not data:
             return jsonify({'error': 'No data provided'}), 400
 
-        area_id = data.get('area_id')
+        campaign_id = data.get('campaign_id')
         indicator_id = data.get('indicator_id')
 
-        if not area_id or not indicator_id:
-            return jsonify({'error': 'area_id and indicator_id are required'}), 400
+        if not campaign_id or not indicator_id:
+            return jsonify({'error': 'campaign_id and indicator_id are required'}), 400
 
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"coverage-prediction-{area_id}-{indicator_id}-{timestamp}"
+        workflow_id = f"coverage-prediction-{campaign_id}-{indicator_id}-{timestamp}"
 
         # Start workflow
         async def start_workflow():
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 CoveragePredictionWorkflow.run,
-                args=[area_id, indicator_id],
+                args=[campaign_id, indicator_id],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

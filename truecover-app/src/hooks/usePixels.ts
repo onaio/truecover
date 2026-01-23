@@ -8,13 +8,13 @@ import { pixelsApi } from '../services/api';
 /**
  * Hook to fetch pixel statistics for a specific area
  */
-export function usePixelStats(areaId: string | undefined) {
+export function usePixelStats(campaignId: string | undefined) {
   const { getToken, isSignedIn } = useAuth();
 
   return useQuery({
-    queryKey: ['pixels', 'stats', areaId],
+    queryKey: ['pixels', 'stats', campaignId],
     queryFn: async () => {
-      if (!areaId) {
+      if (!campaignId) {
         throw new Error('Area ID is required');
       }
 
@@ -23,9 +23,9 @@ export function usePixelStats(areaId: string | undefined) {
         throw new Error('Authentication token not available');
       }
 
-      return pixelsApi.getStats(areaId, token);
+      return pixelsApi.getStats(campaignId, token);
     },
-    enabled: !!areaId && isSignedIn,
+    enabled: !!campaignId && isSignedIn,
   });
 }
 
@@ -38,13 +38,13 @@ export function useGeneratePixels() {
 
   return useMutation({
     mutationFn: async ({
-      areaId,
+      campaignId,
       bbox,
       level,
       append,
       admin_pcode
     }: {
-      areaId: string;
+      campaignId: string;
       bbox: [number, number, number, number];
       level: number;
       append?: boolean;
@@ -55,12 +55,12 @@ export function useGeneratePixels() {
         throw new Error('Authentication token not available');
       }
 
-      return pixelsApi.generate(areaId, bbox, level, token, append, admin_pcode);
+      return pixelsApi.generate(campaignId, bbox, level, token, append, admin_pcode);
     },
     onSuccess: (_, variables) => {
       // Invalidate pixels queries for this area
-      queryClient.invalidateQueries({ queryKey: ['pixels', 'stats', variables.areaId] });
-      queryClient.invalidateQueries({ queryKey: ['pixels', variables.areaId] });
+      queryClient.invalidateQueries({ queryKey: ['pixels', 'stats', variables.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['pixels', variables.campaignId] });
     },
   });
 }
@@ -73,18 +73,18 @@ export function useDeletePixels() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ areaId }: { areaId: string }) => {
+    mutationFn: async ({ campaignId }: { campaignId: string }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');
       }
 
-      return pixelsApi.delete(areaId, token);
+      return pixelsApi.delete(campaignId, token);
     },
     onSuccess: (_, variables) => {
       // Invalidate pixels queries for this area
-      queryClient.invalidateQueries({ queryKey: ['pixels', 'stats', variables.areaId] });
-      queryClient.invalidateQueries({ queryKey: ['pixels', variables.areaId] });
+      queryClient.invalidateQueries({ queryKey: ['pixels', 'stats', variables.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ['pixels', variables.campaignId] });
     },
   });
 }
@@ -92,13 +92,13 @@ export function useDeletePixels() {
 /**
  * Hook to fetch pixel metadata statistics for an area
  */
-export function usePixelMetadataStats(areaId: string | undefined) {
+export function usePixelMetadataStats(campaignId: string | undefined) {
   const { getToken, isSignedIn } = useAuth();
 
   return useQuery({
-    queryKey: ['pixels', 'metadata-stats', areaId],
+    queryKey: ['pixels', 'metadata-stats', campaignId],
     queryFn: async () => {
-      if (!areaId) {
+      if (!campaignId) {
         throw new Error('Area ID is required');
       }
 
@@ -107,8 +107,8 @@ export function usePixelMetadataStats(areaId: string | undefined) {
         throw new Error('Authentication token not available');
       }
 
-      return pixelsApi.getMetadataStats(areaId, token);
+      return pixelsApi.getMetadataStats(campaignId, token);
     },
-    enabled: !!areaId && isSignedIn,
+    enabled: !!campaignId && isSignedIn,
   });
 }

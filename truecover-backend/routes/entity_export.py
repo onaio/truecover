@@ -3,14 +3,14 @@
 
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
-from auth.helpers import check_area_access
+from auth.helpers import check_campaign_access
 
 entity_export_bp = Blueprint('entity_export', __name__)
 
 
-@entity_export_bp.route('/api/areas/<area_id>/export-entities/workflow', methods=['POST'])
+@entity_export_bp.route('/api/campaigns/<campaign_id>/export-entities/workflow', methods=['POST'])
 @require_auth
-def start_entity_export_workflow(user, area_id):
+def start_entity_export_workflow(user, campaign_id):
     """Start a Temporal workflow to export pixels to ODK entity list"""
     from datetime import datetime
     from temporal.client import get_temporal_client, run_async
@@ -18,7 +18,7 @@ def start_entity_export_workflow(user, area_id):
 
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         data = request.get_json()
@@ -41,14 +41,14 @@ def start_entity_export_workflow(user, area_id):
 
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"entity-export-{area_id}-{timestamp}"
+        workflow_id = f"entity-export-{campaign_id}-{timestamp}"
 
         # Start workflow
         async def start_workflow():
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 EntityExportWorkflow.run,
-                args=[area_id, indicator_id, round_ids, project_id, geometry_type],
+                args=[campaign_id, indicator_id, round_ids, project_id, geometry_type],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

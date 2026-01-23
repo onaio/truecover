@@ -33,7 +33,7 @@ class EntityExportWorkflow:
     @workflow.run
     async def run(
         self,
-        area_id: str,
+        campaign_id: str,
         indicator_id: str,
         round_ids: List[str],
         project_id: str,
@@ -43,7 +43,7 @@ class EntityExportWorkflow:
         Run entity export workflow.
 
         Args:
-            area_id: Area ID
+            campaign_id: Area ID
             indicator_id: Indicator ID
             round_ids: List of round IDs to filter by
             project_id: Project ID for ODK credentials
@@ -54,12 +54,12 @@ class EntityExportWorkflow:
         Raises:
             Exception if any entity creation fails
         """
-        workflow.logger.info(f"Starting entity export for area {area_id}")
+        workflow.logger.info(f"Starting entity export for area {campaign_id}")
 
         # Fetch pixel coverage data
         pixels = await workflow.execute_activity(
             fetch_pixel_coverage_activity,
-            args=[area_id, indicator_id, round_ids],
+            args=[campaign_id, indicator_id, round_ids],
             start_to_close_timeout=timedelta(minutes=2),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )

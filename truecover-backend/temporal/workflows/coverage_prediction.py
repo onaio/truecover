@@ -38,23 +38,23 @@ class CoveragePredictionWorkflow:
         self.pixels_processed = 0
 
     @workflow.run
-    async def run(self, area_id: str, indicator_id: str) -> Dict[str, Any]:
+    async def run(self, campaign_id: str, indicator_id: str) -> Dict[str, Any]:
         """
         Run coverage prediction for locations and pixels.
 
         Args:
-            area_id: Area ID
+            campaign_id: Area ID
             indicator_id: Indicator ID
 
         Returns:
             Result summary with counts
         """
-        workflow.logger.info(f"Starting coverage prediction for area {area_id}, indicator {indicator_id}")
+        workflow.logger.info(f"Starting coverage prediction for area {campaign_id}, indicator {indicator_id}")
 
         # Activity 1: Fetch location coverage records
         locations = await workflow.execute_activity(
             fetch_location_coverage,
-            args=[area_id, indicator_id],
+            args=[campaign_id, indicator_id],
             start_to_close_timeout=timedelta(minutes=2),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )
@@ -81,7 +81,7 @@ class CoveragePredictionWorkflow:
             # Activity 3: Update location coverage
             locations_updated = await workflow.execute_activity(
                 update_location_coverage,
-                args=[location_results, area_id, indicator_id],
+                args=[location_results, campaign_id, indicator_id],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
@@ -92,7 +92,7 @@ class CoveragePredictionWorkflow:
         # Activity 4: Fetch pixel coverage records
         pixels = await workflow.execute_activity(
             fetch_pixel_coverage,
-            args=[area_id, indicator_id],
+            args=[campaign_id, indicator_id],
             start_to_close_timeout=timedelta(minutes=2),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )

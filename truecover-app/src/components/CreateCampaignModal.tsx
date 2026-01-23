@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { Project, Area } from '../types';
-import { areasApi } from '../services/api';
+import { Project, Campaign } from '../types';
+import { campaignsApi } from '../services/api';
 import { TacticalModal, TacticalInput, TacticalButton, TacticalBadge, TacticalTextarea } from '../tactical-ui';
 
-interface CreateAreaModalProps {
+interface CreateCampaignModalProps {
   isOpen: boolean;
   onClose: () => void;
   project: Project | null;
-  onAreaCreated: (area: Area) => void;
-  editArea?: Area | null;
-  onAreaUpdated?: (area: Area) => void;
+  onCampaignCreated: (campaign: Campaign) => void;
+  editCampaign?: Campaign | null;
+  onCampaignUpdated?: (campaign: Campaign) => void;
 }
 
-const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
+const CreateCampaignModal: React.FC<CreateCampaignModalProps> = ({
   isOpen,
   onClose,
   project,
-  onAreaCreated,
-  editArea = null,
-  onAreaUpdated
+  onCampaignCreated,
+  editCampaign = null,
+  onCampaignUpdated
 }) => {
   const { getToken } = useAuth();
   const [name, setName] = useState('');
@@ -29,20 +29,20 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
 
   // Populate form when editing
   useEffect(() => {
-    if (editArea) {
-      setName(editArea.name);
-      setDescription(editArea.description || '');
+    if (editCampaign) {
+      setName(editCampaign.name);
+      setDescription(editCampaign.description || '');
     } else {
       setName('');
       setDescription('');
     }
-  }, [editArea, isOpen]);
+  }, [editCampaign, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim()) {
-      setError('Area name is required');
+      setError('Campaign name is required');
       return;
     }
 
@@ -61,33 +61,33 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
         return;
       }
 
-      if (editArea) {
-        // Update existing area
-        const updatedArea = await areasApi.update(
-          editArea.id,
+      if (editCampaign) {
+        // Update existing campaign
+        const updatedCampaign = await campaignsApi.update(
+          editCampaign.id,
           name.trim(),
           description.trim(),
           token
         );
-        if (onAreaUpdated) {
-          onAreaUpdated(updatedArea);
+        if (onCampaignUpdated) {
+          onCampaignUpdated(updatedCampaign);
         }
       } else {
-        // Create new area
-        const newArea = await areasApi.create(
+        // Create new campaign
+        const newCampaign = await campaignsApi.create(
           project.id,
           name.trim(),
           description.trim(),
           token
         );
-        onAreaCreated(newArea);
+        onCampaignCreated(newCampaign);
       }
       setName('');
       setDescription('');
       onClose();
     } catch (err: any) {
-      console.error(`Failed to ${editArea ? 'update' : 'create'} area:`, err);
-      setError(err.response?.data?.error || `Failed to ${editArea ? 'update' : 'create'} area`);
+      console.error(`Failed to ${editCampaign ? 'update' : 'create'} campaign:`, err);
+      setError(err.response?.data?.error || `Failed to ${editCampaign ? 'update' : 'create'} campaign`);
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +102,7 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
 
   return (
     <TacticalModal
-      title={editArea ? "Edit Area" : "Create Area"}
+      title={editCampaign ? "Edit Campaign" : "Create Campaign"}
       isOpen={isOpen}
       onClose={handleClose}
       size="md"
@@ -128,26 +128,26 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
 
         <div>
           <label
-            htmlFor="areaName"
+            htmlFor="campaignName"
             className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
           >
-            Area Name
+            Campaign Name
           </label>
           <TacticalInput
             type="text"
             value={name}
             onChange={setName}
-            placeholder="Enter area name"
+            placeholder="Enter campaign name"
             disabled={isLoading}
           />
         </div>
 
         <TacticalTextarea
-          id="areaDescription"
+          id="campaignDescription"
           label="Description (Optional)"
           value={description}
           onChange={setDescription}
-          placeholder="Enter area description"
+          placeholder="Enter campaign description"
           disabled={isLoading}
           rows={3}
         />
@@ -164,14 +164,14 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
           <TacticalButton
             type="submit"
             variant="primary"
-            disabled={isLoading || !name.trim() || (!project && !editArea)}
+            disabled={isLoading || !name.trim() || (!project && !editCampaign)}
           >
             {isLoading ? (
               <span className="tactical-loading-dots">
-                {editArea ? 'UPDATING' : 'CREATING'}<span>.</span><span>.</span><span>.</span>
+                {editCampaign ? 'UPDATING' : 'CREATING'}<span>.</span><span>.</span><span>.</span>
               </span>
             ) : (
-              editArea ? 'Update Area' : 'Create Area'
+              editCampaign ? 'Update Campaign' : 'Create Campaign'
             )}
           </TacticalButton>
         </div>
@@ -180,4 +180,4 @@ const CreateAreaModal: React.FC<CreateAreaModalProps> = ({
   );
 };
 
-export default CreateAreaModal;
+export default CreateCampaignModal;

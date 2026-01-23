@@ -3,7 +3,7 @@
 
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
-from auth.helpers import check_area_access
+from auth.helpers import check_campaign_access
 from db.connection import get_db_connection, return_db_connection
 from temporal.client import get_temporal_client, run_async
 from temporal.workflows.overture_import import OvertureImportWorkflow
@@ -23,15 +23,15 @@ OVERTURE_BUILDINGS_PATH = os.getenv(
 )
 
 
-def find_duplicate_by_external_id(cursor, area_id, external_id):
+def find_duplicate_by_external_id(cursor, campaign_id, external_id):
     """Check if location exists by external_id only (for Overture imports)"""
     if not external_id:
         return None
     cursor.execute("""
         SELECT id FROM locations
-        WHERE area_id = %s AND external_id = %s
+        WHERE campaign_id = %s AND external_id = %s
         LIMIT 1
-    """, (area_id, external_id))
+    """, (campaign_id, external_id))
     result = cursor.fetchone()
     return str(result[0]) if result else None
 
@@ -86,18 +86,18 @@ def get_admin_boundary_bounds(user, pcode):
 @admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/pixel-summary', methods=['GET'])
 @require_auth
 def get_pixel_summary(user, pcode):
-    """Get population summary for pixels in an admin boundary by PCODE and area_id"""
-    area_id = request.args.get('area_id')
+    """Get population summary for pixels in an admin boundary by PCODE and campaign_id"""
+    campaign_id = request.args.get('campaign_id')
 
-    if not area_id:
-        return jsonify({'error': 'area_id parameter is required'}), 400
+    if not campaign_id:
+        return jsonify({'error': 'campaign_id parameter is required'}), 400
 
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Query pixels filtered by pcode and area_id, joined with pixel_metadata
+        # Query pixels filtered by pcode and campaign_id, joined with pixel_metadata
         cursor.execute("""
             SELECT
                 COUNT(p.quadkey) as pixel_count,
@@ -106,9 +106,9 @@ def get_pixel_summary(user, pcode):
                 COUNT(CASE WHEN pm.metadata->>'population' IS NOT NULL THEN 1 END) as pixels_with_data
             FROM pixels p
             LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
-            WHERE p.area_id = %s
+            WHERE p.campaign_id = %s
               AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-        """, (area_id, pcode, pcode, pcode, pcode))
+        """, (campaign_id, pcode, pcode, pcode, pcode))
 
         result = cursor.fetchone()
 
@@ -140,13 +140,13 @@ def get_pixel_summary(user, pcode):
 def preview_overture_buildings(user, pcode):
     """Preview count of buildings available from Overture Maps for this admin boundary or drawn geometry"""
     data = request.get_json()
-    area_id = data.get('area_id')
+    campaign_id = data.get('campaign_id')
     geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
-    if not area_id:
-        return jsonify({'error': 'area_id is required'}), 400
+    if not campaign_id:
+        return jsonify({'error': 'campaign_id is required'}), 400
 
-    check_area_access(user['id'], area_id)
+    check_campaign_access(user['id'], campaign_id)
 
     conn = None
     try:
@@ -227,13 +227,13 @@ def preview_overture_buildings(user, pcode):
 def import_overture_buildings(user, pcode):
     """Import buildings from Overture Maps for this admin boundary into locations table"""
     data = request.get_json()
-    area_id = data.get('area_id')
+    campaign_id = data.get('campaign_id')
     geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
-    if not area_id:
-        return jsonify({'error': 'area_id is required'}), 400
+    if not campaign_id:
+        return jsonify({'error': 'campaign_id is required'}), 400
 
-    check_area_access(user['id'], area_id)
+    check_campaign_access(user['id'], campaign_id)
 
     conn = None
     con = None
@@ -319,7 +319,7 @@ def import_overture_buildings(user, pcode):
             SELECT id FROM indicators WHERE project_id = (
                 SELECT project_id FROM areas WHERE id = %s
             )
-        """, (area_id,))
+        """, (campaign_id,))
         indicators = [row[0] for row in cursor.fetchall()]
         print(f"Found {len(indicators)} indicators for coverage creation")
 
@@ -364,7 +364,7 @@ def import_overture_buildings(user, pcode):
                         continue
 
                     # Check for duplicate by external_id only
-                    duplicate_id = find_duplicate_by_external_id(cursor, area_id, overture_id)
+                    duplicate_id = find_duplicate_by_external_id(cursor, campaign_id, overture_id)
                     if duplicate_id:
                         batch_duplicates += 1
                         continue
@@ -388,7 +388,7 @@ def import_overture_buildings(user, pcode):
 
                     # Add to batch
                     batch_to_insert.append((
-                        area_id,
+                        campaign_id,
                         overture_id,  # external_id
                         geometry_wkt,
                         lat,
@@ -416,12 +416,12 @@ def import_overture_buildings(user, pcode):
                 batch_ids = []
                 result = execute_values(cursor, """
                     INSERT INTO locations (
-                        area_id, external_id, geometry, latitude, longitude, quadkey, properties
+                        campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
                     )
                     VALUES %s
                     RETURNING id
-                """, [(area_id, ext_id, f"SRID=4326;{geom}", lat, lng, qk, props)
-                      for area_id, ext_id, geom, lat, lng, qk, props in batch_to_insert],
+                """, [(campaign_id, ext_id, f"SRID=4326;{geom}", lat, lng, qk, props)
+                      for campaign_id, ext_id, geom, lat, lng, qk, props in batch_to_insert],
                     template="(%s, %s, ST_GeomFromText(%s), %s, %s, %s, %s)",
                     fetch=True)
 
@@ -450,7 +450,7 @@ def import_overture_buildings(user, pcode):
                         for indicator_id in indicators:
                             coverage_batch.append((
                                 location_id,
-                                area_id,
+                                campaign_id,
                                 indicator_id,
                                 0,  # version
                                 0,  # n_trials
@@ -460,7 +460,7 @@ def import_overture_buildings(user, pcode):
 
                     # Batch insert coverage records
                     cursor.executemany("""
-                        INSERT INTO coverage (location_id, area_id, indicator_id, version, n_trials, n_covered, quadkey)
+                        INSERT INTO coverage (location_id, campaign_id, indicator_id, version, n_trials, n_covered, quadkey)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (location_id, indicator_id, version) DO NOTHING
                     """, coverage_batch)
@@ -508,13 +508,13 @@ def import_overture_buildings(user, pcode):
                 pixel_wkt = f'POLYGON(({bounds.west} {bounds.south},{bounds.east} {bounds.south},{bounds.east} {bounds.north},{bounds.west} {bounds.north},{bounds.west} {bounds.south}))'
 
                 pixels_to_insert.append((
-                    area_id, quadkey, pixel_wkt, center_lat, center_lng, 18
+                    campaign_id, quadkey, pixel_wkt, center_lat, center_lng, 18
                 ))
 
             # Batch insert with ON CONFLICT DO NOTHING to handle duplicates
             if pixels_to_insert:
                 cursor.executemany("""
-                    INSERT INTO pixels (area_id, quadkey, geometry, latitude, longitude, level)
+                    INSERT INTO pixels (campaign_id, quadkey, geometry, latitude, longitude, level)
                     VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
                     ON CONFLICT ON CONSTRAINT pixels_area_quadkey_unique DO NOTHING
                 """, pixels_to_insert)
@@ -530,22 +530,22 @@ def import_overture_buildings(user, pcode):
                     SELECT id FROM indicators WHERE project_id = (
                         SELECT project_id FROM areas WHERE id = %s
                     )
-                """, (area_id,))
+                """, (campaign_id,))
 
                 indicators = cursor.fetchall()
                 for indicator_row in indicators:
                     indicator_id = indicator_row[0]
 
                     cursor.execute("""
-                        INSERT INTO coverage_pixel (quadkey, indicator_id, area_id, version, n_trials, n_covered)
+                        INSERT INTO coverage_pixel (quadkey, indicator_id, campaign_id, version, n_trials, n_covered)
                         SELECT p.quadkey, %s, %s, 0, 0, 0
                         FROM pixels p
-                        WHERE p.area_id = %s
+                        WHERE p.campaign_id = %s
                         AND NOT EXISTS (
                             SELECT 1 FROM coverage_pixel cp
-                            WHERE cp.quadkey = p.quadkey AND cp.indicator_id = %s AND cp.area_id = %s
+                            WHERE cp.quadkey = p.quadkey AND cp.indicator_id = %s AND cp.campaign_id = %s
                         )
-                    """, (indicator_id, area_id, area_id, indicator_id, area_id))
+                    """, (indicator_id, campaign_id, campaign_id, indicator_id, campaign_id))
 
                 conn.commit()
                 print(f"Populated coverage_pixel for {pixels_created} new pixels")
@@ -598,25 +598,25 @@ def import_overture_buildings(user, pcode):
 def import_overture_buildings_async(user, pcode):
     """Start async Overture Maps building import workflow"""
     data = request.get_json()
-    area_id = data.get('area_id')
+    campaign_id = data.get('campaign_id')
     geometry = data.get('geometry')  # Optional GeoJSON geometry for drawn areas
 
-    if not area_id:
-        return jsonify({'error': 'area_id is required'}), 400
+    if not campaign_id:
+        return jsonify({'error': 'campaign_id is required'}), 400
 
-    check_area_access(user['id'], area_id)
+    check_campaign_access(user['id'], campaign_id)
 
     try:
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"overture-import-{pcode}-{area_id}-{timestamp}"
+        workflow_id = f"overture-import-{pcode}-{campaign_id}-{timestamp}"
 
         # Start the workflow
         async def start_workflow():
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 OvertureImportWorkflow.run,
-                args=[pcode, area_id, geometry],
+                args=[pcode, campaign_id, geometry],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

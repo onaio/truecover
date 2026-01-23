@@ -11,7 +11,7 @@ from routes.user import user_bp
 from routes.functions import functions_bp
 from routes.organizations import organizations_bp
 from routes.projects import projects_bp
-from routes.areas import areas_bp
+from routes.campaigns import campaigns_bp
 from routes.locations import locations_bp
 from routes.rounds import rounds_bp
 from routes.indicators import indicators_bp
@@ -43,7 +43,7 @@ app.register_blueprint(user_bp)
 app.register_blueprint(functions_bp)
 app.register_blueprint(organizations_bp)
 app.register_blueprint(projects_bp)
-app.register_blueprint(areas_bp)
+app.register_blueprint(campaigns_bp)
 app.register_blueprint(locations_bp)
 app.register_blueprint(rounds_bp)
 app.register_blueprint(indicators_bp)
@@ -92,16 +92,17 @@ def root():
                 'PUT /api/projects/<id>': 'Update project',
                 'DELETE /api/projects/<id>': 'Delete project'
             },
-            'areas': {
-                'POST /api/projects/<project_id>/areas': 'Create area',
-                'GET /api/projects/<project_id>/areas': 'List project areas',
-                'GET /api/areas/<id>': 'Get area details',
-                'PUT /api/areas/<id>': 'Update area',
-                'DELETE /api/areas/<id>': 'Delete area',
-                'POST /api/areas/<id>/features': 'Add features (bulk import GeoJSON)',
-                'GET /api/areas/<id>/features': 'Get features (supports ?bbox=minLng,minLat,maxLng,maxLat)',
-                'GET /api/areas/<id>/geojson': 'Export as GeoJSON FeatureCollection',
-                'DELETE /api/areas/<id>/features/<feature_id>': 'Delete feature'
+            'campaigns': {
+                'POST /api/projects/<project_id>/campaigns': 'Create campaign',
+                'GET /api/projects/<project_id>/campaigns': 'List project campaigns',
+                'GET /api/campaigns/<id>': 'Get campaign details',
+                'PUT /api/campaigns/<id>': 'Update campaign',
+                'DELETE /api/campaigns/<id>': 'Delete campaign',
+                'GET /api/campaigns/<id>/areas': 'List campaign areas',
+                'POST /api/campaigns/<id>/areas': 'Add area to campaign',
+                'DELETE /api/campaigns/<id>/areas/<area_id>': 'Remove area from campaign',
+                'POST /api/campaign-areas/<id>/compute-pixels': 'Compute pixels for area',
+                'POST /api/campaigns/<id>/compute-all-pixels': 'Compute all pixels for campaign'
             },
             'functions': {
                 'POST /api/sampling': 'Adaptive sampling (requires auth)',

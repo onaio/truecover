@@ -22,7 +22,7 @@ const AppContent: React.FC = () => {
     selectedOrganization,
     setSelectedOrganization,
     selectedProject,
-    selectedArea,
+    selectedCampaign,
     isCreateOrgModalOpen,
     setIsCreateOrgModalOpen,
     isCreateProjectModalOpen,
@@ -97,7 +97,7 @@ const AppContent: React.FC = () => {
         <Route path="/tactical" element={<TacticalShowcase />} />
         <Route path="/tools/adaptive-sampling" element={<AdaptiveSamplingPage />} />
         <Route path="/tools/coverage-prediction" element={<CoveragePredictionPage />} />
-        <Route path="/orgs/:orgId/projects/:projectId/areas/:areaId" element={<LocationsWrapper />} />
+        <Route path="/orgs/:orgId/projects/:projectId/areas/:campaignId" element={<LocationsWrapper />} />
       </Routes>
 
       {/* Create Project Modal */}
@@ -134,16 +134,16 @@ const AppContent: React.FC = () => {
             setIsAddVisitModalOpen(false);
             setSelectedRoundForVisit('');
           }}
-          areaId={selectedArea?.id || ''}
-          areaName={selectedArea?.name || ''}
+          campaignId={selectedCampaign?.id || ''}
+          areaName={selectedCampaign?.name || ''}
           roundId={selectedRoundForVisit}
           projectId={selectedProject?.id || ''}
           onSuccess={async () => {
             // Reload locations after adding visit data
-            if (selectedArea) {
+            if (selectedCampaign) {
               const token = await getToken();
               if (token) {
-                const locationsData = await locationsApi.list(selectedArea.id, token);
+                const locationsData = await locationsApi.list(selectedCampaign.id, token);
                 setLocations(locationsData);
               }
             }

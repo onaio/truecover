@@ -7,7 +7,7 @@ import ExportDataModal from './ExportDataModal';
 import { CoverageRecord, CoveragePixelRecord } from '../hooks/useCoverage';
 
 interface PredictedCoverageSectionProps {
-  areaId: string;
+  campaignId: string;
   areaName: string;
   projectId: string;
   selectedIndicatorId: string;
@@ -26,7 +26,7 @@ interface PredictedCoverageSectionProps {
 }
 
 const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
-  areaId,
+  campaignId,
   areaName,
   projectId,
   selectedRoundId,
@@ -339,7 +339,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
       <PredictCoverageModal
         isOpen={isPredictCoverageModalOpen}
         onClose={handleModalClose}
-        areaId={areaId}
+        campaignId={campaignId}
         projectId={projectId}
       />
 
@@ -351,7 +351,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
       <AddVisitModal
         isOpen={isAddVisitModalOpen}
         onClose={() => setIsAddVisitModalOpen(false)}
-        areaId={areaId}
+        campaignId={campaignId}
         areaName={areaName}
         roundId={selectedRoundId || ''}
         projectId={projectId}
@@ -361,7 +361,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
       <ExportDataModal
         isOpen={isExportDataModalOpen}
         onClose={() => setIsExportDataModalOpen(false)}
-        areaId={areaId}
+        campaignId={campaignId}
         projectId={projectId}
         indicators={indicators}
       />

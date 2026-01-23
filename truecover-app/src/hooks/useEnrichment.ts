@@ -14,11 +14,11 @@ export function useCreateEnrichmentJob() {
 
   return useMutation({
     mutationFn: async ({
-      areaId,
+      campaignId,
       dataSourceId,
       statistic
     }: {
-      areaId: string;
+      campaignId: string;
       dataSourceId: string;
       statistic?: string;
     }) => {
@@ -28,14 +28,14 @@ export function useCreateEnrichmentJob() {
       }
 
       return enrichmentApi.createJob(
-        areaId,
+        campaignId,
         { data_source_id: dataSourceId, statistic },
         token
       );
     },
     onSuccess: (_, variables) => {
       // Invalidate enrichment jobs list for this area
-      queryClient.invalidateQueries({ queryKey: ['enrichment-jobs', variables.areaId] });
+      queryClient.invalidateQueries({ queryKey: ['enrichment-jobs', variables.campaignId] });
     },
   });
 }
@@ -75,13 +75,13 @@ export function useEnrichmentJob(jobId: string | undefined) {
 /**
  * Hook to list enrichment jobs for an area
  */
-export function useEnrichmentJobs(areaId: string | undefined) {
+export function useEnrichmentJobs(campaignId: string | undefined) {
   const { getToken, isSignedIn } = useAuth();
 
   return useQuery({
-    queryKey: ['enrichment-jobs', areaId],
+    queryKey: ['enrichment-jobs', campaignId],
     queryFn: async () => {
-      if (!areaId) {
+      if (!campaignId) {
         throw new Error('Area ID is required');
       }
 
@@ -90,9 +90,9 @@ export function useEnrichmentJobs(areaId: string | undefined) {
         throw new Error('Authentication token not available');
       }
 
-      return enrichmentApi.listJobs(areaId, token);
+      return enrichmentApi.listJobs(campaignId, token);
     },
-    enabled: !!areaId && isSignedIn,
+    enabled: !!campaignId && isSignedIn,
     refetchInterval: (query) => {
       // Poll every 2 seconds if any jobs are pending or processing
       const data = query.state.data;

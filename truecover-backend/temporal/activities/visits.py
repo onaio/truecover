@@ -8,7 +8,7 @@ from db.connection import get_db_connection, return_db_connection
 
 @activity.defn
 async def process_visit_batch(
-    area_id: str,
+    campaign_id: str,
     indicator_id: str,
     round_id: str,
     visits: List[Dict[str, Any]]
@@ -17,7 +17,7 @@ async def process_visit_batch(
     Process a batch of visits: match/create locations and update coverage.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         indicator_id: Indicator ID
         round_id: Round ID
         visits: List of visit data with location_id, lat/lng, n_trials, n_covered
@@ -64,8 +64,8 @@ async def process_visit_batch(
                 if uploaded_location_id:
                     cursor.execute("""
                         SELECT id FROM locations
-                        WHERE id = %s AND area_id = %s
-                    """, (uploaded_location_id, area_id))
+                        WHERE id = %s AND campaign_id = %s
+                    """, (uploaded_location_id, campaign_id))
 
                     location_result = cursor.fetchone()
                     if location_result:
@@ -80,7 +80,7 @@ async def process_visit_batch(
                             ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
                         ) as distance
                         FROM locations
-                        WHERE area_id = %s
+                        WHERE campaign_id = %s
                           AND ST_DWithin(
                               geometry::geography,
                               ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
@@ -88,7 +88,7 @@ async def process_visit_batch(
                           )
                         ORDER BY distance
                         LIMIT 1
-                    """, (longitude, latitude, area_id, longitude, latitude))
+                    """, (longitude, latitude, campaign_id, longitude, latitude))
 
                     location_result = cursor.fetchone()
                     if location_result:
@@ -101,10 +101,10 @@ async def process_visit_batch(
                     if quadkey:
                         affected_quadkeys.add(quadkey)
                     cursor.execute("""
-                        INSERT INTO locations (area_id, external_id, latitude, longitude, geometry, quadkey)
+                        INSERT INTO locations (campaign_id, external_id, latitude, longitude, geometry, quadkey)
                         VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
                         RETURNING id
-                    """, (area_id, uploaded_location_id, latitude, longitude, longitude, latitude, quadkey))
+                    """, (campaign_id, uploaded_location_id, latitude, longitude, longitude, latitude, quadkey))
 
                     location_result = cursor.fetchone()
                     actual_location_id = str(location_result[0])
@@ -141,11 +141,11 @@ async def process_visit_batch(
                     initial_rounds = [round_number] if round_number else []
                     cursor.execute("""
                         INSERT INTO coverage (
-                            location_id, area_id, indicator_id,
+                            location_id, campaign_id, indicator_id,
                             version, n_trials, n_covered, rounds, quadkey
                         )
                         VALUES (%s, %s, %s, 0, %s, %s, %s, %s)
-                    """, (actual_location_id, area_id, indicator_id, n_trials, n_covered, initial_rounds, quadkey))
+                    """, (actual_location_id, campaign_id, indicator_id, n_trials, n_covered, initial_rounds, quadkey))
 
             except Exception as e:
                 errors.append(f"Error processing location {uploaded_location_id or 'unknown'}: {str(e)}")
@@ -174,7 +174,7 @@ async def process_visit_batch(
 
 @activity.defn
 async def update_coverage_pixel_aggregates(
-    area_id: str,
+    campaign_id: str,
     indicator_id: str,
     quadkeys: List[str]
 ) -> int:
@@ -182,7 +182,7 @@ async def update_coverage_pixel_aggregates(
     Update coverage_pixel table with aggregated data from coverage table.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         indicator_id: Indicator ID
         quadkeys: List of quadkeys to update
 
@@ -195,7 +195,7 @@ async def update_coverage_pixel_aggregates(
     cursor = conn.cursor()
 
     try:
-        update_coverage_pixel(cursor, area_id, indicator_id, quadkeys)
+        update_coverage_pixel(cursor, campaign_id, indicator_id, quadkeys)
         conn.commit()
 
         activity.logger.info(f"Updated {len(quadkeys)} coverage_pixel records")

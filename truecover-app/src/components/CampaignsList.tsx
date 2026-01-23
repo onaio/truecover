@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { Area, Project } from '../types';
-import { areasApi } from '../services/api';
-import { useDeleteArea } from '../hooks/useAreas';
+import { Campaign, Project } from '../types';
+import { campaignsApi } from '../services/api';
+import { useDeleteCampaign } from '../hooks/useCampaigns';
 import { useAppContext } from '../contexts/AppContext';
-import CreateAreaModal from './CreateAreaModal';
+import CreateCampaignModal from './CreateCampaignModal';
 import {
   TacticalCard,
   TacticalButton,
@@ -13,32 +13,32 @@ import {
   TacticalModal
 } from '../tactical-ui';
 
-interface AreasListProps {
+interface CampaignsListProps {
   project: Project | null;
-  onAreaSelect?: (area: Area) => void;
+  onCampaignSelect?: (campaign: Campaign) => void;
 }
 
-const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
+const CampaignsList: React.FC<CampaignsListProps> = ({ project, onCampaignSelect }) => {
   const { getToken } = useAuth();
-  const { selectedArea, setSelectedArea } = useAppContext();
-  const [areas, setAreas] = useState<Area[]>([]);
+  const { selectedCampaign, setSelectedCampaign } = useAppContext();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingArea, setEditingArea] = useState<Area | null>(null);
-  const [areaToDelete, setAreaToDelete] = useState<Area | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const deleteAreaMutation = useDeleteArea();
+  const deleteCampaignMutation = useDeleteCampaign();
 
   useEffect(() => {
     if (project) {
-      loadAreas();
+      loadCampaigns();
     } else {
-      setAreas([]);
+      setCampaigns([]);
     }
   }, [project, refreshKey]);
 
-  const loadAreas = async () => {
+  const loadCampaigns = async () => {
     if (!project) return;
 
     setIsLoading(true);
@@ -48,11 +48,11 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
       const token = await getToken();
       if (!token) return;
 
-      const areasList = await areasApi.list(project.id, token);
-      setAreas(areasList);
+      const campaignsList = await campaignsApi.list(project.id, token);
+      setCampaigns(campaignsList);
     } catch (err: any) {
-      console.error('Failed to load areas:', err);
-      setError(err.response?.data?.error || 'Failed to load areas');
+      console.error('Failed to load campaigns:', err);
+      setError(err.response?.data?.error || 'Failed to load campaigns');
     } finally {
       setIsLoading(false);
     }
@@ -63,58 +63,58 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
       <TacticalCard variant="secondary" padding="lg">
         <div className="text-center text-tactical-text-muted">
           <p className="font-mono text-sm uppercase tracking-wider">
-            Select a project to view areas
+            Select a project to view campaigns
           </p>
         </div>
       </TacticalCard>
     );
   }
 
-  const handleAreaCreated = (newArea: Area) => {
-    setAreas([newArea, ...areas]);
+  const handleCampaignCreated = (newCampaign: Campaign) => {
+    setCampaigns([newCampaign, ...campaigns]);
     setRefreshKey(prev => prev + 1);
   };
 
-  const handleAreaUpdated = (updatedArea: Area) => {
-    setAreas(areas.map(area => area.id === updatedArea.id ? updatedArea : area));
-    setEditingArea(null);
+  const handleCampaignUpdated = (updatedCampaign: Campaign) => {
+    setCampaigns(campaigns.map(campaign => campaign.id === updatedCampaign.id ? updatedCampaign : campaign));
+    setEditingCampaign(null);
     setRefreshKey(prev => prev + 1);
   };
 
-  const handleEditClick = (area: Area) => {
-    setEditingArea(area);
+  const handleEditClick = (campaign: Campaign) => {
+    setEditingCampaign(campaign);
     setIsCreateModalOpen(true);
   };
 
-  const handleDeleteClick = (area: Area) => {
-    setAreaToDelete(area);
+  const handleDeleteClick = (campaign: Campaign) => {
+    setCampaignToDelete(campaign);
   };
 
   const handleConfirmDelete = async () => {
-    if (!areaToDelete || !project) return;
+    if (!campaignToDelete || !project) return;
 
     try {
-      await deleteAreaMutation.mutateAsync({
-        areaId: areaToDelete.id,
+      await deleteCampaignMutation.mutateAsync({
+        campaignId: campaignToDelete.id,
         projectId: project.id
       });
-      setAreas(areas.filter(a => a.id !== areaToDelete.id));
+      setCampaigns(campaigns.filter(c => c.id !== campaignToDelete.id));
 
-      // Clear selected area if we're deleting the currently selected area
-      if (selectedArea?.id === areaToDelete.id) {
-        setSelectedArea(null);
+      // Clear selected campaign if we're deleting the currently selected one
+      if (selectedCampaign?.id === campaignToDelete.id) {
+        setSelectedCampaign(null);
       }
 
-      setAreaToDelete(null);
+      setCampaignToDelete(null);
     } catch (err: any) {
-      console.error('Failed to delete area:', err);
-      setError(err.response?.data?.error || 'Failed to delete area');
+      console.error('Failed to delete campaign:', err);
+      setError(err.response?.data?.error || 'Failed to delete campaign');
     }
   };
 
   const handleModalClose = () => {
     setIsCreateModalOpen(false);
-    setEditingArea(null);
+    setEditingCampaign(null);
     setRefreshKey(prev => prev + 1);
   };
 
@@ -122,11 +122,11 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
     <>
     <TacticalCard padding="lg">
       <TacticalCollapsible
-        title="Areas"
+        title="Campaigns"
         defaultCollapsed={false}
         collapsedSummary={
           !isLoading
-            ? `(${areas.length} ${areas.length === 1 ? 'Area' : 'Areas'})`
+            ? `(${campaigns.length} ${campaigns.length === 1 ? 'Campaign' : 'Campaigns'})`
             : undefined
         }
         actionButton={
@@ -135,7 +135,7 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
             size="sm"
             onClick={() => setIsCreateModalOpen(true)}
           >
-            + New Area
+            + New Campaign
           </TacticalButton>
         }
       >
@@ -151,56 +151,56 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
         {isLoading ? (
           <div className="text-center py-8">
             <span className="text-sm text-tactical-text-muted tactical-loading-dots">
-              LOADING AREAS<span>.</span><span>.</span><span>.</span>
+              LOADING CAMPAIGNS<span>.</span><span>.</span><span>.</span>
             </span>
           </div>
-        ) : areas.length === 0 ? (
+        ) : campaigns.length === 0 ? (
           <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
             <p className="text-sm text-tactical-text-dim mb-3">
-              No areas yet
+              No campaigns yet
             </p>
             <TacticalButton
               variant="secondary"
               size="sm"
               onClick={() => setIsCreateModalOpen(true)}
             >
-              Create Your First Area
+              Create Your First Campaign
             </TacticalButton>
           </div>
         ) : (
           <div className="space-y-3">
-            {areas.map((area) => (
+            {campaigns.map((campaign) => (
               <div
-                key={area.id}
+                key={campaign.id}
                 className="group border border-tactical-border-medium bg-tactical-bg-secondary p-4 hover:border-tactical-accent-orange transition-colors cursor-pointer"
-                onClick={() => onAreaSelect?.(area)}
+                onClick={() => onCampaignSelect?.(campaign)}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h4 className="font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-1">
-                      {area.name}
+                      {campaign.name}
                     </h4>
-                    {area.description && (
+                    {campaign.description && (
                       <p className="text-sm text-tactical-text-muted mb-2">
-                        {area.description}
+                        {campaign.description}
                       </p>
                     )}
                     <p className="text-xs text-tactical-text-dim">
-                      Created {new Date(area.created_at).toLocaleDateString()}
+                      Created {new Date(campaign.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <TacticalButton
                       variant="secondary"
                       size="sm"
-                      onClick={() => handleEditClick(area)}
+                      onClick={() => handleEditClick(campaign)}
                     >
                       Edit
                     </TacticalButton>
                     <TacticalButton
                       variant="danger"
                       size="sm"
-                      onClick={() => handleDeleteClick(area)}
+                      onClick={() => handleDeleteClick(campaign)}
                     >
                       Delete
                     </TacticalButton>
@@ -213,27 +213,27 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
       </TacticalCollapsible>
     </TacticalCard>
 
-    {/* Create/Edit Area Modal */}
-    <CreateAreaModal
+    {/* Create/Edit Campaign Modal */}
+    <CreateCampaignModal
       isOpen={isCreateModalOpen}
       onClose={handleModalClose}
       project={project}
-      onAreaCreated={handleAreaCreated}
-      editArea={editingArea}
-      onAreaUpdated={handleAreaUpdated}
+      onCampaignCreated={handleCampaignCreated}
+      editCampaign={editingCampaign}
+      onCampaignUpdated={handleCampaignUpdated}
     />
 
-    {/* Delete Area Confirmation Modal */}
-    {areaToDelete && (
+    {/* Delete Campaign Confirmation Modal */}
+    {campaignToDelete && (
       <TacticalModal
-        isOpen={!!areaToDelete}
-        onClose={() => setAreaToDelete(null)}
-        title="Delete Area"
+        isOpen={!!campaignToDelete}
+        onClose={() => setCampaignToDelete(null)}
+        title="Delete Campaign"
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-tactical-text-secondary">
-            Are you sure you want to delete <span className="font-bold">"{areaToDelete.name}"</span>?
+            Are you sure you want to delete <span className="font-bold">"{campaignToDelete.name}"</span>?
           </p>
           <p className="text-xs text-tactical-text-muted">
             This action cannot be undone. All associated data will be deleted.
@@ -241,16 +241,16 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
           <div className="flex gap-3 justify-end pt-4 border-t border-tactical-border-medium">
             <TacticalButton
               variant="secondary"
-              onClick={() => setAreaToDelete(null)}
+              onClick={() => setCampaignToDelete(null)}
             >
               Cancel
             </TacticalButton>
             <TacticalButton
               variant="danger"
               onClick={handleConfirmDelete}
-              disabled={deleteAreaMutation.isPending}
+              disabled={deleteCampaignMutation.isPending}
             >
-              {deleteAreaMutation.isPending ? 'Deleting...' : 'Delete Area'}
+              {deleteCampaignMutation.isPending ? 'Deleting...' : 'Delete Campaign'}
             </TacticalButton>
           </div>
         </div>
@@ -260,4 +260,4 @@ const AreasList: React.FC<AreasListProps> = ({ project, onAreaSelect }) => {
   );
 };
 
-export default AreasList;
+export default CampaignsList;

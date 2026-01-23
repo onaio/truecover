@@ -42,7 +42,7 @@ def get_pixel_boundary_coords(quadkey: str) -> str:
 
 @activity.defn
 async def fetch_pixel_coverage_activity(
-    area_id: str,
+    campaign_id: str,
     indicator_id: str,
     round_ids: List[str]
 ) -> List[Dict[str, Any]]:
@@ -50,7 +50,7 @@ async def fetch_pixel_coverage_activity(
     Fetch pixel coverage data filtered by selected rounds.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         indicator_id: Indicator ID
         round_ids: List of round IDs to filter by
 
@@ -85,12 +85,12 @@ async def fetch_pixel_coverage_activity(
                 p.adm4_pcode,
                 pc.rounds
             FROM coverage_pixel pc
-            JOIN pixels p ON p.quadkey = pc.quadkey AND p.area_id = pc.area_id
-            WHERE pc.area_id = %s
+            JOIN pixels p ON p.quadkey = pc.quadkey AND p.campaign_id = pc.campaign_id
+            WHERE pc.campaign_id = %s
                 AND pc.indicator_id = %s
                 AND pc.rounds && %s::integer[]
             ORDER BY pc.quadkey
-        """, (area_id, indicator_id, round_numbers))
+        """, (campaign_id, indicator_id, round_numbers))
 
         pixels = []
         for row in cursor.fetchall():

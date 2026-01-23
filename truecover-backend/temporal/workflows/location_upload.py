@@ -39,13 +39,13 @@ class LocationUploadWorkflow:
 
     @workflow.run
     async def run(
-        self, area_id: str, file_path: str, file_type: str, config: Dict[str, str]
+        self, campaign_id: str, file_path: str, file_type: str, config: Dict[str, str]
     ) -> Dict[str, Any]:
         """
         Run location upload workflow.
 
         Args:
-            area_id: Area ID
+            campaign_id: Area ID
             file_path: Path to uploaded file (temporary storage)
             file_type: Type of file ('geojson' or 'csv')
             config: Upload configuration (column mappings, etc.)
@@ -78,7 +78,7 @@ class LocationUploadWorkflow:
 
             result = await workflow.execute_activity(
                 process_location_batch,
-                args=[area_id, batch],
+                args=[campaign_id, batch],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3),
             )
@@ -99,7 +99,7 @@ class LocationUploadWorkflow:
             )
             await workflow.execute_activity(
                 populate_coverage_for_locations,
-                args=[area_id, new_location_ids],
+                args=[campaign_id, new_location_ids],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3),
             )
@@ -110,7 +110,7 @@ class LocationUploadWorkflow:
             workflow.logger.info("Auto-generating pixels for uploaded locations")
             pixel_result = await workflow.execute_activity(
                 generate_pixels_for_quadkeys,
-                args=[area_id],
+                args=[campaign_id],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(maximum_attempts=3),
             )
@@ -123,7 +123,7 @@ class LocationUploadWorkflow:
             )
             await workflow.execute_activity(
                 create_coverage_pixel_records,
-                args=[area_id, new_quadkeys],
+                args=[campaign_id, new_quadkeys],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3),
             )

@@ -6,7 +6,7 @@ import { useCoverage } from '../hooks/useCoverage';
 interface PredictCoverageModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   projectId: string;
   onPredictionComplete?: () => void;
 }
@@ -14,7 +14,7 @@ interface PredictCoverageModalProps {
 const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   projectId,
   onPredictionComplete,
 }) => {
@@ -58,7 +58,7 @@ const PredictCoverageModal: React.FC<PredictCoverageModalProps> = ({
 
     try {
       const result = await predictCoverage({
-        area_id: areaId,
+        campaign_id: campaignId,
         indicator_id: selectedIndicatorId,
       });
 

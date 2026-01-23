@@ -1,5 +1,5 @@
-# ABOUTME: Temporal workflow for pixel generation
-# ABOUTME: Orchestrates generating quadkey pixels for an area with optional admin boundary filtering
+# ABOUTME: DEPRECATED - Pixels are now global, not per-campaign
+# ABOUTME: This workflow is kept for reference but should not be used
 
 from datetime import timedelta
 from temporalio import workflow
@@ -36,7 +36,7 @@ class PixelGenerationWorkflow:
     @workflow.run
     async def run(
         self,
-        area_id: str,
+        campaign_id: str,
         bbox: List[float],
         level: int,
         append: bool = False,
@@ -47,7 +47,7 @@ class PixelGenerationWorkflow:
         Run pixel generation workflow.
 
         Args:
-            area_id: Area ID
+            campaign_id: Area ID
             bbox: [min_lng, min_lat, max_lng, max_lat]
             level: Zoom level (0-24)
             append: If True, add to existing pixels instead of replacing
@@ -56,7 +56,7 @@ class PixelGenerationWorkflow:
         Returns:
             Result summary with pixel count
         """
-        workflow.logger.info(f"Starting pixel generation for area {area_id}, level {level}")
+        workflow.logger.info(f"Starting pixel generation for area {campaign_id}, level {level}")
 
         # Activity 1: Fetch admin boundary geometry (if provided) or convert drawn geometry
         admin_geometry_wkt = None
@@ -83,7 +83,7 @@ class PixelGenerationWorkflow:
         if not append:
             deleted_count = await workflow.execute_activity(
                 delete_existing_pixels,
-                args=[area_id],
+                args=[campaign_id],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
@@ -93,7 +93,7 @@ class PixelGenerationWorkflow:
         # This combined activity avoids passing large tile data through Temporal's payload
         result = await workflow.execute_activity(
             generate_and_insert_tiles,
-            args=[area_id, bbox, level, admin_geometry_wkt],
+            args=[campaign_id, bbox, level, admin_geometry_wkt],
             start_to_close_timeout=timedelta(minutes=30),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )
@@ -113,7 +113,7 @@ class PixelGenerationWorkflow:
         # Activity 4: Create default coverage_pixel records
         total_coverage_created = await workflow.execute_activity(
             create_default_coverage_pixels_for_area,
-            args=[area_id],
+            args=[campaign_id],
             start_to_close_timeout=timedelta(minutes=10),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )

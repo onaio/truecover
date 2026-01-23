@@ -16,14 +16,14 @@ export const useLocationsData = () => {
   const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = useState(false);
   const [selectedRoundForVisit, setSelectedRoundForVisit] = useState<string>('');
 
-  const loadLocations = async (areaId: string, setLocations: (locations: any) => void) => {
-    if (!areaId || !isSignedIn) return;
+  const loadLocations = async (campaignId: string, setLocations: (locations: any) => void) => {
+    if (!campaignId || !isSignedIn) return;
 
     setIsLoadingLocations(true);
     try {
       const token = await getToken();
       if (token) {
-        const locationsData = await locationsApi.list(areaId, token);
+        const locationsData = await locationsApi.list(campaignId, token);
         setLocations(locationsData);
       }
     } catch (error) {
@@ -34,13 +34,13 @@ export const useLocationsData = () => {
     }
   };
 
-  const handleLocationsUploaded = async (areaId: string, setLocations: (locations: any) => void) => {
-    if (!areaId || !isSignedIn) return;
+  const handleLocationsUploaded = async (campaignId: string, setLocations: (locations: any) => void) => {
+    if (!campaignId || !isSignedIn) return;
 
     try {
       const token = await getToken();
       if (token) {
-        const locationsData = await locationsApi.list(areaId, token);
+        const locationsData = await locationsApi.list(campaignId, token);
         setLocations(locationsData);
       }
     } catch (error) {
@@ -53,14 +53,14 @@ export const useLocationsData = () => {
     setIsLocationEditModalOpen(true);
   };
 
-  const handleLocationUpdated = async (areaId: string, setLocations: (locations: any) => void) => {
+  const handleLocationUpdated = async (campaignId: string, setLocations: (locations: any) => void) => {
     setIsLocationEditModalOpen(false);
     setSelectedLocationForEdit(null);
-    await handleLocationsUploaded(areaId, setLocations);
+    await handleLocationsUploaded(campaignId, setLocations);
   };
 
-  const handleLocationDeleted = async (areaId: string, setLocations: (locations: any) => void) => {
-    await handleLocationsUploaded(areaId, setLocations);
+  const handleLocationDeleted = async (campaignId: string, setLocations: (locations: any) => void) => {
+    await handleLocationsUploaded(campaignId, setLocations);
   };
 
   return {

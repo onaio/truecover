@@ -4,7 +4,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useAppContext } from '../contexts/AppContext';
 import OrganizationSelector from '../components/OrganizationSelector';
 import ProjectSelector from '../components/ProjectSelector';
-import AreasList from '../components/AreasList';
+import CampaignsList from '../components/CampaignsList';
 import IndicatorsManager from '../components/IndicatorsManager';
 import { TacticalCard } from '../tactical-ui';
 
@@ -16,7 +16,7 @@ const HomePage: React.FC = () => {
     setSelectedOrganization,
     selectedProject,
     setSelectedProject,
-    setSelectedArea,
+    setSelectedCampaign,
     setRefreshOrganizations,
     setRefreshProjects,
     setIsCreateProjectModalOpen,
@@ -63,11 +63,11 @@ const HomePage: React.FC = () => {
             )}
 
             {/* Locations List */}
-            <AreasList
+            <CampaignsList
               project={selectedProject}
-              onAreaSelect={(area) => {
-                setSelectedArea(area);
-                navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${area?.id}`);
+              onCampaignSelect={(campaign) => {
+                setSelectedCampaign(campaign);
+                navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/campaigns/${campaign?.id}`);
               }}
             />
           </div>

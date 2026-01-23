@@ -18,19 +18,19 @@ interface Round {
   sampling_target: string;
 }
 
-export const useRounds = (areaId: string | undefined) => {
+export const useRounds = (campaignId: string | undefined) => {
   const { getToken } = useAuth();
 
   return useQuery({
-    queryKey: ['rounds', areaId],
+    queryKey: ['rounds', campaignId],
     queryFn: async () => {
-      if (!areaId) {
+      if (!campaignId) {
         return [];
       }
 
       const token = await getToken();
       const response = await axios.get<{ rounds: Round[] }>(
-        `${API_URL}/api/areas/${areaId}/rounds`,
+        `${API_URL}/api/campaigns/${campaignId}/rounds`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -40,7 +40,7 @@ export const useRounds = (areaId: string | undefined) => {
 
       return response.data.rounds || [];
     },
-    enabled: !!areaId,
+    enabled: !!campaignId,
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
 };

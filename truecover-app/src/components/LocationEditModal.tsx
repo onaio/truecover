@@ -16,7 +16,7 @@ interface LocationEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   location: Location | null;
-  areaId: string;
+  campaignId: string;
   onLocationUpdated: () => void;
   onLocationDeleted?: () => void;
 }
@@ -25,7 +25,7 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
   isOpen,
   onClose,
   location,
-  areaId,
+  campaignId,
   onLocationUpdated,
   onLocationDeleted
 }) => {
@@ -63,7 +63,7 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
 
       if (externalId.trim()) data.external_id = externalId.trim();
 
-      await locationsApi.update(areaId, location.id, data, token);
+      await locationsApi.update(campaignId, location.id, data, token);
       onLocationUpdated();
       handleClose();
     } catch (err: any) {
@@ -99,7 +99,7 @@ const LocationEditModal: React.FC<LocationEditModalProps> = ({
         return;
       }
 
-      await locationsApi.delete(areaId, location.id, token);
+      await locationsApi.delete(campaignId, location.id, token);
 
       if (onLocationDeleted) {
         onLocationDeleted();

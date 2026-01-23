@@ -47,7 +47,7 @@ def geometry_to_wkt(geometry_dict):
         return None
 
 
-def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
+def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     """
     Find duplicate location using multiple strategies:
     1. Match by external_id
@@ -58,9 +58,9 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     if external_id:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE area_id = %s AND external_id = %s
+            WHERE campaign_id = %s AND external_id = %s
             LIMIT 1
-        """, (area_id, external_id))
+        """, (campaign_id, external_id))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -69,11 +69,11 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     if lat is not None and lng is not None:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE area_id = %s
+            WHERE campaign_id = %s
             AND ABS(latitude - %s) < 0.0001
             AND ABS(longitude - %s) < 0.0001
             LIMIT 1
-        """, (area_id, lat, lng))
+        """, (campaign_id, lat, lng))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -82,10 +82,10 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     if geometry_wkt:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE area_id = %s
+            WHERE campaign_id = %s
             AND ST_Intersects(geometry, ST_GeomFromText(%s, 4326))
             LIMIT 1
-        """, (area_id, geometry_wkt))
+        """, (campaign_id, geometry_wkt))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -184,14 +184,14 @@ async def parse_location_file(
 
 @activity.defn
 async def process_location_batch(
-    area_id: str,
+    campaign_id: str,
     features: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
     Process a batch of location features (insert/update with deduplication).
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         features: List of GeoJSON features
 
     Returns:
@@ -232,7 +232,7 @@ async def process_location_batch(
                 geometry_wkt = geometry_to_wkt(geometry) if geometry else None
 
                 # Check for duplicates
-                duplicate_id = find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt)
+                duplicate_id = find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt)
 
                 if duplicate_id:
                     # Update existing location
@@ -259,14 +259,14 @@ async def process_location_batch(
                     quadkey = calculate_quadkey(lat, lng)
                     cursor.execute("""
                         INSERT INTO locations (
-                            area_id, external_id, geometry, latitude, longitude, quadkey, properties
+                            campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
                         )
                         VALUES (
                             %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s
                         )
                         RETURNING id
                     """, (
-                        area_id, external_id, geometry_wkt, lat, lng, quadkey,
+                        campaign_id, external_id, geometry_wkt, lat, lng, quadkey,
                         json.dumps(properties)
                     ))
                     new_location_id = cursor.fetchone()[0]
@@ -297,12 +297,12 @@ async def process_location_batch(
 
 
 @activity.defn
-async def populate_coverage_for_locations(area_id: str, new_location_ids: List[str]) -> None:
+async def populate_coverage_for_locations(campaign_id: str, new_location_ids: List[str]) -> None:
     """
     Populate coverage table for newly added locations.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         new_location_ids: List of new location IDs
     """
     if not new_location_ids:
@@ -315,10 +315,10 @@ async def populate_coverage_for_locations(area_id: str, new_location_ids: List[s
 
     try:
         # Get the project_id from the area
-        cursor.execute("SELECT project_id FROM areas WHERE id = %s", (area_id,))
+        cursor.execute("SELECT project_id FROM areas WHERE id = %s", (campaign_id,))
         result = cursor.fetchone()
         if not result:
-            activity.logger.warning(f"Could not find area {area_id}")
+            activity.logger.warning(f"Could not find area {campaign_id}")
             return
 
         project_id = result[0]
@@ -360,7 +360,7 @@ async def populate_coverage_for_locations(area_id: str, new_location_ids: List[s
             for (indicator_id,) in indicators:
                 cursor.execute("""
                     INSERT INTO coverage (
-                        location_id, area_id, indicator_id, quadkey,
+                        location_id, campaign_id, indicator_id, quadkey,
                         version, n_trials, n_covered,
                         exceedance_probability, exceedance_uncertainty,
                         prevalence_bci_width, prevalence_prediction
@@ -368,7 +368,7 @@ async def populate_coverage_for_locations(area_id: str, new_location_ids: List[s
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (location_id, indicator_id) DO NOTHING
                 """, (
-                    location_id, area_id, indicator_id, quadkey,
+                    location_id, campaign_id, indicator_id, quadkey,
                     1, 0, 0,  # version=1, n_trials=0, n_covered=0 for new records
                     exceedance_probability, exceedance_uncertainty,
                     prevalence_bci_width, prevalence_prediction
@@ -384,17 +384,17 @@ async def populate_coverage_for_locations(area_id: str, new_location_ids: List[s
 
 
 @activity.defn
-async def generate_pixels_for_quadkeys(area_id: str) -> Dict[str, Any]:
+async def generate_pixels_for_quadkeys(campaign_id: str) -> Dict[str, Any]:
     """
     Auto-generate pixels for location quadkeys that don't have pixels yet.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
 
     Returns:
         Result with new quadkeys
     """
-    activity.logger.info(f"Generating pixels for area {area_id}")
+    activity.logger.info(f"Generating pixels for area {campaign_id}")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -404,8 +404,8 @@ async def generate_pixels_for_quadkeys(area_id: str) -> Dict[str, Any]:
         # Get all unique quadkeys from locations in this area
         cursor.execute("""
             SELECT DISTINCT quadkey FROM locations
-            WHERE area_id = %s AND quadkey IS NOT NULL
-        """, (area_id,))
+            WHERE campaign_id = %s AND quadkey IS NOT NULL
+        """, (campaign_id,))
         location_quadkeys = {row[0] for row in cursor.fetchall()}
 
         if not location_quadkeys:
@@ -413,7 +413,7 @@ async def generate_pixels_for_quadkeys(area_id: str) -> Dict[str, Any]:
             return {'new_quadkeys': []}
 
         # Get existing pixels for this area
-        cursor.execute("SELECT quadkey FROM pixels WHERE area_id = %s", (area_id,))
+        cursor.execute("SELECT quadkey FROM pixels WHERE campaign_id = %s", (campaign_id,))
         existing_quadkeys = {row[0] for row in cursor.fetchall()}
 
         # Find quadkeys that need pixels
@@ -442,7 +442,7 @@ async def generate_pixels_for_quadkeys(area_id: str) -> Dict[str, Any]:
                 )
 
                 pixel_data.append((
-                    area_id,
+                    campaign_id,
                     quadkey,
                     geometry_wkt,
                     centroid_lat,
@@ -452,7 +452,7 @@ async def generate_pixels_for_quadkeys(area_id: str) -> Dict[str, Any]:
 
             # Batch insert pixels
             cursor.executemany("""
-                INSERT INTO pixels (area_id, quadkey, geometry, latitude, longitude, level)
+                INSERT INTO pixels (campaign_id, quadkey, geometry, latitude, longitude, level)
                 VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
                 ON CONFLICT ON CONSTRAINT pixels_area_quadkey_unique DO NOTHING
             """, pixel_data)
@@ -472,12 +472,12 @@ async def generate_pixels_for_quadkeys(area_id: str) -> Dict[str, Any]:
 
 
 @activity.defn
-async def create_coverage_pixel_records(area_id: str, quadkeys: List[str]) -> None:
+async def create_coverage_pixel_records(campaign_id: str, quadkeys: List[str]) -> None:
     """
     Create default coverage_pixel records for new pixels.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         quadkeys: List of quadkeys for new pixels
     """
     if not quadkeys:
@@ -490,10 +490,10 @@ async def create_coverage_pixel_records(area_id: str, quadkeys: List[str]) -> No
 
     try:
         # Get the project_id from the area
-        cursor.execute("SELECT project_id FROM areas WHERE id = %s", (area_id,))
+        cursor.execute("SELECT project_id FROM areas WHERE id = %s", (campaign_id,))
         result = cursor.fetchone()
         if not result:
-            activity.logger.warning(f"Could not find area {area_id}")
+            activity.logger.warning(f"Could not find area {campaign_id}")
             return
 
         project_id = result[0]
@@ -511,12 +511,12 @@ async def create_coverage_pixel_records(area_id: str, quadkeys: List[str]) -> No
             for (indicator_id,) in indicators:
                 cursor.execute("""
                     INSERT INTO coverage_pixel (
-                        quadkey, area_id, indicator_id, version,
+                        quadkey, campaign_id, indicator_id, version,
                         n_trials, n_covered
                     )
                     VALUES (%s, %s, %s, %s, 0, 0)
-                    ON CONFLICT (quadkey, indicator_id, area_id) DO NOTHING
-                """, (quadkey, area_id, indicator_id, 1))
+                    ON CONFLICT (quadkey, indicator_id, campaign_id) DO NOTHING
+                """, (quadkey, campaign_id, indicator_id, 1))
 
         conn.commit()
 

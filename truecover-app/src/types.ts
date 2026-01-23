@@ -94,7 +94,7 @@ export interface OnaEntityList {
   numentities: number;
 }
 
-export interface Area {
+export interface Campaign {
   id: string;
   project_id: string;
   name: string;
@@ -102,3 +102,6 @@ export interface Area {
   created_at: string;
   updated_at: string;
 }
+
+// Keep Area as alias for backward compatibility during migration
+export type Area = Campaign;

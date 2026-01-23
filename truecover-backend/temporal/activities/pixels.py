@@ -74,12 +74,12 @@ async def fetch_admin_boundary_geometry(admin_pcode: str) -> str:
 
 
 @activity.defn
-async def delete_existing_pixels(area_id: str) -> int:
+async def delete_existing_pixels(campaign_id: str) -> int:
     """
     Delete existing pixels for an area.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
 
     Returns:
         Number of pixels deleted
@@ -89,13 +89,13 @@ async def delete_existing_pixels(area_id: str) -> int:
 
     try:
         cursor.execute("""
-            DELETE FROM pixels WHERE area_id = %s
-        """, (area_id,))
+            DELETE FROM pixels WHERE campaign_id = %s
+        """, (campaign_id,))
 
         deleted_count = cursor.rowcount
         conn.commit()
 
-        activity.logger.info(f"Deleted {deleted_count} existing pixels for area {area_id}")
+        activity.logger.info(f"Deleted {deleted_count} existing pixels for area {campaign_id}")
         return deleted_count
     finally:
         cursor.close()
@@ -104,7 +104,7 @@ async def delete_existing_pixels(area_id: str) -> int:
 
 @activity.defn
 async def generate_and_insert_tiles(
-    area_id: str,
+    campaign_id: str,
     bbox: List[float],
     level: int,
     admin_geometry_wkt: str = None
@@ -116,7 +116,7 @@ async def generate_and_insert_tiles(
     data through Temporal's payload system, which has a ~2MB size limit.
 
     Args:
-        area_id: Area ID to associate pixels with
+        campaign_id: Area ID to associate pixels with
         bbox: [min_lng, min_lat, max_lng, max_lat]
         level: Zoom level
         admin_geometry_wkt: Optional admin boundary geometry WKT for filtering
@@ -197,7 +197,7 @@ async def generate_and_insert_tiles(
 
             # Insert batch into database
             quadkeys = [p["quadkey"] for p in batch_data]
-            area_ids = [area_id] * len(batch_data)
+            campaign_ids = [campaign_id] * len(batch_data)
             geometries = [p["geometry_wkt"] for p in batch_data]
             latitudes = [p["latitude"] for p in batch_data]
             longitudes = [p["longitude"] for p in batch_data]
@@ -207,7 +207,7 @@ async def generate_and_insert_tiles(
                 WITH pixel_data AS (
                     SELECT
                         unnest(%s::text[]) as quadkey,
-                        unnest(%s::uuid[]) as area_id,
+                        unnest(%s::uuid[]) as campaign_id,
                         unnest(%s::text[]) as geometry_wkt,
                         unnest(%s::decimal[]) as latitude,
                         unnest(%s::decimal[]) as longitude,
@@ -216,7 +216,7 @@ async def generate_and_insert_tiles(
                 pixels_with_admin AS (
                     SELECT
                         pd.quadkey,
-                        pd.area_id,
+                        pd.campaign_id,
                         pd.geometry_wkt,
                         pd.latitude,
                         pd.longitude,
@@ -234,10 +234,10 @@ async def generate_and_insert_tiles(
                         LIMIT 1
                     ) ab ON true
                 )
-                INSERT INTO pixels (quadkey, area_id, geometry, latitude, longitude, level, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode)
+                INSERT INTO pixels (quadkey, campaign_id, geometry, latitude, longitude, level, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode)
                 SELECT
                     quadkey,
-                    area_id,
+                    campaign_id,
                     ST_GeomFromText(geometry_wkt, 4326),
                     latitude,
                     longitude,
@@ -247,7 +247,7 @@ async def generate_and_insert_tiles(
                     adm3_pcode,
                     adm4_pcode
                 FROM pixels_with_admin
-                ON CONFLICT (area_id, quadkey) DO UPDATE SET
+                ON CONFLICT (campaign_id, quadkey) DO UPDATE SET
                     geometry = EXCLUDED.geometry,
                     latitude = EXCLUDED.latitude,
                     longitude = EXCLUDED.longitude,
@@ -257,7 +257,7 @@ async def generate_and_insert_tiles(
                     adm3_pcode = EXCLUDED.adm3_pcode,
                     adm4_pcode = EXCLUDED.adm4_pcode,
                     updated_at = NOW()
-            """, (quadkeys, area_ids, geometries, latitudes, longitudes, levels))
+            """, (quadkeys, campaign_ids, geometries, latitudes, longitudes, levels))
 
             total_inserted += cursor.rowcount
             conn.commit()
@@ -275,14 +275,14 @@ async def generate_and_insert_tiles(
 
 
 @activity.defn
-async def create_default_coverage_pixels_for_area(area_id: str) -> int:
+async def create_default_coverage_pixels_for_area(campaign_id: str) -> int:
     """
     Create default coverage_pixel records for all pixels in an area.
 
     Queries the database for quadkeys to avoid passing large lists through Temporal.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
 
     Returns:
         Number of coverage_pixel records created
@@ -294,11 +294,11 @@ async def create_default_coverage_pixels_for_area(area_id: str) -> int:
         # Get the project_id from the area
         cursor.execute("""
             SELECT project_id FROM areas WHERE id = %s
-        """, (area_id,))
+        """, (campaign_id,))
 
         area_row = cursor.fetchone()
         if not area_row or not area_row[0]:
-            activity.logger.warning(f"No project found for area {area_id}")
+            activity.logger.warning(f"No project found for area {campaign_id}")
             return 0
 
         project_id = area_row[0]
@@ -320,26 +320,26 @@ async def create_default_coverage_pixels_for_area(area_id: str) -> int:
         # that don't already exist, using a single efficient query
         cursor.execute("""
             INSERT INTO coverage_pixel (
-                quadkey, area_id, indicator_id, version,
+                quadkey, campaign_id, indicator_id, version,
                 n_trials, n_covered, rounds,
                 exceedance_probability, exceedance_uncertainty,
                 prevalence_bci_width, prevalence_prediction
             )
             SELECT
                 p.quadkey,
-                p.area_id,
+                p.campaign_id,
                 i.indicator_id,
                 0, 0, 0, '{}', 0, 0, 0, 0
             FROM pixels p
             CROSS JOIN (SELECT unnest(%s::uuid[]) as indicator_id) i
-            WHERE p.area_id = %s
-            ON CONFLICT (area_id, quadkey, indicator_id) DO NOTHING
-        """, (indicator_ids, area_id))
+            WHERE p.campaign_id = %s
+            ON CONFLICT (campaign_id, quadkey, indicator_id) DO NOTHING
+        """, (indicator_ids, campaign_id))
 
         created_count = cursor.rowcount
         conn.commit()
 
-        activity.logger.info(f"Created {created_count} coverage_pixel records for area {area_id}")
+        activity.logger.info(f"Created {created_count} coverage_pixel records for area {campaign_id}")
         return created_count
 
     finally:

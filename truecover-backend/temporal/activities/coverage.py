@@ -53,12 +53,12 @@ def parse_json_response(response):
 
 
 @activity.defn
-async def fetch_location_coverage(area_id: str, indicator_id: str) -> List[Dict[str, Any]]:
+async def fetch_location_coverage(campaign_id: str, indicator_id: str) -> List[Dict[str, Any]]:
     """
     Fetch all location coverage records for an area and indicator.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         indicator_id: Indicator ID
 
     Returns:
@@ -72,7 +72,7 @@ async def fetch_location_coverage(area_id: str, indicator_id: str) -> List[Dict[
             SELECT
                 c.id,
                 l.id as location_id,
-                l.area_id,
+                l.campaign_id,
                 ST_AsGeoJSON(l.geometry) as geometry,
                 c.n_trials,
                 c.n_covered,
@@ -81,8 +81,8 @@ async def fetch_location_coverage(area_id: str, indicator_id: str) -> List[Dict[
             FROM coverage c
             JOIN locations l ON c.location_id = l.id
             WHERE c.indicator_id = %s
-              AND l.area_id = %s
-        """, (indicator_id, area_id))
+              AND l.campaign_id = %s
+        """, (indicator_id, campaign_id))
 
         records = cursor.fetchall()
 
@@ -96,7 +96,7 @@ async def fetch_location_coverage(area_id: str, indicator_id: str) -> List[Dict[
             results.append({
                 "coverage_id": str(r[0]),
                 "location_id": str(r[1]),
-                "area_id": str(r[2]),
+                "campaign_id": str(r[2]),
                 "geometry": geometry,
                 "n_trials": int(r[4]) if r[4] is not None else 0,
                 "n_covered": int(r[5]) if r[5] is not None else 0,
@@ -218,13 +218,13 @@ async def predict_location_coverage(locations: List[Dict[str, Any]]) -> List[Dic
 
 
 @activity.defn
-async def update_location_coverage(results: List[Dict[str, Any]], area_id: str, indicator_id: str) -> int:
+async def update_location_coverage(results: List[Dict[str, Any]], campaign_id: str, indicator_id: str) -> int:
     """
     Update coverage records with predictions.
 
     Args:
         results: List of predictions with coverage IDs
-        area_id: Area ID for calculating quadkeys
+        campaign_id: Area ID for calculating quadkeys
         indicator_id: Indicator ID
 
     Returns:
@@ -289,12 +289,12 @@ async def update_location_coverage(results: List[Dict[str, Any]], area_id: str, 
 
 
 @activity.defn
-async def fetch_pixel_coverage(area_id: str, indicator_id: str) -> List[Dict[str, Any]]:
+async def fetch_pixel_coverage(campaign_id: str, indicator_id: str) -> List[Dict[str, Any]]:
     """
     Fetch all pixel coverage records for an area and indicator.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         indicator_id: Indicator ID
 
     Returns:
@@ -314,8 +314,8 @@ async def fetch_pixel_coverage(area_id: str, indicator_id: str) -> List[Dict[str
             FROM coverage_pixel cp
             JOIN pixels p ON cp.quadkey = p.quadkey
             WHERE cp.indicator_id = %s
-              AND cp.area_id = %s
-        """, (indicator_id, area_id))
+              AND cp.campaign_id = %s
+        """, (indicator_id, campaign_id))
 
         records = cursor.fetchall()
 

@@ -3,30 +3,30 @@ import { useParams } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { useOrganization } from '../hooks/useOrganizations';
 import { useProject } from '../hooks/useProjects';
-import { useArea } from '../hooks/useAreas';
+import { useCampaign } from '../hooks/useCampaigns';
 import { useLocations } from '../hooks/useLocations';
-import AreaDetailPage from '../pages/AreaDetailPage';
+import CampaignDetailPage from '../pages/CampaignDetailPage';
 import LocationsPage from '../pages/LocationsPage';
 import { TacticalLoader } from '../tactical-ui';
 
 /**
- * Wrapper component for Area Detail with deep linking using React Query
+ * Wrapper component for Campaign Detail with deep linking using React Query
  */
 export const AreaDetailWrapper: React.FC = () => {
-  const { orgId, projectId, areaId } = useParams();
+  const { orgId, projectId, campaignId } = useParams();
   const {
     selectedOrganization,
     setSelectedOrganization,
     selectedProject,
     setSelectedProject,
-    selectedArea,
-    setSelectedArea,
+    selectedCampaign,
+    setSelectedCampaign,
   } = useAppContext();
 
   // Use React Query hooks to fetch data
   const { data: organization, isLoading: isLoadingOrg } = useOrganization(orgId);
   const { data: project, isLoading: isLoadingProject } = useProject(projectId);
-  const { data: area, isLoading: isLoadingArea } = useArea(areaId);
+  const { data: campaign, isLoading: isLoadingCampaign } = useCampaign(campaignId);
 
   // Update local state when data is loaded
   useEffect(() => {
@@ -42,13 +42,13 @@ export const AreaDetailWrapper: React.FC = () => {
   }, [project]);
 
   useEffect(() => {
-    if (area && (!selectedArea || selectedArea.id !== area.id)) {
-      setSelectedArea(area);
+    if (campaign && (!selectedCampaign || selectedCampaign.id !== campaign.id)) {
+      setSelectedCampaign(campaign);
     }
-  }, [area]);
+  }, [campaign]);
 
   // Show loading state while any data is loading
-  const isLoading = isLoadingOrg || isLoadingProject || isLoadingArea;
+  const isLoading = isLoadingOrg || isLoadingProject || isLoadingCampaign;
 
   if (isLoading) {
     return (
@@ -58,29 +58,29 @@ export const AreaDetailWrapper: React.FC = () => {
     );
   }
 
-  return <AreaDetailPage />;
+  return <CampaignDetailPage />;
 };
 
 /**
  * Wrapper component for Locations with deep linking using React Query
  */
 export const LocationsWrapper: React.FC = () => {
-  const { orgId, projectId, areaId } = useParams();
+  const { orgId, projectId, campaignId } = useParams();
   const {
     selectedOrganization,
     setSelectedOrganization,
     selectedProject,
     setSelectedProject,
-    selectedArea,
-    setSelectedArea,
+    selectedCampaign,
+    setSelectedCampaign,
     setLocations,
   } = useAppContext();
 
   // Use React Query hooks to fetch data
   const { data: organization, isLoading: isLoadingOrg } = useOrganization(orgId);
   const { data: project, isLoading: isLoadingProject } = useProject(projectId);
-  const { data: area, isLoading: isLoadingArea } = useArea(areaId);
-  const { data: locationsData, isLoading: isLoadingLocations } = useLocations(areaId);
+  const { data: campaign, isLoading: isLoadingCampaign } = useCampaign(campaignId);
+  const { data: locationsData, isLoading: isLoadingLocations } = useLocations(campaignId);
 
   // Update local state when data is loaded
   useEffect(() => {
@@ -96,10 +96,10 @@ export const LocationsWrapper: React.FC = () => {
   }, [project]);
 
   useEffect(() => {
-    if (area && (!selectedArea || selectedArea.id !== area.id)) {
-      setSelectedArea(area);
+    if (campaign && (!selectedCampaign || selectedCampaign.id !== campaign.id)) {
+      setSelectedCampaign(campaign);
     }
-  }, [area]);
+  }, [campaign]);
 
   useEffect(() => {
     if (locationsData) {
@@ -108,7 +108,7 @@ export const LocationsWrapper: React.FC = () => {
   }, [locationsData]);
 
   // Show loading state while any data is loading
-  const isLoading = isLoadingOrg || isLoadingProject || isLoadingArea || isLoadingLocations;
+  const isLoading = isLoadingOrg || isLoadingProject || isLoadingCampaign || isLoadingLocations;
 
   if (isLoading) {
     return (

@@ -21,7 +21,7 @@ interface Round {
 }
 
 interface RoundsManagerProps {
-  areaId: string;
+  campaignId: string;
   areaName: string;
   projectId: string;
   locations: any; // GeoJSON FeatureCollection
@@ -31,7 +31,7 @@ interface RoundsManagerProps {
   pixelCount?: number;
 }
 
-const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0 }) => {
+const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0 }) => {
   const { getToken } = useAuth();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +49,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
     try {
       const token = await getToken();
       const response = await axios.get(
-        `${API_URL}/api/areas/${areaId}/rounds`,
+        `${API_URL}/api/campaigns/${campaignId}/rounds`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -71,13 +71,13 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
     } finally {
       setIsLoading(false);
     }
-  }, [areaId, getToken]);
+  }, [campaignId, getToken]);
 
   useEffect(() => {
-    if (areaId) {
+    if (campaignId) {
       loadRounds();
     }
-  }, [areaId, loadRounds, refreshKey]);
+  }, [campaignId, loadRounds, refreshKey]);
 
   // Open modal when admin boundary is selected
   useEffect(() => {
@@ -256,7 +256,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
             onClearAdminBoundary();
           }
         }}
-        areaId={areaId}
+        campaignId={campaignId}
         projectId={projectId}
         onRoundCreated={handleRoundCreated}
         adminBoundaryPcode={selectedAdminBoundary?.pcode}
@@ -266,7 +266,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
       <ExportLocationsModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        areaId={areaId}
+        campaignId={campaignId}
         areaName={areaName}
         projectId={projectId}
         locations={locations}

@@ -12,7 +12,7 @@ import { useCoverage } from '../hooks/useCoverage';
 interface ExportDataModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   projectId: string;
   indicators: Array<{ id: string; name: string }>;
 }
@@ -20,7 +20,7 @@ interface ExportDataModalProps {
 const ExportDataModal: React.FC<ExportDataModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   indicators,
 }) => {
   const [selectedIndicatorId, setSelectedIndicatorId] = useState('');
@@ -38,7 +38,7 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
   }, [isOpen, indicators]);
 
   const handleExport = async () => {
-    if (!selectedIndicatorId || !areaId) {
+    if (!selectedIndicatorId || !campaignId) {
       setError('Please select an indicator');
       return;
     }
@@ -47,7 +47,7 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
     setError(null);
 
     try {
-      console.log('Starting export:', { selectedIndicatorId, areaId, selectedFormat });
+      console.log('Starting export:', { selectedIndicatorId, campaignId, selectedFormat });
 
       const indicator = indicators.find(ind => ind.id === selectedIndicatorId);
       const indicatorName = indicator?.name || 'coverage';
@@ -58,7 +58,7 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
         console.log('Fetching CSV data...');
         // Fetch coverage data and export as CSV
         const data = await listCoverage({
-          area_id: areaId,
+          campaign_id: campaignId,
           indicator_id: selectedIndicatorId,
         });
 
@@ -118,7 +118,7 @@ const ExportDataModal: React.FC<ExportDataModalProps> = ({
         console.log('Fetching GeoJSON data...');
         // Fetch coverage GeoJSON and export
         const geojson = await getCoverageGeoJSON({
-          area_id: areaId,
+          campaign_id: campaignId,
           indicator_id: selectedIndicatorId,
         });
 

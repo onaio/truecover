@@ -44,7 +44,7 @@ class OvertureImportWorkflow:
     async def run(
         self,
         pcode: str,
-        area_id: str,
+        campaign_id: str,
         geometry: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
@@ -52,7 +52,7 @@ class OvertureImportWorkflow:
 
         Args:
             pcode: Admin boundary PCODE
-            area_id: Area ID
+            campaign_id: Area ID
             geometry: Optional GeoJSON geometry for drawn areas
 
         Returns:
@@ -114,7 +114,7 @@ class OvertureImportWorkflow:
             # Activity 3: Process batch (insert locations)
             result = await workflow.execute_activity(
                 process_overture_buildings_batch,
-                args=[area_id, buildings_batch],
+                args=[campaign_id, buildings_batch],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
@@ -141,7 +141,7 @@ class OvertureImportWorkflow:
             workflow.logger.info(f"Populating coverage for {len(all_new_location_ids)} new locations")
             await workflow.execute_activity(
                 populate_coverage_for_locations,
-                args=[area_id, all_new_location_ids],
+                args=[campaign_id, all_new_location_ids],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
@@ -152,7 +152,7 @@ class OvertureImportWorkflow:
             workflow.logger.info("Auto-generating pixels for imported buildings")
             pixel_result = await workflow.execute_activity(
                 generate_pixels_for_quadkeys,
-                args=[area_id],
+                args=[campaign_id],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
@@ -163,7 +163,7 @@ class OvertureImportWorkflow:
             workflow.logger.info(f"Creating coverage_pixel records for {len(new_quadkeys)} pixels")
             await workflow.execute_activity(
                 create_coverage_pixel_records,
-                args=[area_id, new_quadkeys],
+                args=[campaign_id, new_quadkeys],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )

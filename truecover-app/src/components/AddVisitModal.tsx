@@ -12,7 +12,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 interface AddVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   areaName: string;
   roundId: string;
   projectId: string;
@@ -22,7 +22,7 @@ interface AddVisitModalProps {
 const AddVisitModal: React.FC<AddVisitModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   areaName,
   roundId,
   projectId,
@@ -45,7 +45,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
   const [nCoveredField, setNCoveredField] = useState<string>('');
 
   const { data: projectIndicators = [], isLoading: loadingIndicators } = useIndicators(projectId);
-  const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
+  const { data: rounds = [], isLoading: loadingRounds } = useRounds(campaignId);
 
   // Set default round when modal opens
   useEffect(() => {
@@ -144,7 +144,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
         }
 
         visits.push({
-          area_id: areaId,
+          campaign_id: campaignId,
           round_id: selectedRoundId || roundId,
           indicator_id: indicatorId,
           location_id: mappedLocationId || null,
@@ -269,7 +269,7 @@ const AddVisitModal: React.FC<AddVisitModalProps> = ({
         }
 
         visits.push({
-          area_id: areaId,
+          campaign_id: campaignId,
           round_id: selectedRoundId || roundId,
           indicator_id: indicatorId,
           location_id: mappedLocationId || null,

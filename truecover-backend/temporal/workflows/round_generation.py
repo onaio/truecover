@@ -36,7 +36,7 @@ class RoundGenerationWorkflow:
     @workflow.run
     async def run(
         self,
-        area_id: str,
+        campaign_id: str,
         name: str,
         description: str,
         start_date: str,
@@ -54,7 +54,7 @@ class RoundGenerationWorkflow:
         Run round generation workflow.
 
         Args:
-            area_id: Area ID
+            campaign_id: Area ID
             name: Round name
             description: Round description
             start_date: Start date
@@ -71,12 +71,12 @@ class RoundGenerationWorkflow:
         Returns:
             Result summary with round details and selection count
         """
-        workflow.logger.info(f"Starting round generation for area {area_id}")
+        workflow.logger.info(f"Starting round generation for area {campaign_id}")
 
         # Activity 1: Create round record
         round_data = await workflow.execute_activity(
             create_round_record,
-            args=[area_id, name, description, start_date, end_date, indicator_id, sampling_target],
+            args=[campaign_id, name, description, start_date, end_date, indicator_id, sampling_target],
             start_to_close_timeout=timedelta(seconds=30),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )
@@ -91,7 +91,7 @@ class RoundGenerationWorkflow:
             # Pass only metadata, not the actual data
             sampling_results = await workflow.execute_activity(
                 call_adaptive_sampling,
-                args=[area_id, indicator_id, sampling_target, batch_size, uncertainty_field, allow_revisit, admin_pcode, min_population, population_field],
+                args=[campaign_id, indicator_id, sampling_target, batch_size, uncertainty_field, allow_revisit, admin_pcode, min_population, population_field],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(
                     initial_interval=timedelta(seconds=1),

@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@clerk/clerk-react';
-import { areasApi } from '../services/api';
+import { campaignsApi } from '../services/api';
 
 /**
- * Hook to fetch all areas for a project
+ * Hook to fetch all campaigns for a project
  */
-export function useAreas(projectId: string | undefined) {
+export function useCampaigns(projectId: string | undefined) {
   const { getToken, isSignedIn } = useAuth();
 
   return useQuery({
-    queryKey: ['areas', projectId],
+    queryKey: ['campaigns', projectId],
     queryFn: async () => {
       if (!projectId) {
         throw new Error('Project ID is required');
@@ -20,23 +20,23 @@ export function useAreas(projectId: string | undefined) {
         throw new Error('Authentication token not available');
       }
 
-      return areasApi.list(projectId, token);
+      return campaignsApi.list(projectId, token);
     },
     enabled: !!projectId && isSignedIn,
   });
 }
 
 /**
- * Hook to fetch a single area
+ * Hook to fetch a single campaign
  */
-export function useArea(areaId: string | undefined) {
+export function useCampaign(campaignId: string | undefined) {
   const { getToken, isSignedIn } = useAuth();
 
   return useQuery({
-    queryKey: ['area', areaId],
+    queryKey: ['campaign', campaignId],
     queryFn: async () => {
-      if (!areaId) {
-        throw new Error('Area ID is required');
+      if (!campaignId) {
+        throw new Error('Campaign ID is required');
       }
 
       const token = await getToken();
@@ -44,16 +44,16 @@ export function useArea(areaId: string | undefined) {
         throw new Error('Authentication token not available');
       }
 
-      return areasApi.get(areaId, token);
+      return campaignsApi.get(campaignId, token);
     },
-    enabled: !!areaId && isSignedIn,
+    enabled: !!campaignId && isSignedIn,
   });
 }
 
 /**
- * Hook to create an area
+ * Hook to create a campaign
  */
-export function useCreateArea() {
+export function useCreateCampaign() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
@@ -72,29 +72,28 @@ export function useCreateArea() {
         throw new Error('Authentication token not available');
       }
 
-      return areasApi.create(projectId, name, description, token);
+      return campaignsApi.create(projectId, name, description, token);
     },
     onSuccess: (_, variables) => {
-      // Invalidate areas list for this project
-      queryClient.invalidateQueries({ queryKey: ['areas', variables.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', variables.projectId] });
     },
   });
 }
 
 /**
- * Hook to update an area
+ * Hook to update a campaign
  */
-export function useUpdateArea() {
+export function useUpdateCampaign() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
-      areaId,
+      campaignId,
       name,
       description
     }: {
-      areaId: string;
+      campaignId: string;
       projectId: string;
       name: string;
       description: string
@@ -104,35 +103,33 @@ export function useUpdateArea() {
         throw new Error('Authentication token not available');
       }
 
-      return areasApi.update(areaId, name, description, token);
+      return campaignsApi.update(campaignId, name, description, token);
     },
     onSuccess: (_, variables) => {
-      // Invalidate both the list and the specific area
-      queryClient.invalidateQueries({ queryKey: ['areas', variables.projectId] });
-      queryClient.invalidateQueries({ queryKey: ['area', variables.areaId] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', variables.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['campaign', variables.campaignId] });
     },
   });
 }
 
 /**
- * Hook to delete an area
+ * Hook to delete a campaign
  */
-export function useDeleteArea() {
+export function useDeleteCampaign() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ areaId }: { areaId: string; projectId: string }) => {
+    mutationFn: async ({ campaignId }: { campaignId: string; projectId: string }) => {
       const token = await getToken();
       if (!token) {
         throw new Error('Authentication token not available');
       }
 
-      return areasApi.delete(areaId, token);
+      return campaignsApi.delete(campaignId, token);
     },
     onSuccess: (_, variables) => {
-      // Invalidate areas list for this project
-      queryClient.invalidateQueries({ queryKey: ['areas', variables.projectId] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns', variables.projectId] });
     },
   });
 }

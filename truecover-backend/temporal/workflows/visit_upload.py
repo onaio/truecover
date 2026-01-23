@@ -32,7 +32,7 @@ class VisitUploadWorkflow:
     @workflow.run
     async def run(
         self,
-        area_id: str,
+        campaign_id: str,
         indicator_id: str,
         round_id: str,
         visits: List[Dict[str, Any]]
@@ -41,7 +41,7 @@ class VisitUploadWorkflow:
         Run visit upload workflow.
 
         Args:
-            area_id: Area ID
+            campaign_id: Area ID
             indicator_id: Indicator ID
             round_id: Round ID
             visits: List of visit data
@@ -66,7 +66,7 @@ class VisitUploadWorkflow:
 
             result = await workflow.execute_activity(
                 process_visit_batch,
-                args=[area_id, indicator_id, round_id, batch],
+                args=[campaign_id, indicator_id, round_id, batch],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(maximum_attempts=3),
             )
@@ -88,7 +88,7 @@ class VisitUploadWorkflow:
             )
             await workflow.execute_activity(
                 update_coverage_pixel_aggregates,
-                args=[area_id, indicator_id, list(all_affected_quadkeys)],
+                args=[campaign_id, indicator_id, list(all_affected_quadkeys)],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(maximum_attempts=3),
             )

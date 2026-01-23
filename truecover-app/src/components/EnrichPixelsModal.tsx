@@ -9,7 +9,7 @@ import { useCreateEnrichmentJob } from '../hooks/useEnrichment';
 interface EnrichPixelsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   pixelCount: number;
   onJobCreated?: (jobId: string) => void;
 }
@@ -25,7 +25,7 @@ const STATISTICS = [
 const EnrichPixelsModal: React.FC<EnrichPixelsModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   pixelCount,
   onJobCreated
 }) => {
@@ -58,7 +58,7 @@ const EnrichPixelsModal: React.FC<EnrichPixelsModalProps> = ({
 
     try {
       const result = await createJob.mutateAsync({
-        areaId,
+        campaignId,
         dataSourceId: selectedDataSourceId,
         statistic: selectedStatistic
       });

@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
-from auth.helpers import check_area_access
+from auth.helpers import check_campaign_access
 from db.connection import get_db_connection, return_db_connection
 import json
 import csv
@@ -47,7 +47,7 @@ def geometry_to_wkt(geometry_dict):
         return None
 
 
-def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
+def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     """
     Find duplicate location using multiple strategies:
     1. Match by external_id
@@ -58,9 +58,9 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     if external_id:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE area_id = %s AND external_id = %s
+            WHERE campaign_id = %s AND external_id = %s
             LIMIT 1
-        """, (area_id, external_id))
+        """, (campaign_id, external_id))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -69,11 +69,11 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     if lat is not None and lng is not None:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE area_id = %s
+            WHERE campaign_id = %s
             AND ABS(latitude - %s) < 0.0001
             AND ABS(longitude - %s) < 0.0001
             LIMIT 1
-        """, (area_id, lat, lng))
+        """, (campaign_id, lat, lng))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -82,10 +82,10 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     if geometry_wkt:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE area_id = %s
+            WHERE campaign_id = %s
             AND ST_Intersects(geometry, ST_GeomFromText(%s, 4326))
             LIMIT 1
-        """, (area_id, geometry_wkt))
+        """, (campaign_id, geometry_wkt))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -93,7 +93,7 @@ def find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt):
     return None
 
 
-def populate_coverage_for_locations(cursor, area_id, new_location_ids):
+def populate_coverage_for_locations(cursor, campaign_id, new_location_ids):
     """
     Populate coverage table for newly added locations.
     For each indicator in the project, create coverage entries for all new locations
@@ -101,7 +101,7 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
 
     Args:
         cursor: Database cursor
-        area_id: UUID of the area
+        campaign_id: UUID of the area
         new_location_ids: List of UUIDs of newly inserted locations
     """
     if not new_location_ids:
@@ -111,10 +111,10 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
         # Get the project_id from the area
         cursor.execute("""
             SELECT project_id FROM areas WHERE id = %s
-        """, (area_id,))
+        """, (campaign_id,))
         result = cursor.fetchone()
         if not result:
-            print(f"Warning: Could not find area {area_id}")
+            print(f"Warning: Could not find area {campaign_id}")
             return
 
         project_id = result[0]
@@ -184,14 +184,14 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
                 # Insert new coverage entry with quadkey
                 cursor.execute("""
                     INSERT INTO coverage (
-                        location_id, area_id, indicator_id,
+                        location_id, campaign_id, indicator_id,
                         version, n_trials, n_covered,
                         exceedance_probability, exceedance_uncertainty,
                         prevalence_bci_width, prevalence_prediction, quadkey
                     )
                     VALUES (%s, %s, %s, 0, 0, 0, %s, %s, %s, %s, %s)
                 """, (
-                    location_id, area_id, indicator_id,
+                    location_id, campaign_id, indicator_id,
                     exceedance_probability, exceedance_uncertainty,
                     prevalence_bci_width, prevalence_prediction, quadkey
                 ))
@@ -207,7 +207,7 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
             indicator_id = indicator_row[0]
             try:
                 # Update all quadkeys for this indicator (don't pass specific quadkeys, let it aggregate all)
-                update_coverage_pixel(cursor, area_id, indicator_id, quadkeys=None)
+                update_coverage_pixel(cursor, campaign_id, indicator_id, quadkeys=None)
             except Exception as e:
                 print(f"Error updating coverage_pixel for indicator {indicator_id}: {e}")
                 # Continue with other indicators even if one fails
@@ -219,20 +219,20 @@ def populate_coverage_for_locations(cursor, area_id, new_location_ids):
         # Don't raise - we don't want to fail the upload if coverage population fails
 
 
-@locations_bp.route('/api/areas/<area_id>/locations/upload', methods=['POST'])
+@locations_bp.route('/api/campaigns/<campaign_id>/locations/upload', methods=['POST'])
 @require_auth
-def upload_locations(user, area_id):
+def upload_locations(user, campaign_id):
     """Upload locations from GeoJSON or CSV file"""
     print(f"===== LOCATION UPLOAD STARTED =====")
-    print(f"Area ID: {area_id}")
+    print(f"Area ID: {campaign_id}")
     print(f"User ID: {user.get('id')}")
 
     conn = None
     try:
         # Check if user has access to this area
         print(f"Checking area access...")
-        if not check_area_access(user['id'], area_id):
-            print(f"ERROR: Access denied for user {user.get('id')} to area {area_id}")
+        if not check_campaign_access(user['id'], campaign_id):
+            print(f"ERROR: Access denied for user {user.get('id')} to area {campaign_id}")
             return jsonify({'error': 'Access denied'}), 403
         print(f"Access check passed")
 
@@ -375,7 +375,7 @@ def upload_locations(user, area_id):
                 geometry_wkt = geometry_to_wkt(geometry) if geometry else None
 
                 # Check for duplicates
-                duplicate_id = find_duplicate(cursor, area_id, external_id, lat, lng, geometry_wkt)
+                duplicate_id = find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt)
 
                 if duplicate_id:
                     # Update existing location - merge properties and recalculate quadkey
@@ -402,14 +402,14 @@ def upload_locations(user, area_id):
                     quadkey = calculate_quadkey(lat, lng)
                     cursor.execute("""
                         INSERT INTO locations (
-                            area_id, external_id, geometry, latitude, longitude, quadkey, properties
+                            campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
                         )
                         VALUES (
                             %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s
                         )
                         RETURNING id
                     """, (
-                        area_id, external_id, geometry_wkt, lat, lng, quadkey,
+                        campaign_id, external_id, geometry_wkt, lat, lng, quadkey,
                         json.dumps(properties)
                     ))
                     new_location_id = cursor.fetchone()[0]
@@ -426,7 +426,7 @@ def upload_locations(user, area_id):
         # Populate coverage table for new locations
         if new_location_ids:
             print(f"Populating coverage for {len(new_location_ids)} new locations...")
-            populate_coverage_for_locations(cursor, area_id, new_location_ids)
+            populate_coverage_for_locations(cursor, campaign_id, new_location_ids)
             print(f"Coverage population complete")
         else:
             print(f"No new locations to populate coverage for")
@@ -438,15 +438,15 @@ def upload_locations(user, area_id):
                 # Get all unique quadkeys from locations in this area
                 cursor.execute("""
                     SELECT DISTINCT quadkey FROM locations
-                    WHERE area_id = %s AND quadkey IS NOT NULL
-                """, (area_id,))
+                    WHERE campaign_id = %s AND quadkey IS NOT NULL
+                """, (campaign_id,))
                 location_quadkeys = {row[0] for row in cursor.fetchall()}
 
                 if location_quadkeys:
                     # Get existing pixels for this area
                     cursor.execute("""
-                        SELECT quadkey FROM pixels WHERE area_id = %s
-                    """, (area_id,))
+                        SELECT quadkey FROM pixels WHERE campaign_id = %s
+                    """, (campaign_id,))
                     existing_quadkeys = {row[0] for row in cursor.fetchall()}
 
                     # Find quadkeys that need pixels
@@ -469,7 +469,7 @@ def upload_locations(user, area_id):
                             geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"
 
                             pixel_data.append((
-                                area_id,
+                                campaign_id,
                                 quadkey,
                                 geometry_wkt,
                                 centroid_lat,
@@ -479,7 +479,7 @@ def upload_locations(user, area_id):
 
                         # Batch insert pixels (upsert to handle any race conditions)
                         cursor.executemany("""
-                            INSERT INTO pixels (area_id, quadkey, geometry, latitude, longitude, level)
+                            INSERT INTO pixels (campaign_id, quadkey, geometry, latitude, longitude, level)
                             VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
                             ON CONFLICT ON CONSTRAINT pixels_area_quadkey_unique DO NOTHING
                         """, pixel_data)
@@ -488,7 +488,7 @@ def upload_locations(user, area_id):
 
                         # Create default coverage_pixel records for the new pixels
                         from routes.coverage import create_default_coverage_pixels
-                        create_default_coverage_pixels(cursor, area_id, list(quadkeys_needing_pixels))
+                        create_default_coverage_pixels(cursor, campaign_id, list(quadkeys_needing_pixels))
                     else:
                         print(f"All location quadkeys already have pixels")
                 else:
@@ -525,14 +525,14 @@ def upload_locations(user, area_id):
             return_db_connection(conn)
 
 
-@locations_bp.route('/api/areas/<area_id>/locations', methods=['GET'])
+@locations_bp.route('/api/campaigns/<campaign_id>/locations', methods=['GET'])
 @require_auth
-def list_locations(user, area_id):
+def list_locations(user, campaign_id):
     """Get all locations for an area as a lightweight list (no geometry for bandwidth reduction)"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -546,8 +546,8 @@ def list_locations(user, area_id):
         cursor.execute("""
             SELECT COUNT(*)
             FROM locations
-            WHERE area_id = %s
-        """, (area_id,))
+            WHERE campaign_id = %s
+        """, (campaign_id,))
         total_count = cursor.fetchone()[0]
 
         # Return lightweight list without geometry - map uses vector tiles now
@@ -558,10 +558,10 @@ def list_locations(user, area_id):
                 properties, quadkey,
                 created_at, updated_at
             FROM locations
-            WHERE area_id = %s
+            WHERE campaign_id = %s
             ORDER BY created_at DESC
             LIMIT %s OFFSET %s
-        """, (area_id, limit, offset))
+        """, (campaign_id, limit, offset))
 
         locations = []
         for row in cursor.fetchall():
@@ -600,14 +600,14 @@ def list_locations(user, area_id):
             return_db_connection(conn)
 
 
-@locations_bp.route('/api/areas/<area_id>/locations/<location_id>', methods=['PUT'])
+@locations_bp.route('/api/campaigns/<campaign_id>/locations/<location_id>', methods=['PUT'])
 @require_auth
-def update_location(user, area_id, location_id):
+def update_location(user, campaign_id, location_id):
     """Update a location (excluding geometry)"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         data = request.get_json()
@@ -620,8 +620,8 @@ def update_location(user, area_id, location_id):
         # Verify location belongs to area
         cursor.execute("""
             SELECT id FROM locations
-            WHERE id = %s AND area_id = %s
-        """, (location_id, area_id))
+            WHERE id = %s AND campaign_id = %s
+        """, (location_id, campaign_id))
 
         if not cursor.fetchone():
             cursor.close()
@@ -633,11 +633,11 @@ def update_location(user, area_id, location_id):
             SET
                 external_id = COALESCE(%s, external_id),
                 updated_at = NOW()
-            WHERE id = %s AND area_id = %s
+            WHERE id = %s AND campaign_id = %s
         """, (
             data.get('external_id'),
             location_id,
-            area_id
+            campaign_id
         ))
 
         conn.commit()
@@ -655,14 +655,14 @@ def update_location(user, area_id, location_id):
             return_db_connection(conn)
 
 
-@locations_bp.route('/api/areas/<area_id>/locations/<location_id>', methods=['DELETE'])
+@locations_bp.route('/api/campaigns/<campaign_id>/locations/<location_id>', methods=['DELETE'])
 @require_auth
-def delete_location(user, area_id, location_id):
+def delete_location(user, campaign_id, location_id):
     """Delete a location"""
     conn = None
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         conn = get_db_connection()
@@ -671,8 +671,8 @@ def delete_location(user, area_id, location_id):
         # Verify location belongs to area
         cursor.execute("""
             SELECT id FROM locations
-            WHERE id = %s AND area_id = %s
-        """, (location_id, area_id))
+            WHERE id = %s AND campaign_id = %s
+        """, (location_id, campaign_id))
 
         if not cursor.fetchone():
             cursor.close()
@@ -681,8 +681,8 @@ def delete_location(user, area_id, location_id):
         # Delete location
         cursor.execute("""
             DELETE FROM locations
-            WHERE id = %s AND area_id = %s
-        """, (location_id, area_id))
+            WHERE id = %s AND campaign_id = %s
+        """, (location_id, campaign_id))
 
         conn.commit()
         cursor.close()
@@ -699,9 +699,9 @@ def delete_location(user, area_id, location_id):
             return_db_connection(conn)
 
 
-@locations_bp.route('/api/areas/<area_id>/locations/upload/async', methods=['POST'])
+@locations_bp.route('/api/campaigns/<campaign_id>/locations/upload/async', methods=['POST'])
 @require_auth
-def upload_locations_async(user, area_id):
+def upload_locations_async(user, campaign_id):
     """Upload locations using Temporal workflow (async)"""
     import os
     import tempfile
@@ -710,13 +710,13 @@ def upload_locations_async(user, area_id):
     from temporal.workflows.location_upload import LocationUploadWorkflow
 
     print(f"===== ASYNC LOCATION UPLOAD STARTED =====")
-    print(f"Area ID: {area_id}")
+    print(f"Area ID: {campaign_id}")
     print(f"User ID: {user.get('id')}")
 
     try:
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
-            print(f"ERROR: Access denied for user {user.get('id')} to area {area_id}")
+        if not check_campaign_access(user['id'], campaign_id):
+            print(f"ERROR: Access denied for user {user.get('id')} to area {campaign_id}")
             return jsonify({'error': 'Access denied'}), 403
 
         # Check for file
@@ -750,14 +750,14 @@ def upload_locations_async(user, area_id):
 
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"location-upload-{area_id}-{timestamp}"
+        workflow_id = f"location-upload-{campaign_id}-{timestamp}"
 
         # Start workflow
         async def start_workflow():
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 LocationUploadWorkflow.run,
-                args=[area_id, temp_path, file_type, config],
+                args=[campaign_id, temp_path, file_type, config],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

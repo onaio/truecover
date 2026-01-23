@@ -8,13 +8,13 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 /**
  * Hook to fetch locations for a specific area
  */
-export function useLocations(areaId: string | undefined) {
+export function useLocations(campaignId: string | undefined) {
   const { getToken, isSignedIn } = useAuth();
 
   return useQuery({
-    queryKey: ['locations', areaId],
+    queryKey: ['locations', campaignId],
     queryFn: async () => {
-      if (!areaId) {
+      if (!campaignId) {
         throw new Error('Area ID is required');
       }
 
@@ -23,22 +23,22 @@ export function useLocations(areaId: string | undefined) {
         throw new Error('Authentication token not available');
       }
 
-      return locationsApi.list(areaId, token);
+      return locationsApi.list(campaignId, token);
     },
-    enabled: !!areaId && isSignedIn,
+    enabled: !!campaignId && isSignedIn,
   });
 }
 
 /**
  * Hook to fetch locations with infinite scroll pagination
  */
-export function useInfiniteLocations(areaId: string | undefined) {
+export function useInfiniteLocations(campaignId: string | undefined) {
   const { getToken, isSignedIn } = useAuth();
 
   return useInfiniteQuery({
-    queryKey: ['locations-infinite', areaId],
+    queryKey: ['locations-infinite', campaignId],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!areaId) {
+      if (!campaignId) {
         throw new Error('Area ID is required');
       }
 
@@ -48,7 +48,7 @@ export function useInfiniteLocations(areaId: string | undefined) {
       }
 
       const response = await axios.get(
-        `${API_URL}/api/areas/${areaId}/locations?limit=200&offset=${pageParam}`,
+        `${API_URL}/api/campaigns/${campaignId}/locations?limit=200&offset=${pageParam}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -64,7 +64,7 @@ export function useInfiniteLocations(areaId: string | undefined) {
       return hasMore ? allPages.length * 200 : undefined;
     },
     initialPageParam: 0,
-    enabled: !!areaId && isSignedIn,
+    enabled: !!campaignId && isSignedIn,
   });
 }
 
@@ -77,11 +77,11 @@ export function useUploadLocations() {
 
   return useMutation({
     mutationFn: async ({
-      areaId,
+      campaignId,
       file,
       config
     }: {
-      areaId: string;
+      campaignId: string;
       file: File;
       config: {
         latColumn?: string;
@@ -94,11 +94,11 @@ export function useUploadLocations() {
         throw new Error('Authentication token not available');
       }
 
-      return locationsApi.upload(areaId, file, config, token);
+      return locationsApi.upload(campaignId, file, config, token);
     },
     onSuccess: (_, variables) => {
       // Invalidate and refetch locations for this area
-      queryClient.invalidateQueries({ queryKey: ['locations', variables.areaId] });
+      queryClient.invalidateQueries({ queryKey: ['locations', variables.campaignId] });
     },
   });
 }
@@ -112,11 +112,11 @@ export function useUpdateLocation() {
 
   return useMutation({
     mutationFn: async ({
-      areaId,
+      campaignId,
       locationId,
       data
     }: {
-      areaId: string;
+      campaignId: string;
       locationId: string;
       data: any
     }) => {
@@ -125,11 +125,11 @@ export function useUpdateLocation() {
         throw new Error('Authentication token not available');
       }
 
-      return locationsApi.update(areaId, locationId, data, token);
+      return locationsApi.update(campaignId, locationId, data, token);
     },
     onSuccess: (_, variables) => {
       // Invalidate and refetch locations for this area
-      queryClient.invalidateQueries({ queryKey: ['locations', variables.areaId] });
+      queryClient.invalidateQueries({ queryKey: ['locations', variables.campaignId] });
     },
   });
 }
@@ -143,10 +143,10 @@ export function useDeleteLocation() {
 
   return useMutation({
     mutationFn: async ({
-      areaId,
+      campaignId,
       locationId
     }: {
-      areaId: string;
+      campaignId: string;
       locationId: string
     }) => {
       const token = await getToken();
@@ -154,11 +154,11 @@ export function useDeleteLocation() {
         throw new Error('Authentication token not available');
       }
 
-      return locationsApi.delete(areaId, locationId, token);
+      return locationsApi.delete(campaignId, locationId, token);
     },
     onSuccess: (_, variables) => {
       // Invalidate and refetch locations for this area
-      queryClient.invalidateQueries({ queryKey: ['locations', variables.areaId] });
+      queryClient.invalidateQueries({ queryKey: ['locations', variables.campaignId] });
     },
   });
 }

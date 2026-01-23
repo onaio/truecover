@@ -14,7 +14,7 @@ SAMPLING_URL = os.getenv('DOCKER_FN_SAMPLING_URL', 'http://localhost:8083')
 
 @activity.defn
 async def create_round_record(
-    area_id: str,
+    campaign_id: str,
     name: str,
     description: str,
     start_date: str,
@@ -26,7 +26,7 @@ async def create_round_record(
     Create a new round record in database.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         name: Round name
         description: Round description
         start_date: Start date
@@ -45,21 +45,21 @@ async def create_round_record(
         cursor.execute("""
             SELECT COALESCE(MAX(round_number), 0) + 1
             FROM rounds
-            WHERE area_id = %s
-        """, (area_id,))
+            WHERE campaign_id = %s
+        """, (campaign_id,))
         round_number = cursor.fetchone()[0]
 
         # Create round
         cursor.execute("""
-            INSERT INTO rounds (area_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target)
+            INSERT INTO rounds (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at, sampling_target
-        """, (area_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target))
+        """, (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target))
 
         row = cursor.fetchone()
         conn.commit()
 
-        activity.logger.info(f"Created round {round_number} for area {area_id}")
+        activity.logger.info(f"Created round {round_number} for area {campaign_id}")
 
         return {
             "round_id": str(row[0]),
@@ -79,7 +79,7 @@ async def create_round_record(
 
 @activity.defn
 async def fetch_coverage_for_sampling(
-    area_id: str,
+    campaign_id: str,
     indicator_id: str,
     sampling_target: str,
     allow_revisit: bool,
@@ -91,7 +91,7 @@ async def fetch_coverage_for_sampling(
     Fetch coverage data for adaptive sampling.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         indicator_id: Indicator ID
         sampling_target: 'locations' or 'pixels'
         allow_revisit: Allow revisiting locations/pixels
@@ -134,10 +134,10 @@ async def fetch_coverage_for_sampling(
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
                         {pop_join}
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
                           {pop_filter}
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode, *pop_params))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode, *pop_params))
                 else:
                     cursor.execute(f"""
                         SELECT
@@ -150,9 +150,9 @@ async def fetch_coverage_for_sampling(
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
                         {pop_join}
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           {pop_filter}
-                    """, (area_id, indicator_id, *pop_params))
+                    """, (campaign_id, indicator_id, *pop_params))
             else:
                 # Only unvisited pixels
                 if admin_pcode:
@@ -167,11 +167,11 @@ async def fetch_coverage_for_sampling(
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
                         {pop_join}
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
                           AND (p.adm1_pcode = %s OR p.adm2_pcode = %s OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
                           {pop_filter}
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode, *pop_params))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode, *pop_params))
                 else:
                     cursor.execute(f"""
                         SELECT
@@ -184,10 +184,10 @@ async def fetch_coverage_for_sampling(
                         FROM coverage_pixel cp
                         LEFT JOIN pixels p ON cp.quadkey = p.quadkey
                         {pop_join}
-                        WHERE cp.area_id = %s AND cp.indicator_id = %s AND cp.version = 0
+                        WHERE cp.campaign_id = %s AND cp.indicator_id = %s AND cp.version = 0
                           AND (cp.rounds IS NULL OR array_length(cp.rounds, 1) IS NULL OR array_length(cp.rounds, 1) = 0)
                           {pop_filter}
-                    """, (area_id, indicator_id, *pop_params))
+                    """, (campaign_id, indicator_id, *pop_params))
         else:
             # Fetch location coverage data
             if allow_revisit:
@@ -204,9 +204,9 @@ async def fetch_coverage_for_sampling(
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
                         LEFT JOIN admin_boundaries ab ON ST_Contains(ab.geometry, l.geometry)
-                        WHERE c.area_id = %s AND c.indicator_id = %s
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
                           AND (ab.adm1_pcode = %s OR ab.adm2_pcode = %s OR ab.adm3_pcode = %s OR ab.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
                 else:
                     cursor.execute("""
                         SELECT
@@ -219,8 +219,8 @@ async def fetch_coverage_for_sampling(
                             l.properties, l.external_id
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
-                        WHERE c.area_id = %s AND c.indicator_id = %s
-                    """, (area_id, indicator_id))
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
+                    """, (campaign_id, indicator_id))
             else:
                 # Only unvisited locations
                 if admin_pcode:
@@ -236,10 +236,10 @@ async def fetch_coverage_for_sampling(
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
                         LEFT JOIN admin_boundaries ab ON ST_Contains(ab.geometry, l.geometry)
-                        WHERE c.area_id = %s AND c.indicator_id = %s
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
                           AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
                           AND (ab.adm1_pcode = %s OR ab.adm2_pcode = %s OR ab.adm3_pcode = %s OR ab.adm4_pcode = %s)
-                    """, (area_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
+                    """, (campaign_id, indicator_id, admin_pcode, admin_pcode, admin_pcode, admin_pcode))
                 else:
                     cursor.execute("""
                         SELECT
@@ -252,9 +252,9 @@ async def fetch_coverage_for_sampling(
                             l.properties, l.external_id
                         FROM coverage c
                         LEFT JOIN locations l ON c.location_id = l.id
-                        WHERE c.area_id = %s AND c.indicator_id = %s
+                        WHERE c.campaign_id = %s AND c.indicator_id = %s
                           AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
-                    """, (area_id, indicator_id))
+                    """, (campaign_id, indicator_id))
 
         records = cursor.fetchall()
 
@@ -298,7 +298,7 @@ async def fetch_coverage_for_sampling(
 
 @activity.defn
 async def call_adaptive_sampling(
-    area_id: str,
+    campaign_id: str,
     indicator_id: str,
     sampling_target: str,
     batch_size: int,
@@ -312,7 +312,7 @@ async def call_adaptive_sampling(
     Fetch coverage data and call adaptive sampling service.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         indicator_id: Indicator ID
         sampling_target: 'locations' or 'pixels'
         batch_size: Number of items to select
@@ -327,7 +327,7 @@ async def call_adaptive_sampling(
     """
     # Fetch coverage data internally
     coverage_data = await fetch_coverage_for_sampling(
-        area_id, indicator_id, sampling_target, allow_revisit, admin_pcode,
+        campaign_id, indicator_id, sampling_target, allow_revisit, admin_pcode,
         min_population, population_field
     )
 

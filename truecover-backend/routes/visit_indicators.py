@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
-from auth.helpers import check_area_access
+from auth.helpers import check_campaign_access
 from db.connection import get_db_connection, return_db_connection
 
 visit_indicators_bp = Blueprint('visit_indicators', __name__)
@@ -30,7 +30,7 @@ def create_visit_indicator(user):
 
         # Verify visit exists and user has access
         cursor.execute("""
-            SELECT area_id FROM visits
+            SELECT campaign_id FROM visits
             WHERE id = %s
         """, (visit_id,))
 
@@ -39,8 +39,8 @@ def create_visit_indicator(user):
             cursor.close()
             return jsonify({'error': 'Visit not found'}), 404
 
-        area_id = str(visit_result[0])
-        if not check_area_access(user['id'], area_id):
+        campaign_id = str(visit_result[0])
+        if not check_campaign_access(user['id'], campaign_id):
             cursor.close()
             return jsonify({'error': 'Access denied'}), 403
 
@@ -98,7 +98,7 @@ def create_visit_indicators_bulk(user):
         # Verify first indicator's visit exists and user has access
         first_visit_id = indicators[0].get('visit_id')
         cursor.execute("""
-            SELECT area_id FROM visits
+            SELECT campaign_id FROM visits
             WHERE id = %s
         """, (first_visit_id,))
 
@@ -107,8 +107,8 @@ def create_visit_indicators_bulk(user):
             cursor.close()
             return jsonify({'error': 'Visit not found'}), 404
 
-        area_id = str(visit_result[0])
-        if not check_area_access(user['id'], area_id):
+        campaign_id = str(visit_result[0])
+        if not check_campaign_access(user['id'], campaign_id):
             cursor.close()
             return jsonify({'error': 'Access denied'}), 403
 
@@ -169,7 +169,7 @@ def list_visit_indicators(user, visit_id):
 
         # Verify visit exists and user has access
         cursor.execute("""
-            SELECT area_id FROM visits
+            SELECT campaign_id FROM visits
             WHERE id = %s
         """, (visit_id,))
 
@@ -178,8 +178,8 @@ def list_visit_indicators(user, visit_id):
             cursor.close()
             return jsonify({'error': 'Visit not found'}), 404
 
-        area_id = str(visit_result[0])
-        if not check_area_access(user['id'], area_id):
+        campaign_id = str(visit_result[0])
+        if not check_campaign_access(user['id'], campaign_id):
             cursor.close()
             return jsonify({'error': 'Access denied'}), 403
 
@@ -225,7 +225,7 @@ def get_visit_indicator(user, indicator_id):
 
         cursor.execute("""
             SELECT vi.id, vi.visit_id, vi.location_id, vi.indicator_id, vi.n_trials, vi.n_covered,
-                   vi.created_at, vi.updated_at, v.area_id
+                   vi.created_at, vi.updated_at, v.campaign_id
             FROM visit_indicators vi
             JOIN visits v ON v.id = vi.visit_id
             WHERE vi.id = %s
@@ -237,8 +237,8 @@ def get_visit_indicator(user, indicator_id):
             return jsonify({'error': 'Visit indicator not found'}), 404
 
         # Check if user has access
-        area_id = str(row[8])
-        if not check_area_access(user['id'], area_id):
+        campaign_id = str(row[8])
+        if not check_campaign_access(user['id'], campaign_id):
             cursor.close()
             return jsonify({'error': 'Access denied'}), 403
 
@@ -277,9 +277,9 @@ def update_visit_indicator(user, indicator_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verify indicator exists and get area_id
+        # Verify indicator exists and get campaign_id
         cursor.execute("""
-            SELECT v.area_id
+            SELECT v.campaign_id
             FROM visit_indicators vi
             JOIN visits v ON v.id = vi.visit_id
             WHERE vi.id = %s
@@ -290,10 +290,10 @@ def update_visit_indicator(user, indicator_id):
             cursor.close()
             return jsonify({'error': 'Visit indicator not found'}), 404
 
-        area_id = str(result[0])
+        campaign_id = str(result[0])
 
         # Check if user has access
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             cursor.close()
             return jsonify({'error': 'Access denied'}), 403
 
@@ -352,9 +352,9 @@ def delete_visit_indicator(user, indicator_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verify indicator exists and get area_id
+        # Verify indicator exists and get campaign_id
         cursor.execute("""
-            SELECT v.area_id
+            SELECT v.campaign_id
             FROM visit_indicators vi
             JOIN visits v ON v.id = vi.visit_id
             WHERE vi.id = %s
@@ -365,10 +365,10 @@ def delete_visit_indicator(user, indicator_id):
             cursor.close()
             return jsonify({'error': 'Visit indicator not found'}), 404
 
-        area_id = str(result[0])
+        campaign_id = str(result[0])
 
         # Check if user has access
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             cursor.close()
             return jsonify({'error': 'Access denied'}), 403
 

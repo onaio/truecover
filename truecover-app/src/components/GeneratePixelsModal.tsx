@@ -9,7 +9,7 @@ import { pixelsApi } from '../services/api';
 interface GeneratePixelsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   currentBounds: [number, number, number, number] | null;
   onGenerated: () => void;
   geometry?: any;
@@ -46,7 +46,7 @@ const ZOOM_LEVELS = [
 const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   currentBounds,
   onGenerated,
   geometry
@@ -147,10 +147,10 @@ const GeneratePixelsModal: React.FC<GeneratePixelsModalProps> = ({
         return;
       }
 
-      console.log('📡 Starting workflow...', { areaId, bounds: currentBounds, level: selectedLevel, geometry });
+      console.log('📡 Starting workflow...', { campaignId, bounds: currentBounds, level: selectedLevel, geometry });
       // Start the workflow
       const response = await pixelsApi.generate(
-        areaId,
+        campaignId,
         currentBounds,
         selectedLevel,
         token,

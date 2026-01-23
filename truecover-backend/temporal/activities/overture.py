@@ -126,7 +126,7 @@ async def fetch_overture_buildings_batch(
 
 @activity.defn
 async def process_overture_buildings_batch(
-    area_id: str,
+    campaign_id: str,
     buildings: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """Process a batch of Overture buildings - insert locations with deduplication."""
@@ -155,8 +155,8 @@ async def process_overture_buildings_batch(
 
                 # Check for duplicate by external_id
                 cursor.execute(
-                    "SELECT id FROM locations WHERE area_id = %s AND external_id = %s",
-                    (area_id, overture_id)
+                    "SELECT id FROM locations WHERE campaign_id = %s AND external_id = %s",
+                    (campaign_id, overture_id)
                 )
                 if cursor.fetchone():
                     duplicates += 1
@@ -167,7 +167,7 @@ async def process_overture_buildings_batch(
 
                 # Add to batch
                 batch_to_insert.append((
-                    area_id,
+                    campaign_id,
                     overture_id,  # external_id
                     f"SRID=4326;{geometry_wkt}",
                     lat,
@@ -185,7 +185,7 @@ async def process_overture_buildings_batch(
         if batch_to_insert:
             result = execute_values(cursor, """
                 INSERT INTO locations (
-                    area_id, external_id, geometry, latitude, longitude, quadkey, properties
+                    campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
                 )
                 VALUES %s
                 RETURNING id

@@ -4,7 +4,7 @@ import { useAuth } from '@clerk/clerk-react';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 interface PredictCoverageParams {
-  area_id: string;
+  campaign_id: string;
   indicator_id: string;
 }
 
@@ -28,7 +28,7 @@ interface PredictCoverageStatusResult {
 export interface CoverageRecord {
   id: string;
   location_id: string;
-  area_id: string;
+  campaign_id: string;
   indicator_id: string;
   round_id: string | null;
   version: number;
@@ -52,7 +52,7 @@ export interface CoverageRecord {
 export interface CoveragePixelRecord {
   id: string;
   quadkey: string;
-  area_id: string;
+  campaign_id: string;
   indicator_id: string;
   version: number;
   n_trials: number;
@@ -70,7 +70,7 @@ export interface CoveragePixelRecord {
 }
 
 interface ListCoverageParams {
-  area_id: string;
+  campaign_id: string;
   indicator_id?: string;
   round_id?: string;
 }
@@ -123,7 +123,7 @@ export const useCoverage = () => {
     }
 
     const queryString = queryParams.toString();
-    const url = `${API_URL}/api/areas/${params.area_id}/coverage${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_URL}/api/campaigns/${params.campaign_id}/coverage${queryString ? `?${queryString}` : ''}`;
 
     const response = await axios.get(url, {
       headers: {
@@ -147,7 +147,7 @@ export const useCoverage = () => {
     }
 
     const queryString = queryParams.toString();
-    const url = `${API_URL}/api/areas/${params.area_id}/coverage/geojson${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_URL}/api/campaigns/${params.campaign_id}/coverage/geojson${queryString ? `?${queryString}` : ''}`;
 
     const response = await axios.get(url, {
       headers: {
@@ -171,7 +171,7 @@ export const useCoverage = () => {
     }
 
     const queryString = queryParams.toString();
-    const url = `${API_URL}/api/areas/${params.area_id}/coverage_pixel${queryString ? `?${queryString}` : ''}`;
+    const url = `${API_URL}/api/campaigns/${params.campaign_id}/coverage_pixel${queryString ? `?${queryString}` : ''}`;
 
     const response = await axios.get(url, {
       headers: {

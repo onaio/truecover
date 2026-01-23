@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
-from auth.helpers import check_area_access
+from auth.helpers import check_campaign_access
 from db.connection import get_db_connection, return_db_connection
 from routes.locations import calculate_quadkey
 from routes.coverage import update_coverage_pixel
@@ -25,15 +25,15 @@ def create_visits_bulk(user):
         if not visits_data:
             return jsonify({'error': 'visits array is required'}), 400
 
-        area_id = visits_data[0].get('area_id')
+        campaign_id = visits_data[0].get('campaign_id')
         round_id = visits_data[0].get('round_id')
         indicator_id = visits_data[0].get('indicator_id')
 
-        if not area_id or not round_id or not indicator_id:
-            return jsonify({'error': 'area_id, round_id, and indicator_id are required'}), 400
+        if not campaign_id or not round_id or not indicator_id:
+            return jsonify({'error': 'campaign_id, round_id, and indicator_id are required'}), 400
 
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         # Check if this is a preview request
@@ -77,8 +77,8 @@ def create_visits_bulk(user):
                 if uploaded_location_id:
                     cursor.execute("""
                         SELECT id FROM locations
-                        WHERE id = %s AND area_id = %s
-                    """, (uploaded_location_id, area_id))
+                        WHERE id = %s AND campaign_id = %s
+                    """, (uploaded_location_id, campaign_id))
 
                     location_result = cursor.fetchone()
                     if location_result:
@@ -94,7 +94,7 @@ def create_visits_bulk(user):
                             ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
                         ) as distance
                         FROM locations
-                        WHERE area_id = %s
+                        WHERE campaign_id = %s
                           AND ST_DWithin(
                               geometry::geography,
                               ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
@@ -102,7 +102,7 @@ def create_visits_bulk(user):
                           )
                         ORDER BY distance
                         LIMIT 1
-                    """, (longitude, latitude, area_id, longitude, latitude))
+                    """, (longitude, latitude, campaign_id, longitude, latitude))
 
                     location_result = cursor.fetchone()
                     if location_result:
@@ -124,10 +124,10 @@ def create_visits_bulk(user):
                         if quadkey:
                             affected_quadkeys.add(quadkey)
                         cursor.execute("""
-                            INSERT INTO locations (area_id, external_id, latitude, longitude, geometry, quadkey)
+                            INSERT INTO locations (campaign_id, external_id, latitude, longitude, geometry, quadkey)
                             VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
                             RETURNING id
-                        """, (area_id, uploaded_location_id, latitude, longitude, longitude, latitude, quadkey))
+                        """, (campaign_id, uploaded_location_id, latitude, longitude, longitude, latitude, quadkey))
 
                         location_result = cursor.fetchone()
                         actual_location_id = str(location_result[0])
@@ -182,11 +182,11 @@ def create_visits_bulk(user):
                         initial_rounds = [round_number] if round_number else []
                         cursor.execute("""
                             INSERT INTO coverage (
-                                location_id, area_id, indicator_id,
+                                location_id, campaign_id, indicator_id,
                                 version, n_trials, n_covered, rounds, quadkey
                             )
                             VALUES (%s, %s, %s, 0, %s, %s, %s, %s)
-                        """, (actual_location_id, area_id, indicator_id, n_trials, n_covered, initial_rounds, quadkey))
+                        """, (actual_location_id, campaign_id, indicator_id, n_trials, n_covered, initial_rounds, quadkey))
 
                 total_processed += 1
 
@@ -197,7 +197,7 @@ def create_visits_bulk(user):
         # Update coverage_pixel table with aggregated data (only if not in preview mode)
         if not preview_mode and affected_quadkeys:
             try:
-                update_coverage_pixel(cursor, area_id, indicator_id, list(affected_quadkeys))
+                update_coverage_pixel(cursor, campaign_id, indicator_id, list(affected_quadkeys))
             except Exception as e:
                 print(f"Error updating coverage_pixel: {e}")
                 # Don't fail the entire request if coverage_pixel update fails
@@ -247,27 +247,27 @@ def create_visits_bulk_workflow(user):
         if not visits_data:
             return jsonify({'error': 'visits array is required'}), 400
 
-        area_id = visits_data[0].get('area_id')
+        campaign_id = visits_data[0].get('campaign_id')
         round_id = visits_data[0].get('round_id')
         indicator_id = visits_data[0].get('indicator_id')
 
-        if not area_id or not round_id or not indicator_id:
-            return jsonify({'error': 'area_id, round_id, and indicator_id are required'}), 400
+        if not campaign_id or not round_id or not indicator_id:
+            return jsonify({'error': 'campaign_id, round_id, and indicator_id are required'}), 400
 
         # Check if user has access to this area
-        if not check_area_access(user['id'], area_id):
+        if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"visit-upload-{area_id}-{round_id}-{timestamp}"
+        workflow_id = f"visit-upload-{campaign_id}-{round_id}-{timestamp}"
 
         # Start workflow
         async def start_workflow():
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 VisitUploadWorkflow.run,
-                args=[area_id, indicator_id, round_id, visits_data],
+                args=[campaign_id, indicator_id, round_id, visits_data],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

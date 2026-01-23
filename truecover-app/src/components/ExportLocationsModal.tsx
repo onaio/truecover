@@ -10,7 +10,7 @@ import { onaApi, entityExportApi } from '../services/api';
 interface ExportLocationsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   areaName: string;
   projectId: string;
   locations: any; // GeoJSON FeatureCollection
@@ -19,12 +19,12 @@ interface ExportLocationsModalProps {
 const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   areaName,
   projectId,
 }) => {
   const { getToken } = useAuth();
-  const { data: rounds = [], isLoading: loadingRounds } = useRounds(areaId);
+  const { data: rounds = [], isLoading: loadingRounds } = useRounds(campaignId);
   const { data: indicators = [] } = useIndicators(projectId);
   const { data: project } = useProject(projectId);
 
@@ -51,7 +51,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
 
   // Use React Query hook to fetch ALL coverage data (not paginated)
   const { data: coverageDataResult, isLoading: isLoadingCoverage } = useAllCoverageData(
-    areaId,
+    campaignId,
     selectedIndicatorId
   );
 
@@ -228,7 +228,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
         }
 
         const result = await entityExportApi.startWorkflow(
-          areaId,
+          campaignId,
           selectedIndicatorId,
           selectedRoundIds,
           projectId,

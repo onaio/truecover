@@ -128,7 +128,16 @@ def check_project_access(user_id, project_id):
 
 def check_area_access(user_id, area_id):
     """
-    Check if a user has access to an area (via project -> organization membership).
+    DEPRECATED: Use check_campaign_access instead.
+    Check if a user has access to a campaign (via project -> organization membership).
+    Returns True if user has access, False otherwise.
+    """
+    return check_campaign_access(user_id, area_id)
+
+
+def check_campaign_access(user_id, campaign_id):
+    """
+    Check if a user has access to a campaign (via project -> organization membership).
     Returns True if user has access, False otherwise.
     """
     conn = None
@@ -137,11 +146,11 @@ def check_area_access(user_id, area_id):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT a.id FROM areas a
-            JOIN projects p ON a.project_id = p.id
+            SELECT c.id FROM campaigns c
+            JOIN projects p ON c.project_id = p.id
             JOIN organization_members om ON p.organization_id = om.organization_id
-            WHERE a.id = %s AND om.user_id = %s
-        """, (area_id, user_id))
+            WHERE c.id = %s AND om.user_id = %s
+        """, (campaign_id, user_id))
 
         result = cursor.fetchone()
         cursor.close()
@@ -149,7 +158,7 @@ def check_area_access(user_id, area_id):
         return result is not None
 
     except Exception as e:
-        print(f"Error checking area access: {e}")
+        print(f"Error checking campaign access: {e}")
         return False
     finally:
         if conn:

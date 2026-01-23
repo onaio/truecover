@@ -9,7 +9,7 @@ import { CoverageRecord, CoveragePixelRecord } from './useCoverage';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 interface CoverageDataParams {
-  area_id: string;
+  campaign_id: string;
   indicator_id: string;
   round_id?: string;
   limit?: number;
@@ -40,7 +40,7 @@ async function fetchCoverageData(
   queryParams.append('offset', String(params.offset || 0));
 
   const queryString = queryParams.toString();
-  const baseUrl = `${API_URL}/api/areas/${params.area_id}`;
+  const baseUrl = `${API_URL}/api/campaigns/${params.campaign_id}`;
 
   // Fetch both location and pixel coverage data in parallel
   const [locationResponse, pixelResponse] = await Promise.all([
@@ -65,7 +65,7 @@ async function fetchCoverageData(
  * Automatically loads more data as user scrolls
  */
 export function useCoverageData(
-  areaId: string | undefined,
+  campaignId: string | undefined,
   indicatorId: string | undefined,
   roundId?: string | undefined,
   refreshKey?: number
@@ -73,9 +73,9 @@ export function useCoverageData(
   const { getToken, isSignedIn } = useAuth();
 
   return useInfiniteQuery({
-    queryKey: ['coverage', areaId, indicatorId, roundId, refreshKey],
+    queryKey: ['coverage', campaignId, indicatorId, roundId, refreshKey],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!areaId || !indicatorId) {
+      if (!campaignId || !indicatorId) {
         throw new Error('Area ID and Indicator ID are required');
       }
 
@@ -86,7 +86,7 @@ export function useCoverageData(
 
       return fetchCoverageData(
         {
-          area_id: areaId,
+          campaign_id: campaignId,
           indicator_id: indicatorId,
           round_id: roundId,
           limit: 200,
@@ -101,7 +101,7 @@ export function useCoverageData(
       return hasMore ? allPages.length * 200 : undefined;
     },
     initialPageParam: 0,
-    enabled: !!areaId && !!indicatorId && isSignedIn,
+    enabled: !!campaignId && !!indicatorId && isSignedIn,
   });
 }
 
@@ -109,7 +109,7 @@ export function useCoverageData(
  * Hook to fetch all coverage data at once (no pagination) for charts/histograms
  */
 export function useAllCoverageData(
-  areaId: string | undefined,
+  campaignId: string | undefined,
   indicatorId: string | undefined,
   roundId?: string | undefined,
   refreshKey?: number
@@ -117,9 +117,9 @@ export function useAllCoverageData(
   const { getToken, isSignedIn } = useAuth();
 
   return useInfiniteQuery({
-    queryKey: ['allCoverage', areaId, indicatorId, roundId, refreshKey],
+    queryKey: ['allCoverage', campaignId, indicatorId, roundId, refreshKey],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!areaId || !indicatorId) {
+      if (!campaignId || !indicatorId) {
         throw new Error('Area ID and Indicator ID are required');
       }
 
@@ -130,7 +130,7 @@ export function useAllCoverageData(
 
       return fetchCoverageData(
         {
-          area_id: areaId,
+          campaign_id: campaignId,
           indicator_id: indicatorId,
           round_id: roundId,
           limit: 10000,
@@ -145,7 +145,7 @@ export function useAllCoverageData(
       return hasMore ? allPages.length * 10000 : undefined;
     },
     initialPageParam: 0,
-    enabled: !!areaId && !!indicatorId && isSignedIn,
+    enabled: !!campaignId && !!indicatorId && isSignedIn,
   });
 }
 
@@ -153,7 +153,7 @@ export function useAllCoverageData(
  * Hook to fetch histogram data for coverage (server-side aggregated)
  */
 export function useCoverageHistogram(
-  areaId: string | undefined,
+  campaignId: string | undefined,
   indicatorId: string | undefined,
   mode: 'coverage' | 'uncertainty',
   dataType: 'locations' | 'pixels',
@@ -164,9 +164,9 @@ export function useCoverageHistogram(
   const { getToken, isSignedIn } = useAuth();
 
   return useQuery({
-    queryKey: ['coverageHistogram', areaId, indicatorId, mode, dataType, numBins, roundId, refreshKey],
+    queryKey: ['coverageHistogram', campaignId, indicatorId, mode, dataType, numBins, roundId, refreshKey],
     queryFn: async () => {
-      if (!areaId || !indicatorId) {
+      if (!campaignId || !indicatorId) {
         throw new Error('Area ID and Indicator ID are required');
       }
 
@@ -186,7 +186,7 @@ export function useCoverageHistogram(
       }
 
       const response = await axios.get(
-        `${API_URL}/api/areas/${areaId}/coverage/histogram?${queryParams.toString()}`,
+        `${API_URL}/api/campaigns/${campaignId}/coverage/histogram?${queryParams.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -194,6 +194,6 @@ export function useCoverageHistogram(
 
       return response.data;
     },
-    enabled: !!areaId && !!indicatorId && isSignedIn,
+    enabled: !!campaignId && !!indicatorId && isSignedIn,
   });
 }

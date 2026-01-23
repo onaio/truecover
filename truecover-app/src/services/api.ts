@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Organization, OrganizationMember, Project, Area } from '../types';
+import { Organization, OrganizationMember, Project, Campaign } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -181,11 +181,11 @@ export const projectsApi = {
   }
 };
 
-// Areas API calls
-export const areasApi = {
-  async create(projectId: string, name: string, description: string, token: string): Promise<Area> {
+// Campaigns API calls
+export const campaignsApi = {
+  async create(projectId: string, name: string, description: string, token: string): Promise<Campaign> {
     const response = await axios.post(
-      `${API_URL}/api/projects/${projectId}/areas`,
+      `${API_URL}/api/projects/${projectId}/campaigns`,
       { name, description },
       {
         headers: {
@@ -197,9 +197,61 @@ export const areasApi = {
     return response.data;
   },
 
-  async list(projectId: string, token: string): Promise<Area[]> {
+  async list(projectId: string, token: string): Promise<Campaign[]> {
     const response = await axios.get(
-      `${API_URL}/api/projects/${projectId}/areas`,
+      `${API_URL}/api/projects/${projectId}/campaigns`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data.campaigns;
+  },
+
+  async get(campaignId: string, token: string): Promise<Campaign> {
+    const response = await axios.get(
+      `${API_URL}/api/campaigns/${campaignId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async update(campaignId: string, name: string, description: string, token: string): Promise<Campaign> {
+    const response = await axios.put(
+      `${API_URL}/api/campaigns/${campaignId}`,
+      { name, description },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async delete(campaignId: string, token: string): Promise<void> {
+    await axios.delete(
+      `${API_URL}/api/campaigns/${campaignId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    );
+  }
+};
+
+// Campaign Areas API calls
+export const campaignAreasApi = {
+  async list(campaignId: string, token: string): Promise<any[]> {
+    const response = await axios.get(
+      `${API_URL}/api/campaigns/${campaignId}/areas`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -209,22 +261,19 @@ export const areasApi = {
     return response.data.areas;
   },
 
-  async get(areaId: string, token: string): Promise<Area> {
-    const response = await axios.get(
-      `${API_URL}/api/areas/${areaId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    );
-    return response.data;
-  },
-
-  async update(areaId: string, name: string, description: string, token: string): Promise<Area> {
-    const response = await axios.put(
-      `${API_URL}/api/areas/${areaId}`,
-      { name, description },
+  async add(
+    campaignId: string,
+    data: {
+      area_type: 'admin_boundary' | 'drawn';
+      pcode?: string;  // For admin_boundary type
+      geometry?: any;  // For drawn type
+      name?: string;
+    },
+    token: string
+  ): Promise<any> {
+    const response = await axios.post(
+      `${API_URL}/api/campaigns/${campaignId}/areas`,
+      data,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -235,15 +284,43 @@ export const areasApi = {
     return response.data;
   },
 
-  async delete(areaId: string, token: string): Promise<void> {
+  async remove(campaignId: string, areaId: string, token: string): Promise<void> {
     await axios.delete(
-      `${API_URL}/api/areas/${areaId}`,
+      `${API_URL}/api/campaigns/${campaignId}/areas/${areaId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       }
     );
+  },
+
+  async computePixels(areaId: string, token: string): Promise<{ pixels_computed: number }> {
+    const response = await axios.post(
+      `${API_URL}/api/campaign-areas/${areaId}/compute-pixels`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  },
+
+  async computeAllPixels(campaignId: string, token: string): Promise<{ total_pixels_computed: number }> {
+    const response = await axios.post(
+      `${API_URL}/api/campaigns/${campaignId}/compute-all-pixels`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
   }
 };
 
@@ -316,7 +393,7 @@ export const indicatorsApi = {
 // Locations API calls
 export const locationsApi = {
   async upload(
-    areaId: string,
+    campaignId: string,
     file: File,
     config: {
       latColumn?: string;
@@ -332,7 +409,7 @@ export const locationsApi = {
     if (config.externalIdColumn) formData.append('externalIdColumn', config.externalIdColumn);
 
     const response = await axios.post(
-      `${API_URL}/api/areas/${areaId}/locations/upload/async`,
+      `${API_URL}/api/campaigns/${campaignId}/locations/upload/async`,
       formData,
       {
         headers: {
@@ -377,9 +454,9 @@ export const locationsApi = {
     return response.data;
   },
 
-  async list(areaId: string, token: string): Promise<any> {
+  async list(campaignId: string, token: string): Promise<any> {
     const response = await axios.get(
-      `${API_URL}/api/areas/${areaId}/locations`,
+      `${API_URL}/api/campaigns/${campaignId}/locations`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -390,7 +467,7 @@ export const locationsApi = {
   },
 
   async update(
-    areaId: string,
+    campaignId: string,
     locationId: string,
     data: {
       external_id?: string;
@@ -403,7 +480,7 @@ export const locationsApi = {
     token: string
   ): Promise<void> {
     await axios.put(
-      `${API_URL}/api/areas/${areaId}/locations/${locationId}`,
+      `${API_URL}/api/campaigns/${campaignId}/locations/${locationId}`,
       data,
       {
         headers: {
@@ -414,9 +491,9 @@ export const locationsApi = {
     );
   },
 
-  async delete(areaId: string, locationId: string, token: string): Promise<void> {
+  async delete(campaignId: string, locationId: string, token: string): Promise<void> {
     await axios.delete(
-      `${API_URL}/api/areas/${areaId}/locations/${locationId}`,
+      `${API_URL}/api/campaigns/${campaignId}/locations/${locationId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -429,7 +506,7 @@ export const locationsApi = {
 // Pixels API
 export const pixelsApi = {
   async generate(
-    areaId: string,
+    campaignId: string,
     bbox: [number, number, number, number],
     level: number,
     token: string,
@@ -438,7 +515,7 @@ export const pixelsApi = {
     geometry?: any
   ): Promise<{ workflow_id: string; status: string; message: string }> {
     const response = await axios.post(
-      `${API_URL}/api/areas/${areaId}/pixels/generate`,
+      `${API_URL}/api/campaigns/${campaignId}/pixels/generate`,
       { bbox, level, append, admin_pcode, geometry },
       {
         headers: {
@@ -472,11 +549,11 @@ export const pixelsApi = {
   },
 
   async getStats(
-    areaId: string,
+    campaignId: string,
     token: string
   ): Promise<{ count: number; level: number | null; bounds: [number, number, number, number] | null }> {
     const response = await axios.get(
-      `${API_URL}/api/areas/${areaId}/pixels/stats`,
+      `${API_URL}/api/campaigns/${campaignId}/pixels/stats`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -487,11 +564,11 @@ export const pixelsApi = {
   },
 
   async delete(
-    areaId: string,
+    campaignId: string,
     token: string
   ): Promise<{ deleted_count: number }> {
     const response = await axios.delete(
-      `${API_URL}/api/areas/${areaId}/pixels`,
+      `${API_URL}/api/campaigns/${campaignId}/pixels`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -502,11 +579,11 @@ export const pixelsApi = {
   },
 
   async getMetadataStats(
-    areaId: string,
+    campaignId: string,
     token: string
   ): Promise<{ total_enriched: number; metadata_fields: any[] }> {
     const response = await axios.get(
-      `${API_URL}/api/areas/${areaId}/pixels/metadata-stats`,
+      `${API_URL}/api/campaigns/${campaignId}/pixels/metadata-stats`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -560,9 +637,9 @@ export const dataSourcesApi = {
 
 // Enrichment API calls
 export const enrichmentApi = {
-  async createJob(areaId: string, data: { data_source_id: string; statistic?: string }, token: string): Promise<any> {
+  async createJob(campaignId: string, data: { data_source_id: string; statistic?: string }, token: string): Promise<any> {
     const response = await axios.post(
-      `${API_URL}/api/areas/${areaId}/enrich-pixels`,
+      `${API_URL}/api/campaigns/${campaignId}/enrich-pixels`,
       data,
       {
         headers: {
@@ -586,9 +663,9 @@ export const enrichmentApi = {
     return response.data;
   },
 
-  async listJobs(areaId: string, token: string): Promise<{ jobs: any[] }> {
+  async listJobs(campaignId: string, token: string): Promise<{ jobs: any[] }> {
     const response = await axios.get(
-      `${API_URL}/api/areas/${areaId}/enrichment-jobs`,
+      `${API_URL}/api/campaigns/${campaignId}/enrichment-jobs`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -613,14 +690,14 @@ export const adminBoundariesApi = {
     return response.data;
   },
 
-  async getPixelSummary(pcode: string, areaId: string, token: string): Promise<{
+  async getPixelSummary(pcode: string, campaignId: string, token: string): Promise<{
     pixel_count: number;
     total_population: number;
     avg_population: number;
     pixels_with_data: number;
   }> {
     const response = await axios.get(
-      `${API_URL}/api/admin-boundaries/${pcode}/pixel-summary?area_id=${areaId}`,
+      `${API_URL}/api/admin-boundaries/${pcode}/pixel-summary?campaign_id=${campaignId}`,
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -630,13 +707,13 @@ export const adminBoundariesApi = {
     return response.data;
   },
 
-  async previewOvertureBuildings(pcode: string, areaId: string, token: string, geometry?: any): Promise<{
+  async previewOvertureBuildings(pcode: string, campaignId: string, token: string, geometry?: any): Promise<{
     count: number;
     bbox: [number, number, number, number];
   }> {
     const response = await axios.post(
       `${API_URL}/api/admin-boundaries/${pcode}/preview-overture-buildings`,
-      { area_id: areaId, geometry },
+      { campaign_id: campaignId, geometry },
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -646,7 +723,7 @@ export const adminBoundariesApi = {
     return response.data;
   },
 
-  async importOvertureBuildings(pcode: string, areaId: string, token: string): Promise<{
+  async importOvertureBuildings(pcode: string, campaignId: string, token: string): Promise<{
     success: boolean;
     inserted: number;
     duplicates: number;
@@ -655,7 +732,7 @@ export const adminBoundariesApi = {
   }> {
     const response = await axios.post(
       `${API_URL}/api/admin-boundaries/${pcode}/import-overture-buildings`,
-      { area_id: areaId },
+      { campaign_id: campaignId },
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -665,13 +742,13 @@ export const adminBoundariesApi = {
     return response.data;
   },
 
-  async importOvertureBuildingsAsync(pcode: string, areaId: string, token: string, geometry?: any): Promise<{
+  async importOvertureBuildingsAsync(pcode: string, campaignId: string, token: string, geometry?: any): Promise<{
     workflow_id: string;
     status: string;
   }> {
     const response = await axios.post(
       `${API_URL}/api/admin-boundaries/${pcode}/import-overture-buildings/async`,
-      { area_id: areaId, geometry },
+      { campaign_id: campaignId, geometry },
       {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -782,7 +859,7 @@ export const onaApi = {
 // Entity Export API calls
 export const entityExportApi = {
   async startWorkflow(
-    areaId: string,
+    campaignId: string,
     indicatorId: string,
     roundIds: string[],
     projectId: string,
@@ -794,7 +871,7 @@ export const entityExportApi = {
     message: string;
   }> {
     const response = await axios.post(
-      `${API_URL}/api/areas/${areaId}/export-entities/workflow`,
+      `${API_URL}/api/campaigns/${campaignId}/export-entities/workflow`,
       {
         indicator_id: indicatorId,
         round_ids: roundIds,

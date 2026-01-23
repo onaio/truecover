@@ -29,7 +29,7 @@ async def fetch_enrichment_job(job_id: str) -> Dict[str, Any]:
     try:
         cursor.execute("""
             SELECT
-                ej.area_id, ej.data_source_id, ej.statistic,
+                ej.campaign_id, ej.data_source_id, ej.statistic,
                 ds.source_type, ds.stac_catalog_url, ds.stac_collection,
                 ds.stac_item, ds.stac_asset, ds.cog_url,
                 ds.metadata_field_name, ds.metadata_field_description,
@@ -55,7 +55,7 @@ async def fetch_enrichment_job(job_id: str) -> Dict[str, Any]:
 
         return {
             "job_id": job_id,
-            "area_id": str(row[0]),
+            "campaign_id": str(row[0]),
             "data_source_id": str(row[1]),
             "statistic": row[2],
             "source_type": row[3],
@@ -219,7 +219,7 @@ async def download_cog(cog_url: str) -> str:
 
 @activity.defn
 async def enrich_area_pixels(
-    area_id: str,
+    campaign_id: str,
     cog_path: str,
     statistic: str,
     metadata_field_name: str,
@@ -234,7 +234,7 @@ async def enrich_area_pixels(
     passing large pixel data through Temporal's payload system.
 
     Args:
-        area_id: Area ID
+        campaign_id: Area ID
         cog_path: Local path to COG file
         statistic: Statistic to compute (mean, median, etc.)
         metadata_field_name: Name of metadata field
@@ -273,11 +273,11 @@ async def enrich_area_pixels(
 
         # Get total pixel count
         cursor.execute("""
-            SELECT COUNT(*) FROM pixels WHERE area_id = %s
-        """, (area_id,))
+            SELECT COUNT(*) FROM pixels WHERE campaign_id = %s
+        """, (campaign_id,))
         total_pixels = cursor.fetchone()[0]
 
-        activity.logger.info(f"Processing {total_pixels} pixels for area {area_id}")
+        activity.logger.info(f"Processing {total_pixels} pixels for area {campaign_id}")
 
         if total_pixels == 0:
             return {"pixels_total": 0, "pixels_updated": 0}
@@ -292,10 +292,10 @@ async def enrich_area_pixels(
             cursor.execute("""
                 SELECT quadkey, ST_AsText(geometry) as wkt_geometry
                 FROM pixels
-                WHERE area_id = %s
+                WHERE campaign_id = %s
                 ORDER BY quadkey
                 LIMIT %s OFFSET %s
-            """, (area_id, batch_size, offset))
+            """, (campaign_id, batch_size, offset))
 
             batch_rows = cursor.fetchall()
             if not batch_rows:

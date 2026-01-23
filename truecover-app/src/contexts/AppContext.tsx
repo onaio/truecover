@@ -14,9 +14,9 @@ interface AppContextType {
   refreshProjects: (() => Promise<void>) | null;
   setRefreshProjects: (fn: (() => Promise<void>) | null) => void;
 
-  // Area state
-  selectedArea: any | null;
-  setSelectedArea: (area: any | null) => void;
+  // Campaign state
+  selectedCampaign: any | null;
+  setSelectedCampaign: (area: any | null) => void;
 
   // Locations state
   locations: any | null;
@@ -40,8 +40,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [refreshProjects, setRefreshProjects] = useState<(() => Promise<void>) | null>(null);
 
-  // Area state
-  const [selectedArea, setSelectedArea] = useState<any | null>(null);
+  // Campaign state
+  const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
 
   // Locations state
   const [locations, setLocations] = useState<any | null>(null);
@@ -59,8 +59,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedProject,
     refreshProjects,
     setRefreshProjects,
-    selectedArea,
-    setSelectedArea,
+    selectedCampaign,
+    setSelectedCampaign,
     locations,
     setLocations,
     isCreateOrgModalOpen,

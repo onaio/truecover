@@ -10,7 +10,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 interface CreateRoundModalProps {
   isOpen: boolean;
   onClose: () => void;
-  areaId: string;
+  campaignId: string;
   projectId: string;
   onRoundCreated: () => void;
   adminBoundaryPcode?: string;
@@ -20,7 +20,7 @@ interface CreateRoundModalProps {
 const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   isOpen,
   onClose,
-  areaId,
+  campaignId,
   projectId,
   onRoundCreated,
   adminBoundaryPcode,
@@ -28,7 +28,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
 }) => {
   const { getToken } = useAuth();
   const { data: indicators } = useIndicators(projectId);
-  const { data: metadataStats } = usePixelMetadataStats(areaId);
+  const { data: metadataStats } = usePixelMetadataStats(campaignId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -93,7 +93,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       const token = await getToken();
 
       const response = await axios.post(
-        `${API_URL}/api/areas/${areaId}/rounds`,
+        `${API_URL}/api/campaigns/${campaignId}/rounds`,
         {
           name: name.trim(),
           description: description.trim(),

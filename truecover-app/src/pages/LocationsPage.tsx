@@ -17,6 +17,8 @@ import LocationsTable from '../components/LocationsTable';
 import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
 import PredictedCoverageSection from '../components/PredictedCoverageSection';
+import CampaignAreasManager from '../components/CampaignAreasManager';
+import AddCampaignAreaModal from '../components/AddCampaignAreaModal';
 import DistributionHistogram from '../components/DistributionHistogram';
 import CondensedStatsBar from '../components/CondensedStatsBar';
 import HistogramDrawer from '../components/HistogramDrawer';
@@ -34,7 +36,7 @@ const LocationsPage: React.FC = () => {
   const {
     selectedOrganization,
     selectedProject,
-    selectedArea,
+    selectedCampaign,
     locations,
     setLocations,
   } = useAppContext();
@@ -78,13 +80,18 @@ const LocationsPage: React.FC = () => {
   const [histogramDrawerOpen, setHistogramDrawerOpen] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
   const [selectedAdminBoundaryForLocations, setSelectedAdminBoundaryForLocations] = useState<{ pcode: string; name: string; geometry?: any } | null>(null);
+  const [isAddCampaignAreaModalOpen, setIsAddCampaignAreaModalOpen] = useState(false);
+  const [campaignAreaMode, setCampaignAreaMode] = useState<'admin_boundary' | 'drawn'>('admin_boundary');
+  const [selectedAdminBoundaryForCampaign, setSelectedAdminBoundaryForCampaign] = useState<{ pcode: string; name: string } | null>(null);
+  const [drawnGeometryForCampaign, setDrawnGeometryForCampaign] = useState<any>(null);
+  const [campaignAreasRefreshKey, setCampaignAreasRefreshKey] = useState(0);
   const { data: indicators } = useIndicators(selectedProject?.id);
-  const { data: rounds } = useRounds(selectedArea?.id);
-  const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedArea?.id);
+  const { data: rounds } = useRounds(selectedCampaign?.id);
+  const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedCampaign?.id);
   const deletePixels = useDeletePixels();
-  const { data: enrichmentJobsData } = useEnrichmentJobs(selectedArea?.id);
+  const { data: enrichmentJobsData } = useEnrichmentJobs(selectedCampaign?.id);
   const enrichmentJobs = enrichmentJobsData?.jobs || [];
-  const { data: pixelMetadataStats } = usePixelMetadataStats(selectedArea?.id);
+  const { data: pixelMetadataStats } = usePixelMetadataStats(selectedCampaign?.id);
 
   // Compute roundId for coverage data query
   const coverageRoundId = useMemo(() => {
@@ -107,7 +114,7 @@ const LocationsPage: React.FC = () => {
     hasNextPage: hasNextCoveragePage,
     isFetchingNextPage: isFetchingNextCoveragePage,
   } = useCoverageData(
-    selectedArea?.id,
+    selectedCampaign?.id,
     selectedIndicatorId,
     coverageRoundId,
     refreshKey
@@ -126,7 +133,7 @@ const LocationsPage: React.FC = () => {
 
   // Use histogram hook for aggregated data (replaces loading all coverage data)
   const { data: histogramData } = useCoverageHistogram(
-    selectedArea?.id,
+    selectedCampaign?.id,
     selectedIndicatorId,
     interpolationMode === 'uncertainty' ? 'uncertainty' : 'coverage',
     histogramTab,
@@ -141,7 +148,7 @@ const LocationsPage: React.FC = () => {
     fetchNextPage: fetchNextLocationsPage,
     hasNextPage: hasNextLocationsPage,
     isFetchingNextPage: isFetchingNextLocationsPage,
-  } = useInfiniteLocations(selectedArea?.id);
+  } = useInfiniteLocations(selectedCampaign?.id);
 
   // Flatten all pages of location data
   const locationsFlattened = React.useMemo(() => {
@@ -186,10 +193,10 @@ const LocationsPage: React.FC = () => {
 
   // Load locations when entering the page or after data mutations
   useEffect(() => {
-    if (selectedArea?.id) {
-      loadLocations(selectedArea.id, setLocations);
+    if (selectedCampaign?.id) {
+      loadLocations(selectedCampaign.id, setLocations);
     }
-  }, [selectedArea?.id, refreshKey]);
+  }, [selectedCampaign?.id, refreshKey]);
 
 
   // Calculate sampled items count (locations + pixels) for map legend
@@ -351,7 +358,7 @@ const LocationsPage: React.FC = () => {
     };
   }, [locations, coverageData, selectedRoundIds, rounds]);
 
-  if (!selectedArea) {
+  if (!selectedCampaign) {
     return null;
   }
 
@@ -413,7 +420,7 @@ const LocationsPage: React.FC = () => {
                 {selectedProject?.title || 'Project'}
               </Link>
               {' / '}
-              <span className="text-tactical-text-primary">{selectedArea.name}</span>
+              <span className="text-tactical-text-primary">{selectedCampaign.name}</span>
             </p>
           </div>
 
@@ -531,7 +538,7 @@ const LocationsPage: React.FC = () => {
               onTogglePixels={() => setShowPixels(!showPixels)}
               pixelsBounds={pixelStats?.bounds || null}
               onBoundsChange={setCurrentMapBounds}
-              areaId={selectedArea?.id}
+              campaignId={selectedCampaign?.id}
               indicatorId={selectedIndicatorId}
               pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
               pixelCount={pixelStats?.count || 0}
@@ -545,6 +552,10 @@ const LocationsPage: React.FC = () => {
               planningMode={planningMode}
               onAddRoundForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundary({ pcode, name })}
               onAddLocationsForAdminBoundary={(pcode: string, name: string, geometry?: any) => setSelectedAdminBoundaryForLocations({ pcode, name, geometry })}
+              onAddAdminBoundaryToCampaign={(_id: string, pcode: string, name: string) => {
+                setSelectedAdminBoundaryForCampaign({ pcode, name });
+                setIsAddCampaignAreaModalOpen(true);
+              }}
               className="h-full"
             />
 
@@ -593,9 +604,9 @@ const LocationsPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Page Title - Show Area Name */}
+          {/* Page Title - Show Campaign Name */}
           <h1 className="font-mono text-4xl font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
-            {selectedArea.name}
+            {selectedCampaign.name}
           </h1>
 
         {/* Location Summary */}
@@ -838,7 +849,7 @@ const LocationsPage: React.FC = () => {
                 onTogglePixels={() => setShowPixels(!showPixels)}
                 pixelsBounds={pixelStats?.bounds || null}
                 onBoundsChange={setCurrentMapBounds}
-                areaId={selectedArea?.id}
+                campaignId={selectedCampaign?.id}
                 indicatorId={selectedIndicatorId}
                 pixelVersion={pixelStats ? `${pixelStats.count}-${pixelStats.level}` : null}
                 pixelCount={pixelStats?.count || 0}
@@ -852,6 +863,10 @@ const LocationsPage: React.FC = () => {
                 planningMode={planningMode}
                 onAddRoundForAdminBoundary={(pcode: string, name: string) => setSelectedAdminBoundary({ pcode, name })}
                 onAddLocationsForAdminBoundary={(pcode: string, name: string, geometry?: any) => setSelectedAdminBoundaryForLocations({ pcode, name, geometry })}
+                onAddAdminBoundaryToCampaign={(_id: string, pcode: string, name: string) => {
+                  setSelectedAdminBoundaryForCampaign({ pcode, name });
+                  setIsAddCampaignAreaModalOpen(true);
+                }}
               />
             </TacticalCard>
 
@@ -896,8 +911,8 @@ const LocationsPage: React.FC = () => {
 
             {/* Predicted Coverage Section */}
             <PredictedCoverageSection
-              areaId={selectedArea?.id || ''}
-              areaName={selectedArea?.name || ''}
+              campaignId={selectedCampaign?.id || ''}
+              areaName={selectedCampaign?.name || ''}
               projectId={selectedProject?.id || ''}
               selectedIndicatorId={selectedIndicatorId}
               selectedRoundId={coverageRoundId}
@@ -921,9 +936,9 @@ const LocationsPage: React.FC = () => {
 
             {/* Rounds Manager */}
             <RoundsManager
-              key={`rounds-${selectedArea?.id || 'none'}`}
-              areaId={selectedArea?.id || ''}
-              areaName={selectedArea?.name || ''}
+              key={`rounds-${selectedCampaign?.id || 'none'}`}
+              campaignId={selectedCampaign?.id || ''}
+              areaName={selectedCampaign?.name || ''}
               projectId={selectedProject?.id || ''}
               locations={locations}
               onRoundSelected={setSelectedRoundFilter}
@@ -965,6 +980,22 @@ const LocationsPage: React.FC = () => {
                 </div>
               </TacticalCollapsible>
             </TacticalCard>
+
+            {/* Campaign Areas Section */}
+            <div className="mt-6">
+              <CampaignAreasManager
+                key={campaignAreasRefreshKey}
+                campaignId={selectedCampaign?.id || ''}
+                onAddAdminBoundary={() => {
+                  setCampaignAreaMode('admin_boundary');
+                  tacticalToast.info('Click on an admin boundary on the map to add it to this campaign');
+                }}
+                onDrawArea={() => {
+                  setCampaignAreaMode('drawn');
+                  tacticalToast.info('Draw mode: Click on the map to start drawing a polygon');
+                }}
+              />
+            </div>
 
             {/* Pixels Section */}
             <TacticalCard padding="lg" className="mt-6">
@@ -1066,7 +1097,7 @@ const LocationsPage: React.FC = () => {
                           onClick={async () => {
                             if (window.confirm('Are you sure you want to delete all pixels? This cannot be undone.')) {
                               try {
-                                await deletePixels.mutateAsync({ areaId: selectedArea?.id || '' });
+                                await deletePixels.mutateAsync({ campaignId: selectedCampaign?.id || '' });
                                 await refetchPixelStats();
                                 setRefreshKey(prev => prev + 1);
                               } catch (error: any) {
@@ -1107,9 +1138,9 @@ const LocationsPage: React.FC = () => {
       <LocationUploadModal
         isOpen={isLocationUploadModalOpen}
         onClose={() => setIsLocationUploadModalOpen(false)}
-        area={selectedArea}
+        area={selectedCampaign}
         onLocationsUploaded={() => {
-          handleLocationsUploaded(selectedArea.id, setLocations);
+          handleLocationsUploaded(selectedCampaign.id, setLocations);
           refetchPixelStats();
           setRefreshKey(prev => prev + 1);
         }}
@@ -1122,13 +1153,13 @@ const LocationsPage: React.FC = () => {
           setIsLocationEditModalOpen(false);
         }}
         location={selectedLocationForEdit}
-        areaId={selectedArea?.id || ''}
+        campaignId={selectedCampaign?.id || ''}
         onLocationUpdated={() => {
-          handleLocationUpdated(selectedArea.id, setLocations);
+          handleLocationUpdated(selectedCampaign.id, setLocations);
           setRefreshKey(prev => prev + 1);
         }}
         onLocationDeleted={() => {
-          handleLocationDeleted(selectedArea.id, setLocations);
+          handleLocationDeleted(selectedCampaign.id, setLocations);
           setRefreshKey(prev => prev + 1);
         }}
       />
@@ -1137,7 +1168,7 @@ const LocationsPage: React.FC = () => {
       <GeneratePixelsModal
         isOpen={isGeneratePixelsModalOpen}
         onClose={() => setIsGeneratePixelsModalOpen(false)}
-        areaId={selectedArea?.id || ''}
+        campaignId={selectedCampaign?.id || ''}
         currentBounds={currentMapBounds}
         onGenerated={() => {
           refetchPixelStats();
@@ -1149,7 +1180,7 @@ const LocationsPage: React.FC = () => {
       <EnrichPixelsModal
         isOpen={isEnrichPixelsModalOpen}
         onClose={() => setIsEnrichPixelsModalOpen(false)}
-        areaId={selectedArea?.id || ''}
+        campaignId={selectedCampaign?.id || ''}
         pixelCount={pixelStats?.count || 0}
         onJobCreated={(jobId) => {
           console.log('Enrichment job created:', jobId);
@@ -1160,11 +1191,29 @@ const LocationsPage: React.FC = () => {
       <AddOvertureLocationsModal
         isOpen={!!selectedAdminBoundaryForLocations}
         onClose={() => setSelectedAdminBoundaryForLocations(null)}
-        areaId={selectedArea?.id || ''}
-        areaName={selectedArea?.name || ''}
+        campaignId={selectedCampaign?.id || ''}
+        areaName={selectedCampaign?.name || ''}
         adminBoundary={selectedAdminBoundaryForLocations}
         onImportComplete={() => {
           setRefreshKey(prev => prev + 1);
+        }}
+      />
+
+      {/* Add Campaign Area Modal */}
+      <AddCampaignAreaModal
+        isOpen={isAddCampaignAreaModalOpen}
+        onClose={() => {
+          setIsAddCampaignAreaModalOpen(false);
+          setSelectedAdminBoundaryForCampaign(null);
+          setDrawnGeometryForCampaign(null);
+        }}
+        campaignId={selectedCampaign?.id || ''}
+        mode={campaignAreaMode}
+        adminBoundary={selectedAdminBoundaryForCampaign}
+        drawnGeometry={drawnGeometryForCampaign}
+        onAreaAdded={() => {
+          setCampaignAreasRefreshKey(prev => prev + 1);
+          refetchPixelStats();
         }}
       />
     </>
