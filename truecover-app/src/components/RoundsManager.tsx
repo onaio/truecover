@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { TacticalCard, TacticalButton, TacticalBadge, TacticalCollapsible } from '../tactical-ui';
 import CreateRoundModal from './CreateRoundModal';
 import ExportLocationsModal from './ExportLocationsModal';
+import { StratifiedClusterSamplingWizard } from './StratifiedClusterSamplingWizard';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
+import { useIndicators } from '../hooks/useIndicators';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -33,10 +35,12 @@ interface RoundsManagerProps {
 
 const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0 }) => {
   const { getToken } = useAuth();
+  const { data: indicators } = useIndicators(projectId);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [showStratifiedWizard, setShowStratifiedWizard] = useState(false);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -127,6 +131,14 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
                 disabled={rounds.length === 0}
               >
                 Export Locations to Visit
+              </TacticalButton>
+              <TacticalButton
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowStratifiedWizard(true)}
+                disabled={!selectedAdminBoundary}
+              >
+                Stratified Cluster Sampling
               </TacticalButton>
               <TacticalButton
                 variant="primary"
@@ -270,6 +282,22 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ areaId, areaName, project
         areaName={areaName}
         projectId={projectId}
         locations={locations}
+      />
+
+      <StratifiedClusterSamplingWizard
+        isOpen={showStratifiedWizard}
+        onClose={() => {
+          setShowStratifiedWizard(false);
+          if (onClearAdminBoundary) {
+            onClearAdminBoundary();
+          }
+        }}
+        areaId={areaId}
+        projectId={projectId}
+        startingPcode={selectedAdminBoundary?.pcode || ''}
+        startingName={selectedAdminBoundary?.name || ''}
+        indicatorId={indicators?.[0]?.id || ''}
+        onRoundCreated={handleRoundCreated}
       />
     </>
   );

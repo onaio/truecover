@@ -695,3 +695,93 @@ def get_overture_import_status(user, workflow_id):
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Failed to get status: {str(e)}'}), 500
+
+
+@admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/children', methods=['GET'])
+@require_auth
+def get_admin_boundary_children(user, pcode):
+    """Get child boundaries for a given PCODE with optional population data"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # First, find the level of the given pcode
+        cursor.execute("""
+            SELECT level,
+                   adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+            FROM admin_boundaries
+            WHERE adm0_pcode = %s OR adm1_pcode = %s OR adm2_pcode = %s
+               OR adm3_pcode = %s OR adm4_pcode = %s
+            LIMIT 1
+        """, (pcode, pcode, pcode, pcode, pcode))
+
+        parent = cursor.fetchone()
+        if not parent:
+            return jsonify({'error': f'Admin boundary not found for PCODE: {pcode}'}), 404
+
+        parent_level = parent[0]
+        child_level = parent_level + 1
+
+        if child_level > 4:
+            return jsonify({'children': [], 'message': 'No child level exists'}), 200
+
+        # Build the parent pcode column name
+        parent_col = f'adm{parent_level}_pcode'
+
+        # Query for children at the next level
+        cursor.execute(f"""
+            SELECT DISTINCT
+                ab.name,
+                ab.level,
+                CASE
+                    WHEN ab.level = 1 THEN ab.adm1_pcode
+                    WHEN ab.level = 2 THEN ab.adm2_pcode
+                    WHEN ab.level = 3 THEN ab.adm3_pcode
+                    WHEN ab.level = 4 THEN ab.adm4_pcode
+                END as pcode,
+                ab.{parent_col} as parent_pcode,
+                COALESCE(
+                    (SELECT SUM((pm.metadata->>'population')::numeric)
+                     FROM pixels p
+                     JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
+                     WHERE p.adm{child_level}_pcode =
+                           CASE
+                               WHEN ab.level = 1 THEN ab.adm1_pcode
+                               WHEN ab.level = 2 THEN ab.adm2_pcode
+                               WHEN ab.level = 3 THEN ab.adm3_pcode
+                               WHEN ab.level = 4 THEN ab.adm4_pcode
+                           END
+                     AND pm.metadata ? 'population'
+                    ), 0
+                ) as population
+            FROM admin_boundaries ab
+            WHERE ab.level = %s AND ab.{parent_col} = %s
+            ORDER BY ab.name
+        """, (child_level, pcode))
+
+        children = cursor.fetchall()
+
+        result = [{
+            'name': row[0],
+            'level': row[1],
+            'pcode': row[2],
+            'parent_pcode': row[3],
+            'population': float(row[4]) if row[4] else 0
+        } for row in children]
+
+        return jsonify({
+            'parent_pcode': pcode,
+            'parent_level': parent_level,
+            'child_level': child_level,
+            'children': result
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching admin boundary children: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to fetch admin boundary children'}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)

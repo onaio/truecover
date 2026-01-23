@@ -911,3 +911,92 @@ def delete_round(user, area_id, round_id):
     finally:
         if conn:
             return_db_connection(conn)
+
+
+@rounds_bp.route('/api/areas/<area_id>/rounds/stratified-cluster', methods=['POST'])
+@require_auth
+def create_stratified_cluster_round(user, area_id):
+    """Create a new round using stratified cluster sampling workflow"""
+    from datetime import datetime
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.stratified_cluster_sampling import StratifiedClusterSamplingWorkflow
+
+    try:
+        if not check_area_access(user['id'], area_id):
+            return jsonify({'error': 'Access denied'}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Required fields
+        name = data.get('name')
+        starting_pcode = data.get('starting_pcode')
+        categories = data.get('categories', {})
+        upazila_count = data.get('upazila_count', 3)
+        unions_per_upazila = data.get('unions_per_upazila', 2)
+        pixels_per_union = data.get('pixels_per_union', 50)
+        indicator_id = data.get('indicator_id')
+
+        # Optional fields
+        description = data.get('description', '')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        population_weighted = data.get('population_weighted', False)
+        category_weights = data.get('category_weights')
+        min_population = data.get('min_population')
+        uncertainty_field = data.get('uncertainty_field', 'prevalence_bci_width')
+
+        # Validation
+        if not name:
+            return jsonify({'error': 'Round name is required'}), 400
+        if not starting_pcode:
+            return jsonify({'error': 'Starting PCODE is required'}), 400
+        if not indicator_id:
+            return jsonify({'error': 'Indicator ID is required'}), 400
+        if not categories or all(len(v) == 0 for v in categories.values()):
+            return jsonify({'error': 'At least one area must be categorized'}), 400
+
+        # Generate workflow ID
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        workflow_id = f"stratified-cluster-{area_id}-{timestamp}"
+
+        async def start_workflow():
+            client = await get_temporal_client()
+            handle = await client.start_workflow(
+                StratifiedClusterSamplingWorkflow.run,
+                args=[
+                    area_id,
+                    name,
+                    description,
+                    start_date,
+                    end_date,
+                    indicator_id,
+                    starting_pcode,
+                    categories,
+                    upazila_count,
+                    unions_per_upazila,
+                    pixels_per_union,
+                    population_weighted,
+                    category_weights,
+                    min_population,
+                    uncertainty_field
+                ],
+                id=workflow_id,
+                task_queue="truecover-tasks"
+            )
+            return handle
+
+        run_async(start_workflow())
+
+        return jsonify({
+            'workflow_id': workflow_id,
+            'status': 'started',
+            'message': 'Stratified cluster sampling started.'
+        }), 202
+
+    except Exception as e:
+        print(f"Error starting stratified cluster sampling: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to start workflow', 'details': str(e)}), 500

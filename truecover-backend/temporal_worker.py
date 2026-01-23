@@ -16,9 +16,10 @@ from temporal.workflows.round_generation import RoundGenerationWorkflow
 from temporal.workflows.pixel_generation import PixelGenerationWorkflow
 from temporal.workflows.visit_upload import VisitUploadWorkflow
 from temporal.workflows.entity_export import EntityExportWorkflow
+from temporal.workflows.stratified_cluster_sampling import StratifiedClusterSamplingWorkflow
 
 # Import activities
-from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels, visits, entity_export
+from temporal.activities import locations, overture, coverage, enrichment, rounds, pixels, visits, entity_export, cluster_sampling
 
 
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +70,7 @@ async def main():
         *discover_activities(pixels),
         *discover_activities(visits),
         *discover_activities(entity_export),
+        *discover_activities(cluster_sampling),
     ]
 
     logger.info(f"Registered {len(all_activities)} activities")
@@ -86,6 +88,7 @@ async def main():
             PixelGenerationWorkflow,
             VisitUploadWorkflow,
             EntityExportWorkflow,
+            StratifiedClusterSamplingWorkflow,
         ],
         activities=all_activities,
     )

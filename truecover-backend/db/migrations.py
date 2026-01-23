@@ -1012,6 +1012,41 @@ def run_migrations():
         cursor.execute("REFRESH MATERIALIZED VIEW pixel_location_counts")
         print("Materialized view created and refreshed")
 
+        # Create cluster_sampling_config table for stratified cluster sampling
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cluster_sampling_config (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
+                starting_pcode TEXT NOT NULL,
+                categories JSONB NOT NULL,
+                upazila_count INTEGER NOT NULL,
+                unions_per_upazila INTEGER NOT NULL,
+                pixels_per_union INTEGER NOT NULL,
+                population_weighted BOOLEAN DEFAULT FALSE,
+                category_weights JSONB,
+                min_population INTEGER,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_cluster_sampling_config_round_id
+            ON cluster_sampling_config(round_id);
+        """)
+
+        # Add sampling_method column to rounds table
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'rounds' AND column_name = 'sampling_method'
+                ) THEN
+                    ALTER TABLE rounds ADD COLUMN sampling_method TEXT DEFAULT 'simple';
+                END IF;
+            END $$;
+        """)
+
         conn.commit()
         print("Database migrations completed successfully")
 
