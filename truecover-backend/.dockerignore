@@ -1,0 +1,51 @@
+# ABOUTME: Excludes unnecessary files from Docker build context.
+# ABOUTME: Keeps image smaller and prevents sensitive data from being included.
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Environment and secrets
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Caches
+cog_cache/
+parquet_cache/
+
+# Logs
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Tests (optional - remove if you want tests in the image)
+*_test.py
+test_*.py
+tests/
+pytest.ini
+
+# Documentation
+*.md
