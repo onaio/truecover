@@ -412,8 +412,8 @@ async def generate_pixels_for_quadkeys(campaign_id: str) -> Dict[str, Any]:
             activity.logger.info("No valid quadkeys found in locations")
             return {'new_quadkeys': []}
 
-        # Get existing pixels for this area
-        cursor.execute("SELECT quadkey FROM pixels WHERE campaign_id = %s", (campaign_id,))
+        # Get existing pixels globally (pixels table is not campaign-specific)
+        cursor.execute("SELECT quadkey FROM pixels WHERE quadkey = ANY(%s)", (list(location_quadkeys),))
         existing_quadkeys = {row[0] for row in cursor.fetchall()}
 
         # Find quadkeys that need pixels
@@ -442,7 +442,6 @@ async def generate_pixels_for_quadkeys(campaign_id: str) -> Dict[str, Any]:
                 )
 
                 pixel_data.append((
-                    campaign_id,
                     quadkey,
                     geometry_wkt,
                     centroid_lat,
@@ -450,11 +449,11 @@ async def generate_pixels_for_quadkeys(campaign_id: str) -> Dict[str, Any]:
                     tile.z
                 ))
 
-            # Batch insert pixels
+            # Batch insert pixels (pixels table is global, no campaign_id)
             cursor.executemany("""
-                INSERT INTO pixels (campaign_id, quadkey, geometry, latitude, longitude, level)
-                VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
-                ON CONFLICT ON CONSTRAINT pixels_area_quadkey_unique DO NOTHING
+                INSERT INTO pixels (quadkey, geometry, latitude, longitude, level)
+                VALUES (%s, ST_GeomFromText(%s, 4326), %s, %s, %s)
+                ON CONFLICT (quadkey) DO NOTHING
             """, pixel_data)
 
             new_quadkeys = list(quadkeys_needing_pixels)
