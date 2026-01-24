@@ -6,6 +6,12 @@ import AddVisitModal from './AddVisitModal';
 import ExportDataModal from './ExportDataModal';
 import { CoverageRecord, CoveragePixelRecord } from '../hooks/useCoverage';
 
+interface Round {
+  id: string;
+  round_number: number;
+  name?: string;
+}
+
 interface PredictedCoverageSectionProps {
   campaignId: string;
   areaName: string;
@@ -22,6 +28,8 @@ interface PredictedCoverageSectionProps {
   isLoadingMore: boolean;
   locationTotalCount: number;
   pixelTotalCount: number;
+  rounds?: Round[];
+  onRoundChange?: (roundId: string | undefined) => void;
   onRoundClick?: (roundNumber: number) => void;
 }
 
@@ -40,6 +48,8 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   isLoadingMore,
   locationTotalCount,
   pixelTotalCount,
+  rounds,
+  onRoundChange,
   onRoundClick,
 }) => {
   const [isPredictCoverageModalOpen, setIsPredictCoverageModalOpen] = useState(false);
@@ -47,17 +57,8 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
   const [isExportDataModalOpen, setIsExportDataModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'locations' | 'pixels'>('locations');
-  const [showSampledOnly, setShowSampledOnly] = useState(false);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-
-  // Filter data to show only sampled items (n_trials > 0)
-  const filteredCoverageData = showSampledOnly
-    ? coverageData.filter((r) => r.n_trials > 0)
-    : coverageData;
-  const filteredPixelData = showSampledOnly
-    ? coveragePixelData.filter((r) => r.n_trials > 0)
-    : coveragePixelData;
 
   // Reload data when modal closes
   const handleModalClose = () => {
@@ -126,7 +127,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                 }`}
                 onClick={() => setActiveTab('locations')}
               >
-                Locations ({showSampledOnly ? filteredCoverageData.length : locationTotalCount})
+                Locations ({locationTotalCount})
               </button>
               <button
                 className={`px-4 py-2 font-medium transition-colors ${
@@ -136,19 +137,24 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                 }`}
                 onClick={() => setActiveTab('pixels')}
               >
-                Pixels ({showSampledOnly ? filteredPixelData.length : pixelTotalCount})
+                Pixels ({pixelTotalCount})
               </button>
             </div>
-            <button
-              className={`px-3 py-1 mb-1 text-sm font-medium rounded transition-colors ${
-                showSampledOnly
-                  ? 'bg-tactical-accent-green text-tactical-bg-primary'
-                  : 'bg-tactical-bg-tertiary text-tactical-text-secondary hover:bg-tactical-bg-quaternary'
-              }`}
-              onClick={() => setShowSampledOnly(!showSampledOnly)}
-            >
-              Sampled Only
-            </button>
+            {/* Round Filter */}
+            {rounds && rounds.length > 0 && onRoundChange && (
+              <select
+                value={selectedRoundId || 'all'}
+                onChange={(e) => onRoundChange(e.target.value === 'all' ? undefined : e.target.value)}
+                className="px-3 py-1 mb-1 text-sm font-medium rounded bg-tactical-bg-tertiary text-tactical-text-secondary border border-tactical-border-medium hover:bg-tactical-bg-quaternary focus:outline-none focus:border-tactical-accent-green"
+              >
+                <option value="all">All Rounds</option>
+                {rounds.map((round) => (
+                  <option key={round.id} value={round.id}>
+                    {round.name || `Round ${round.round_number}`}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Coverage Table */}
@@ -156,26 +162,22 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
             <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
               <p className="text-tactical-text-dim">Loading coverage data...</p>
             </div>
-          ) : activeTab === 'locations' && filteredCoverageData.length === 0 ? (
+          ) : activeTab === 'locations' && coverageData.length === 0 ? (
             <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
               <p className="text-tactical-text-dim mb-2">
-                {showSampledOnly ? 'No sampled locations' : 'No location coverage predictions yet'}
+                No location coverage predictions yet
               </p>
               <p className="text-xs text-tactical-text-muted">
-                {showSampledOnly
-                  ? 'No locations have been sampled (n_trials > 0)'
-                  : 'Generate coverage predictions using visit data and indicator information'}
+                Generate coverage predictions using visit data and indicator information
               </p>
             </div>
-          ) : activeTab === 'pixels' && filteredPixelData.length === 0 ? (
+          ) : activeTab === 'pixels' && coveragePixelData.length === 0 ? (
             <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
               <p className="text-tactical-text-dim mb-2">
-                {showSampledOnly ? 'No sampled pixels' : 'No pixel coverage predictions yet'}
+                No pixel coverage predictions yet
               </p>
               <p className="text-xs text-tactical-text-muted">
-                {showSampledOnly
-                  ? 'No pixels have been sampled (n_trials > 0)'
-                  : 'Generate coverage predictions using visit data and indicator information'}
+                Generate coverage predictions using visit data and indicator information
               </p>
             </div>
           ) : activeTab === 'locations' ? (
@@ -201,7 +203,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCoverageData.map((record) => {
+                  {coverageData.map((record) => {
                     const hasRounds = record.rounds && record.rounds.length > 0;
                     const rowTextColor = hasRounds ? 'text-tactical-accent-green' : '';
                     return (
@@ -295,7 +297,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPixelData.map((record) => {
+                  {coveragePixelData.map((record) => {
                     const hasRounds = record.rounds && record.rounds.length > 0;
                     const rowTextColor = hasRounds ? 'text-tactical-accent-green' : '';
                     return (

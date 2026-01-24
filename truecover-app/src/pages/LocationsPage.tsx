@@ -930,6 +930,14 @@ const LocationsPage: React.FC = () => {
               isLoadingMore={isFetchingNextCoveragePage}
               locationTotalCount={locationTotalCount}
               pixelTotalCount={pixelTotalCount}
+              rounds={rounds}
+              onRoundChange={(roundId) => {
+                if (roundId) {
+                  setSelectedRoundIds([roundId]);
+                } else {
+                  setSelectedRoundIds(['all']);
+                }
+              }}
               onRoundClick={(roundNumber) => {
                 const round = rounds?.find(r => r.round_number === roundNumber);
                 if (round) {
