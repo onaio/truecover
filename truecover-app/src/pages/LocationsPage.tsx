@@ -613,19 +613,19 @@ const LocationsPage: React.FC = () => {
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Locations</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {locations.total_count || locations.locations.length}
+                  {(locations.total_count || locations.locations.length).toLocaleString()}
                 </p>
               </div>
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Pixels</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {pixelTotalCount}
+                  {pixelTotalCount.toLocaleString()}
                 </p>
               </div>
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
                 <p className="text-xs text-tactical-text-dim uppercase tracking-wider mb-2">Total Rounds</p>
                 <p className="text-3xl font-bold text-tactical-text-primary font-mono">
-                  {rounds?.length || 0}
+                  {(rounds?.length || 0).toLocaleString()}
                 </p>
               </div>
               <div className="border border-tactical-border-medium bg-tactical-bg-secondary p-4">
@@ -658,7 +658,7 @@ const LocationsPage: React.FC = () => {
 
                     return (
                       <>
-                        {locationsToVisit}
+                        {locationsToVisit.toLocaleString()}
                         <span className="text-lg text-tactical-text-dim ml-2">
                           ({percentage}%)
                         </span>
@@ -698,7 +698,7 @@ const LocationsPage: React.FC = () => {
 
                     return (
                       <>
-                        {locationsVisited}
+                        {locationsVisited.toLocaleString()}
                         <span className="text-lg text-tactical-text-dim ml-2">
                           ({percentage}%)
                         </span>
