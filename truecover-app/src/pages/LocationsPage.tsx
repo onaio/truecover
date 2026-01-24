@@ -13,7 +13,6 @@ import LocationUploadModal from '../components/LocationUploadModal';
 import LocationEditModal from '../components/LocationEditModal';
 import GeneratePixelsModal from '../components/GeneratePixelsModal';
 import EnrichPixelsModal from '../components/EnrichPixelsModal';
-import AddOvertureLocationsModal from '../components/AddOvertureLocationsModal';
 import MapView from '../components/MapView';
 import RoundsManager from '../components/RoundsManager';
 import PredictedCoverageSection from '../components/PredictedCoverageSection';
@@ -78,7 +77,6 @@ const LocationsPage: React.FC = () => {
   const [mapMode, setMapMode] = useState<boolean>(false);
   const [histogramDrawerOpen, setHistogramDrawerOpen] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
-  const [selectedAdminBoundaryForLocations, setSelectedAdminBoundaryForLocations] = useState<{ pcode: string; name: string; geometry?: any } | null>(null);
   const [isAddCampaignAreaModalOpen, setIsAddCampaignAreaModalOpen] = useState(false);
   const [campaignAreaMode, setCampaignAreaMode] = useState<'admin_boundary' | 'drawn'>('admin_boundary');
   const [selectedAdminBoundaryForCampaign, setSelectedAdminBoundaryForCampaign] = useState<{ pcode: string; name: string } | null>(null);
@@ -1065,18 +1063,6 @@ const LocationsPage: React.FC = () => {
         pixelCount={pixelStats?.count || 0}
         onJobCreated={(jobId) => {
           console.log('Enrichment job created:', jobId);
-        }}
-      />
-
-      {/* Add Overture Locations Modal */}
-      <AddOvertureLocationsModal
-        isOpen={!!selectedAdminBoundaryForLocations}
-        onClose={() => setSelectedAdminBoundaryForLocations(null)}
-        campaignId={selectedCampaign?.id || ''}
-        areaName={selectedCampaign?.name || ''}
-        adminBoundary={selectedAdminBoundaryForLocations}
-        onImportComplete={() => {
-          setRefreshKey(prev => prev + 1);
         }}
       />
 

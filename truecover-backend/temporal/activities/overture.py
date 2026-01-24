@@ -274,3 +274,50 @@ async def fetch_and_insert_overture_buildings(
         duckdb_con.close()
         pg_cursor.close()
         return_db_connection(pg_conn)
+
+
+@activity.defn
+async def update_campaign_area_building_counts(campaign_id: str) -> Dict[str, int]:
+    """
+    Update cached_building_count for all campaign areas in a campaign.
+
+    Counts locations within each area's admin boundary geometry.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Update building counts for all campaign areas in this campaign
+        # Uses spatial intersection with admin boundary geometry
+        cursor.execute("""
+            UPDATE campaign_areas ca
+            SET cached_building_count = COALESCE(counts.building_count, 0)
+            FROM (
+                SELECT
+                    ca2.id as area_id,
+                    COUNT(l.id) as building_count
+                FROM campaign_areas ca2
+                LEFT JOIN admin_boundaries ab ON ab.id = ca2.admin_boundary_id
+                LEFT JOIN locations l ON l.campaign_id = ca2.campaign_id
+                    AND ST_Within(l.geometry, ab.geometry)
+                WHERE ca2.campaign_id = %s
+                GROUP BY ca2.id
+            ) counts
+            WHERE ca.id = counts.area_id
+        """, (campaign_id,))
+
+        updated = cursor.rowcount
+        conn.commit()
+
+        activity.logger.info(f"Updated building counts for {updated} campaign areas")
+
+        return {'areas_updated': updated}
+
+    except Exception as e:
+        conn.rollback()
+        activity.logger.error(f"Error updating building counts: {e}")
+        raise
+
+    finally:
+        cursor.close()
+        return_db_connection(conn)

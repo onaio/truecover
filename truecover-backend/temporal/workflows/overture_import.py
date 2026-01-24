@@ -10,6 +10,7 @@ with workflow.unsafe.imports_passed_through():
     from ..activities.overture import (
         fetch_admin_boundary,
         fetch_and_insert_overture_buildings,
+        update_campaign_area_building_counts,
     )
     from ..activities.locations import (
         populate_coverage_for_locations,
@@ -137,6 +138,17 @@ class OvertureImportWorkflow:
             await workflow.execute_activity(
                 create_coverage_pixel_records,
                 args=[campaign_id, new_quadkeys],
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=RetryPolicy(maximum_attempts=3)
+            )
+
+        # Activity 6: Update campaign area building counts
+        if self.total_inserted > 0:
+            self.status = 'updating_building_counts'
+            workflow.logger.info("Updating campaign area building counts")
+            await workflow.execute_activity(
+                update_campaign_area_building_counts,
+                args=[campaign_id],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
