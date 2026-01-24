@@ -9,8 +9,7 @@ from typing import Dict, Any
 with workflow.unsafe.imports_passed_through():
     from ..activities.overture import (
         fetch_admin_boundary,
-        fetch_overture_buildings_batch,
-        process_overture_buildings_batch,
+        fetch_and_insert_overture_buildings,
     )
     from ..activities.locations import (
         populate_coverage_for_locations,
@@ -27,18 +26,17 @@ class OvertureImportWorkflow:
 
     Steps:
     1. Fetch admin boundary bbox and geometry
-    2. Fetch buildings from Overture Maps in batches via DuckDB
-    3. Process each batch (insert/update with deduplication)
-    4. Populate coverage records for new locations
-    5. Auto-generate pixels for new quadkeys
-    6. Create coverage_pixel records for new pixels
+    2. Fetch and insert buildings directly (DuckDB -> PostgreSQL, no Temporal serialization)
+    3. Populate coverage records for new locations
+    4. Auto-generate pixels for new quadkeys
+    5. Create coverage_pixel records for new pixels
     """
 
     def __init__(self):
         self.total_fetched = 0
         self.total_inserted = 0
         self.total_duplicates = 0
-        self.batches_processed = 0
+        self.status = 'initializing'
 
     @workflow.run
     async def run(
@@ -52,13 +50,14 @@ class OvertureImportWorkflow:
 
         Args:
             pcode: Admin boundary PCODE
-            campaign_id: Area ID
+            campaign_id: Campaign ID
             geometry: Optional GeoJSON geometry for drawn areas
 
         Returns:
             Result summary with counts
         """
         # Activity 1: Get boundary geometry (from drawn shape or admin boundary)
+        self.status = 'fetching_boundary'
         if geometry:
             # Convert GeoJSON geometry to WKT for drawn areas
             geometry_data = await workflow.execute_activity(
@@ -86,58 +85,30 @@ class OvertureImportWorkflow:
 
             workflow.logger.info(f"Fetched boundary for {pcode}")
 
-        # Fetch and process buildings in batches
-        batch_size = 5000
-        offset = 0
-        all_new_location_ids = []
+        # Activity 2: Fetch and insert buildings directly (bypasses Temporal serialization)
+        self.status = 'importing_buildings'
+        workflow.logger.info("Starting building import (direct DuckDB -> PostgreSQL)")
 
-        workflow.logger.info(f"Starting batch import from Overture Maps (batch_size={batch_size})")
+        import_result = await workflow.execute_activity(
+            fetch_and_insert_overture_buildings,
+            args=[campaign_id, bbox, boundary_wkt],
+            start_to_close_timeout=timedelta(minutes=30),
+            retry_policy=RetryPolicy(maximum_attempts=3)
+        )
 
-        while True:
-            # Activity 2: Fetch batch of buildings from Overture
-            workflow.logger.info(f"Fetching batch {self.batches_processed + 1} (offset={offset})")
-            buildings_batch = await workflow.execute_activity(
-                fetch_overture_buildings_batch,
-                args=[bbox, boundary_wkt, offset, batch_size],
-                start_to_close_timeout=timedelta(minutes=5),
-                retry_policy=RetryPolicy(maximum_attempts=3)
-            )
+        self.total_fetched = import_result['total_fetched']
+        self.total_inserted = import_result['inserted']
+        self.total_duplicates = import_result['duplicates']
+        all_new_location_ids = import_result['new_location_ids']
 
-            # If no buildings returned, we're done
-            if not buildings_batch:
-                workflow.logger.info("No more buildings to fetch")
-                break
+        workflow.logger.info(
+            f"Import complete: fetched={self.total_fetched}, "
+            f"inserted={self.total_inserted}, duplicates={self.total_duplicates}"
+        )
 
-            self.total_fetched += len(buildings_batch)
-            workflow.logger.info(f"Fetched {len(buildings_batch)} buildings (total: {self.total_fetched})")
-
-            # Activity 3: Process batch (insert locations)
-            result = await workflow.execute_activity(
-                process_overture_buildings_batch,
-                args=[campaign_id, buildings_batch],
-                start_to_close_timeout=timedelta(minutes=2),
-                retry_policy=RetryPolicy(maximum_attempts=3)
-            )
-
-            self.total_inserted += result['inserted']
-            self.total_duplicates += result['duplicates']
-            all_new_location_ids.extend(result['new_location_ids'])
-            self.batches_processed += 1
-
-            workflow.logger.info(
-                f"Batch {self.batches_processed} complete: "
-                f"fetched={len(buildings_batch)}, inserted={result['inserted']}, duplicates={result['duplicates']}"
-            )
-
-            # If we got fewer buildings than batch_size, we're done
-            if len(buildings_batch) < batch_size:
-                workflow.logger.info("Reached end of buildings (partial batch)")
-                break
-
-            offset += batch_size
-
-        # Activity 4: Populate coverage for new locations
+        # Activity 3: Populate coverage for new locations
         if all_new_location_ids:
+            self.status = 'populating_coverage'
             workflow.logger.info(f"Populating coverage for {len(all_new_location_ids)} new locations")
             await workflow.execute_activity(
                 populate_coverage_for_locations,
@@ -146,9 +117,10 @@ class OvertureImportWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
 
-        # Activity 5: Auto-generate pixels for new quadkeys
+        # Activity 4: Auto-generate pixels for new quadkeys
         new_quadkeys = []
         if self.total_inserted > 0:
+            self.status = 'generating_pixels'
             workflow.logger.info("Auto-generating pixels for imported buildings")
             pixel_result = await workflow.execute_activity(
                 generate_pixels_for_quadkeys,
@@ -158,8 +130,9 @@ class OvertureImportWorkflow:
             )
             new_quadkeys = pixel_result['new_quadkeys']
 
-        # Activity 6: Create coverage_pixel records for new pixels
+        # Activity 5: Create coverage_pixel records for new pixels
         if new_quadkeys:
+            self.status = 'creating_coverage_pixels'
             workflow.logger.info(f"Creating coverage_pixel records for {len(new_quadkeys)} pixels")
             await workflow.execute_activity(
                 create_coverage_pixel_records,
@@ -168,21 +141,21 @@ class OvertureImportWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
 
+        self.status = 'completed'
         return {
             'success': True,
             'inserted': self.total_inserted,
             'duplicates': self.total_duplicates,
             'pixels_created': len(new_quadkeys),
-            'total_fetched': self.total_fetched,
-            'batches_processed': self.batches_processed
+            'total_fetched': self.total_fetched
         }
 
     @workflow.query
     def get_progress(self) -> Dict[str, Any]:
         """Query to get current progress."""
         return {
+            'status': self.status,
             'total_fetched': self.total_fetched,
             'total_inserted': self.total_inserted,
             'total_duplicates': self.total_duplicates,
-            'batches_processed': self.batches_processed,
         }

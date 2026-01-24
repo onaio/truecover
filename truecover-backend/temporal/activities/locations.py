@@ -314,11 +314,11 @@ async def populate_coverage_for_locations(campaign_id: str, new_location_ids: Li
     cursor = conn.cursor()
 
     try:
-        # Get the project_id from the area
-        cursor.execute("SELECT project_id FROM areas WHERE id = %s", (campaign_id,))
+        # Get the project_id from the campaign
+        cursor.execute("SELECT project_id FROM campaigns WHERE id = %s", (campaign_id,))
         result = cursor.fetchone()
         if not result:
-            activity.logger.warning(f"Could not find area {campaign_id}")
+            activity.logger.warning(f"Could not find campaign {campaign_id}")
             return
 
         project_id = result[0]
@@ -489,11 +489,11 @@ async def create_coverage_pixel_records(campaign_id: str, quadkeys: List[str]) -
     cursor = conn.cursor()
 
     try:
-        # Get the project_id from the area
-        cursor.execute("SELECT project_id FROM areas WHERE id = %s", (campaign_id,))
+        # Get the project_id from the campaign
+        cursor.execute("SELECT project_id FROM campaigns WHERE id = %s", (campaign_id,))
         result = cursor.fetchone()
         if not result:
-            activity.logger.warning(f"Could not find area {campaign_id}")
+            activity.logger.warning(f"Could not find campaign {campaign_id}")
             return
 
         project_id = result[0]

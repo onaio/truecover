@@ -125,91 +125,152 @@ async def fetch_overture_buildings_batch(
 
 
 @activity.defn
-async def process_overture_buildings_batch(
+async def fetch_and_insert_overture_buildings(
     campaign_id: str,
-    buildings: List[Dict[str, Any]]
+    bbox: Tuple[float, float, float, float],
+    boundary_wkt: str,
+    batch_size: int = 5000
 ) -> Dict[str, Any]:
-    """Process a batch of Overture buildings - insert locations with deduplication."""
+    """
+    Fetch buildings from Overture and insert directly to PostgreSQL.
+
+    Combines fetch and insert in one activity to avoid passing large data through Temporal.
+    """
     from routes.locations import calculate_quadkey
     from psycopg2.extras import execute_values
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    activity.logger.info(f"Fetching and inserting buildings for campaign {campaign_id}")
+
+    # Setup DuckDB connection for reading
+    duckdb_con = duckdb.connect()
+    duckdb_con.execute("INSTALL spatial; LOAD spatial;")
+    duckdb_con.execute("SET s3_region='us-west-2';")
+
+    # Setup PostgreSQL connection for writing
+    pg_conn = get_db_connection()
+    pg_cursor = pg_conn.cursor()
+
+    total_fetched = 0
+    total_inserted = 0
+    total_duplicates = 0
+    all_new_location_ids = []
 
     try:
-        activity.logger.info(f"Processing batch of {len(buildings)} buildings")
+        # Query to get all buildings in one pass
+        buildings_query = f"""
+            SELECT
+                id,
+                names.primary as primary_name,
+                height,
+                num_floors,
+                class,
+                ST_AsText(geometry) as geometry_wkt,
+                ST_X(ST_Centroid(geometry)) as centroid_lng,
+                ST_Y(ST_Centroid(geometry)) as centroid_lat
+            FROM read_parquet('{OVERTURE_BUILDINGS_PATH}', hive_partitioning=1)
+            WHERE bbox.xmin BETWEEN {bbox[0]} AND {bbox[2]}
+              AND bbox.ymin BETWEEN {bbox[1]} AND {bbox[3]}
+              AND ST_Within(geometry, ST_GeomFromText('{boundary_wkt}'))
+        """
 
-        batch_to_insert = []
-        duplicates = 0
+        # Stream results in batches
+        offset = 0
+        while True:
+            paginated_query = f"({buildings_query}) LIMIT {batch_size} OFFSET {offset}"
+            buildings = duckdb_con.execute(paginated_query).fetchall()
 
-        for building in buildings:
-            try:
-                overture_id = building['overture_id']
-                geometry_wkt = building['geometry_wkt']
-                lat = building['latitude']
-                lng = building['longitude']
-                properties = building['properties']
+            if not buildings:
+                break
 
-                if lat is None or lng is None:
+            total_fetched += len(buildings)
+            activity.logger.info(f"Fetched batch of {len(buildings)} buildings (total: {total_fetched})")
+
+            # Process this batch directly to PostgreSQL
+            batch_to_insert = []
+            batch_duplicates = 0
+
+            for building in buildings:
+                overture_id, primary_name, height, num_floors, building_class, geometry_wkt, centroid_lng, centroid_lat = building
+
+                if centroid_lat is None or centroid_lng is None:
                     continue
 
                 # Check for duplicate by external_id
-                cursor.execute(
+                pg_cursor.execute(
                     "SELECT id FROM locations WHERE campaign_id = %s AND external_id = %s",
                     (campaign_id, overture_id)
                 )
-                if cursor.fetchone():
-                    duplicates += 1
+                if pg_cursor.fetchone():
+                    batch_duplicates += 1
                     continue
 
                 # Calculate quadkey
-                quadkey = calculate_quadkey(lat, lng)
+                quadkey = calculate_quadkey(centroid_lat, centroid_lng)
 
-                # Add to batch
+                # Prepare properties
+                properties = {
+                    'overture_id': overture_id,
+                    'class': building_class,
+                    'height': height,
+                    'num_floors': num_floors,
+                    'primary_name': primary_name,
+                    'source': 'overture_maps'
+                }
+                properties = {k: v for k, v in properties.items() if v is not None}
+
                 batch_to_insert.append((
                     campaign_id,
-                    overture_id,  # external_id
+                    overture_id,
                     f"SRID=4326;{geometry_wkt}",
-                    lat,
-                    lng,
+                    centroid_lat,
+                    centroid_lng,
                     quadkey,
                     json.dumps(properties)
                 ))
 
-            except Exception as e:
-                activity.logger.error(f"Error preparing building {overture_id}: {e}")
-                continue
+            total_duplicates += batch_duplicates
 
-        # Batch insert locations
-        new_location_ids = []
-        if batch_to_insert:
-            result = execute_values(cursor, """
-                INSERT INTO locations (
-                    campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
-                )
-                VALUES %s
-                RETURNING id
-            """, batch_to_insert,
-                template="(%s, %s, ST_GeomFromText(%s), %s, %s, %s, %s)",
-                fetch=True)
+            # Batch insert to PostgreSQL
+            if batch_to_insert:
+                result = execute_values(pg_cursor, """
+                    INSERT INTO locations (
+                        campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
+                    )
+                    VALUES %s
+                    RETURNING id
+                """, batch_to_insert,
+                    template="(%s, %s, ST_GeomFromText(%s), %s, %s, %s, %s)",
+                    fetch=True)
 
-            new_location_ids = [str(row[0]) for row in result]
-            conn.commit()
+                new_ids = [str(row[0]) for row in result]
+                all_new_location_ids.extend(new_ids)
+                total_inserted += len(new_ids)
+                pg_conn.commit()
 
-        activity.logger.info(f"Batch complete: inserted={len(new_location_ids)}, duplicates={duplicates}")
+            activity.logger.info(f"Batch inserted: {len(batch_to_insert)}, duplicates: {batch_duplicates}")
+
+            # Check if we got fewer than batch_size (end of data)
+            if len(buildings) < batch_size:
+                break
+
+            offset += batch_size
+
+        activity.logger.info(f"Complete: fetched={total_fetched}, inserted={total_inserted}, duplicates={total_duplicates}")
 
         return {
-            'inserted': len(new_location_ids),
-            'duplicates': duplicates,
-            'new_location_ids': new_location_ids,
-            'errors': []
+            'success': True,
+            'total_fetched': total_fetched,
+            'inserted': total_inserted,
+            'duplicates': total_duplicates,
+            'new_location_ids': all_new_location_ids
         }
 
     except Exception as e:
-        conn.rollback()
-        activity.logger.error(f"Error processing batch: {e}")
+        pg_conn.rollback()
+        activity.logger.error(f"Error in fetch_and_insert: {e}")
         raise
 
     finally:
-        cursor.close()
-        return_db_connection(conn)
+        duckdb_con.close()
+        pg_cursor.close()
+        return_db_connection(pg_conn)
