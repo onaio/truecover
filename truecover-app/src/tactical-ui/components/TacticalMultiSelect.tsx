@@ -53,24 +53,32 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
 
   const toggleOption = (optionValue: number | string) => {
     let newValue: (number | string)[];
+    const nonAllOptions = options.filter(opt => opt.value !== 'all').map(opt => opt.value);
 
     // Special handling for "all" option
     if (optionValue === 'all') {
-      // If "all" is being selected, clear all other selections
+      // If "all" is being selected, select all options
       if (!pendingValue.includes('all')) {
         newValue = ['all'];
       } else {
-        // If "all" is being deselected, just remove it
-        newValue = pendingValue.filter(v => v !== 'all');
+        // If "all" is being deselected, clear everything
+        newValue = [];
       }
     } else {
-      // For regular options, remove "all" if it's present
-      newValue = pendingValue.filter(v => v !== 'all');
-
-      if (newValue.includes(optionValue)) {
-        newValue = newValue.filter(v => v !== optionValue);
+      // For regular options
+      if (pendingValue.includes('all')) {
+        // If "all" was selected, uncheck this specific one (select all others)
+        newValue = nonAllOptions.filter(v => v !== optionValue);
+      } else if (pendingValue.includes(optionValue)) {
+        // Uncheck this option
+        newValue = pendingValue.filter(v => v !== optionValue);
       } else {
-        newValue = [...newValue, optionValue];
+        // Check this option
+        newValue = [...pendingValue, optionValue];
+        // If all non-all options are now selected, switch to "all"
+        if (newValue.length === nonAllOptions.length && nonAllOptions.every(v => newValue.includes(v))) {
+          newValue = ['all'];
+        }
       }
     }
 
@@ -80,6 +88,15 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
     if (autoApply) {
       onChange(newValue);
     }
+  };
+
+  // Check if an option should appear checked
+  const isOptionChecked = (optionValue: number | string) => {
+    if (pendingValue.includes('all')) {
+      // When "all" is selected, all options appear checked
+      return true;
+    }
+    return pendingValue.includes(optionValue);
   };
 
   const applyChanges = () => {
@@ -148,7 +165,7 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
                   >
                     <input
                       type="checkbox"
-                      checked={pendingValue.includes(option.value)}
+                      checked={isOptionChecked(option.value)}
                       onChange={() => toggleOption(option.value)}
                       className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
                     />
