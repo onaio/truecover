@@ -313,7 +313,7 @@ def create_stratified_cluster_round(user, campaign_id):
                     population_weighted,
                     category_weights,
                     min_population,
-                    uncertainty_field
+                    uncertainty_field,
                 ],
                 id=workflow_id,
                 task_queue="truecover-tasks"

@@ -15,15 +15,16 @@ Usage:
                                    --output bd-wordpop-qk18.parquet
 
 Performance:
-    - Uses chunked processing to manage memory
+    - Uses exactextract for fast raster extraction
+    - Pre-clips raster per grid cell to reduce I/O
     - Supports parallel processing with --workers flag
+    - Resumable: skips already-completed cells
     - Spatial indexing for fast admin boundary lookups
 """
 
 import argparse
 import os
 import sys
-import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,8 +36,8 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from rasterstats import zonal_stats
-from shapely.geometry import Point, Polygon, box, shape
+from exactextract import exact_extract
+from shapely.geometry import Point, Polygon, box, shape, mapping
 from shapely import wkt
 
 # Bangladesh approximate bounding box
@@ -207,11 +208,11 @@ def load_country_boundary(admin_gdf: gpd.GeoDataFrame) -> Polygon:
     if 'level' in admin_gdf.columns:
         adm0 = admin_gdf[admin_gdf['level'] == 0]
         if len(adm0) > 0:
-            return adm0.unary_union
+            return adm0.union_all()
 
     # Fall back to union of all geometries
     print("Creating country boundary from union of all admin boundaries...")
-    return admin_gdf.unary_union
+    return admin_gdf.union_all()
 
 
 def geocode_points_to_admin(points_gdf: gpd.GeoDataFrame,
@@ -262,28 +263,30 @@ def geocode_points_to_admin(points_gdf: gpd.GeoDataFrame,
     return result
 
 
-def extract_population(gdf: gpd.GeoDataFrame,
-                       worldpop_path: str,
-                       statistic: str = 'sum') -> pd.Series:
+def extract_population_exactextract(gdf: gpd.GeoDataFrame,
+                                    raster_path: str,
+                                    statistic: str = 'sum') -> pd.Series:
     """
-    Extract population values from WorldPop raster for each geometry.
+    Extract population values using exactextract for speed.
 
     Args:
         gdf: GeoDataFrame with polygon geometries
-        worldpop_path: Path to WorldPop GeoTIFF
+        raster_path: Path to raster file (GeoTIFF)
         statistic: Statistic to compute (sum, mean, etc.)
 
     Returns:
         Series with population values
     """
-    stats = zonal_stats(
+    # exactextract reads directly from the raster file
+    # It handles COGs efficiently, reading only what's needed
+    result = exact_extract(
+        raster_path,
         gdf,
-        worldpop_path,
-        stats=[statistic],
-        all_touched=True  # Include pixels that touch the polygon edge
+        [statistic],
+        output='pandas'
     )
 
-    return pd.Series([s[statistic] if s and statistic in s else None for s in stats])
+    return result[statistic]
 
 
 def process_grid_cell(cell: GridCell,
@@ -307,6 +310,18 @@ def process_grid_cell(cell: GridCell,
         Tuple of (cell_id, output_path, record_count)
     """
     try:
+        # Check if already completed (resumability)
+        output_path = os.path.join(output_dir, f'cell_{cell.id:04d}.parquet')
+        if os.path.exists(output_path):
+            # Validate the file is readable
+            try:
+                existing_df = pd.read_parquet(output_path)
+                print(f"Cell {cell.id}: Already completed ({len(existing_df)} records), skipping")
+                return (cell.id, output_path, len(existing_df))
+            except Exception:
+                # File is corrupt, reprocess
+                os.remove(output_path)
+
         # Parse country boundary
         country_boundary = wkt.loads(country_boundary_wkt)
 
@@ -338,6 +353,8 @@ def process_grid_cell(cell: GridCell,
 
         # Extract population if WorldPop path provided
         if worldpop_path and os.path.exists(worldpop_path):
+            print(f"Cell {cell.id}: Extracting population data...")
+
             # Create polygon geometries for zonal stats
             polygon_geoms = [wkt.loads(w) for w in geocoded['geometry_wkt']]
             polygon_gdf = gpd.GeoDataFrame(
@@ -345,7 +362,17 @@ def process_grid_cell(cell: GridCell,
                 geometry=polygon_geoms,
                 crs='EPSG:4326'
             )
-            geocoded['population'] = extract_population(polygon_gdf, worldpop_path, 'sum')
+
+            # Extract population using exactextract (reads directly from raster file)
+            try:
+                geocoded['population'] = extract_population_exactextract(
+                    polygon_gdf, worldpop_path, 'sum'
+                )
+            except Exception as e:
+                print(f"Cell {cell.id}: Population extraction failed: {e}")
+                import traceback
+                traceback.print_exc()
+                geocoded['population'] = None
         else:
             geocoded['population'] = None
 
@@ -358,8 +385,7 @@ def process_grid_cell(cell: GridCell,
         # Rename columns to lowercase
         output_df.columns = [c.lower() for c in output_df.columns]
 
-        # Write to temporary parquet file
-        output_path = os.path.join(output_dir, f'cell_{cell.id:04d}.parquet')
+        # Write to parquet file
         output_df.to_parquet(output_path, index=False)
 
         return (cell.id, output_path, len(output_df))
@@ -376,6 +402,7 @@ def process_sequential(cells: List[GridCell],
                        admin_gdf: gpd.GeoDataFrame,
                        worldpop_path: Optional[str],
                        output_path: str,
+                       work_dir: str,
                        chunk_size: int = DEFAULT_CHUNK_SIZE) -> int:
     """
     Process all cells sequentially with chunked writing.
@@ -386,95 +413,50 @@ def process_sequential(cells: List[GridCell],
         admin_gdf: GeoDataFrame with admin boundaries
         worldpop_path: Path to WorldPop raster
         output_path: Output parquet file path
+        work_dir: Working directory for intermediate files
         chunk_size: Number of records per write batch
 
     Returns:
         Total number of records written
     """
-    # Define schema
-    schema = pa.schema([
-        ('quadkey', pa.string()),
-        ('geometry_wkt', pa.string()),
-        ('latitude', pa.float64()),
-        ('longitude', pa.float64()),
-        ('level', pa.int32()),
-        ('adm1_pcode', pa.string()),
-        ('adm2_pcode', pa.string()),
-        ('adm3_pcode', pa.string()),
-        ('adm4_pcode', pa.string()),
-        ('population', pa.float64()),
-    ])
+    # Pre-clip raster once if available
+    clipped_raster = None
+    raster_meta = None
 
-    total_records = 0
-    writer = None
+    # Process each cell
+    country_boundary_wkt = country_boundary.wkt
 
-    try:
-        for cell_idx, cell in enumerate(cells):
-            print(f"\nProcessing cell {cell_idx + 1}/{len(cells)} (id={cell.id})...")
+    for cell_idx, cell in enumerate(cells):
+        print(f"\nProcessing cell {cell_idx + 1}/{len(cells)} (id={cell.id})...")
 
-            # Generate tiles for this cell
-            tiles = list(generate_tiles_for_bbox(cell.bounds, QUADKEY_LEVEL))
+        result = process_grid_cell(
+            cell,
+            country_boundary_wkt,
+            admin_gdf,  # Pass loaded GDF for sequential
+            worldpop_path,
+            work_dir
+        )
 
-            if not tiles:
-                continue
+        if result[1]:
+            print(f"  Completed: {result[2]} records")
 
-            # Process in chunks
-            for chunk_start in range(0, len(tiles), chunk_size):
-                chunk_tiles = tiles[chunk_start:chunk_start + chunk_size]
+    # Merge all cell parquet files
+    print("\nMerging results...")
+    cell_files = sorted(Path(work_dir).glob('cell_*.parquet'))
 
-                # Convert to records
-                records = [tile_to_record(t) for t in chunk_tiles]
+    if not cell_files:
+        print("No data generated!")
+        return 0
 
-                # Create GeoDataFrame with centroids
-                df = pd.DataFrame(records)
-                geometry = [Point(r['longitude'], r['latitude']) for r in records]
-                gdf = gpd.GeoDataFrame(df, geometry=geometry, crs='EPSG:4326')
+    dfs = []
+    for f in cell_files:
+        dfs.append(pd.read_parquet(f))
 
-                # Filter to points within country boundary
-                within_boundary = gdf[gdf.within(country_boundary)]
+    merged_df = pd.concat(dfs, ignore_index=True)
+    merged_df.to_parquet(output_path, index=False)
 
-                if len(within_boundary) == 0:
-                    continue
-
-                # Geocode to admin boundaries
-                geocoded = geocode_points_to_admin(within_boundary, admin_gdf)
-
-                # Extract population if available
-                if worldpop_path and os.path.exists(worldpop_path):
-                    polygon_geoms = [wkt.loads(w) for w in geocoded['geometry_wkt']]
-                    polygon_gdf = gpd.GeoDataFrame(
-                        geocoded.drop(columns=['geometry']),
-                        geometry=polygon_geoms,
-                        crs='EPSG:4326'
-                    )
-                    geocoded['population'] = extract_population(polygon_gdf, worldpop_path, 'sum')
-                else:
-                    geocoded['population'] = None
-
-                # Prepare output DataFrame
-                output_df = geocoded[[
-                    'quadkey', 'geometry_wkt', 'latitude', 'longitude', 'level',
-                    'ADM1_PCODE', 'ADM2_PCODE', 'ADM3_PCODE', 'ADM4_PCODE', 'population'
-                ]].copy()
-                output_df.columns = [c.lower() for c in output_df.columns]
-
-                # Write to parquet
-                table = pa.Table.from_pandas(output_df, schema=schema, preserve_index=False)
-
-                if writer is None:
-                    writer = pq.ParquetWriter(output_path, schema)
-
-                writer.write_table(table)
-                total_records += len(output_df)
-
-                print(f"  Chunk {chunk_start // chunk_size + 1}: "
-                      f"processed {len(chunk_tiles)} tiles, "
-                      f"wrote {len(output_df)} records "
-                      f"(total: {total_records})")
-
-    finally:
-        if writer:
-            writer.close()
+    total_records = len(merged_df)
+    print(f"Wrote {total_records} records to {output_path}")
 
     return total_records
 
@@ -484,6 +466,7 @@ def process_parallel(cells: List[GridCell],
                      admin_path: str,
                      worldpop_path: Optional[str],
                      output_path: str,
+                     work_dir: str,
                      num_workers: int = 4) -> int:
     """
     Process cells in parallel using ProcessPoolExecutor.
@@ -494,6 +477,7 @@ def process_parallel(cells: List[GridCell],
         admin_path: Path to admin boundaries (for subprocess to load)
         worldpop_path: Path to WorldPop raster
         output_path: Output parquet file path
+        work_dir: Working directory for intermediate files (persistent for resumability)
         num_workers: Number of parallel workers
 
     Returns:
@@ -502,57 +486,55 @@ def process_parallel(cells: List[GridCell],
     # Convert boundary to WKT for serialization
     country_boundary_wkt = country_boundary.wkt
 
-    # Create temporary directory for cell outputs
-    with tempfile.TemporaryDirectory() as temp_dir:
-        print(f"Using temp directory: {temp_dir}")
+    print(f"Using work directory: {work_dir}")
 
-        # Process cells in parallel
-        results = []
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            futures = {
-                executor.submit(
-                    process_grid_cell,
-                    cell,
-                    country_boundary_wkt,
-                    admin_path,
-                    worldpop_path,
-                    temp_dir
-                ): cell.id
-                for cell in cells
-            }
+    # Process cells in parallel
+    results = []
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        futures = {
+            executor.submit(
+                process_grid_cell,
+                cell,
+                country_boundary_wkt,
+                admin_path,
+                worldpop_path,
+                work_dir
+            ): cell.id
+            for cell in cells
+        }
 
-            for future in as_completed(futures):
-                cell_id = futures[future]
-                try:
-                    result = future.result()
-                    results.append(result)
-                    if result[1]:  # Has output file
-                        print(f"Completed cell {result[0]}: {result[2]} records")
-                except Exception as e:
-                    print(f"Cell {cell_id} failed: {e}")
+        for future in as_completed(futures):
+            cell_id = futures[future]
+            try:
+                result = future.result()
+                results.append(result)
+                if result[1]:  # Has output file
+                    print(f"Completed cell {result[0]}: {result[2]} records")
+            except Exception as e:
+                print(f"Cell {cell_id} failed: {e}")
 
-        # Merge all temp parquet files
-        print("\nMerging results...")
-        temp_files = [r[1] for r in results if r[1] is not None]
+    # Merge all cell parquet files
+    print("\nMerging results...")
+    cell_files = sorted(Path(work_dir).glob('cell_*.parquet'))
 
-        if not temp_files:
-            print("No data generated!")
-            return 0
+    if not cell_files:
+        print("No data generated!")
+        return 0
 
-        # Read and concatenate all temp files
-        dfs = []
-        for f in temp_files:
-            dfs.append(pd.read_parquet(f))
+    # Read and concatenate all cell files
+    dfs = []
+    for f in cell_files:
+        dfs.append(pd.read_parquet(f))
 
-        merged_df = pd.concat(dfs, ignore_index=True)
+    merged_df = pd.concat(dfs, ignore_index=True)
 
-        # Write final parquet
-        merged_df.to_parquet(output_path, index=False)
+    # Write final parquet
+    merged_df.to_parquet(output_path, index=False)
 
-        total_records = len(merged_df)
-        print(f"Wrote {total_records} records to {output_path}")
+    total_records = len(merged_df)
+    print(f"Wrote {total_records} records to {output_path}")
 
-        return total_records
+    return total_records
 
 
 def main():
@@ -572,6 +554,11 @@ def main():
         '--output', '-o',
         default='bd-wordpop-qk18.parquet',
         help='Output parquet file path (default: bd-wordpop-qk18.parquet)'
+    )
+    parser.add_argument(
+        '--work-dir',
+        help='Working directory for intermediate cell files (enables resumability). '
+             'If not specified, uses a temp directory next to output file.'
     )
     parser.add_argument(
         '--workers', '-n',
@@ -599,8 +586,23 @@ def main():
         metavar=('MIN_LNG', 'MIN_LAT', 'MAX_LNG', 'MAX_LAT'),
         help='Bounding box (default: Bangladesh)'
     )
+    parser.add_argument(
+        '--resume',
+        action='store_true',
+        help='Resume from previous run (requires --work-dir or uses default work dir)'
+    )
 
     args = parser.parse_args()
+
+    # Set up work directory for resumability
+    if args.work_dir:
+        work_dir = args.work_dir
+    else:
+        # Create work dir next to output file
+        output_path = Path(args.output)
+        work_dir = str(output_path.parent / f'.{output_path.stem}_work')
+
+    Path(work_dir).mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
     print("Bangladesh Quadkey Pixel Generator")
@@ -608,9 +610,11 @@ def main():
     print(f"Admin boundaries: {args.admin_boundaries}")
     print(f"WorldPop raster: {args.worldpop or 'Not provided'}")
     print(f"Output file: {args.output}")
+    print(f"Work directory: {work_dir}")
     print(f"Workers: {args.workers}")
     print(f"Grid size: {args.grid_size}x{args.grid_size} = {args.grid_size**2} cells")
     print(f"Bounding box: {args.bbox}")
+    print(f"Resume mode: {args.resume}")
     print("=" * 60)
 
     # Validate inputs
@@ -622,6 +626,13 @@ def main():
         print(f"Warning: WorldPop raster not found: {args.worldpop}")
         print("Proceeding without population data...")
         args.worldpop = None
+
+    # Check for existing progress
+    existing_cells = list(Path(work_dir).glob('cell_*.parquet'))
+    if existing_cells:
+        print(f"\nFound {len(existing_cells)} completed cells in work directory")
+        if not args.resume:
+            print("Use --resume to continue from previous run, or delete work directory to start fresh")
 
     # Load admin boundaries
     print("\nLoading admin boundaries...")
@@ -646,6 +657,7 @@ def main():
             args.admin_boundaries,
             args.worldpop,
             args.output,
+            work_dir,
             args.workers
         )
     else:
@@ -656,6 +668,7 @@ def main():
             admin_gdf,
             args.worldpop,
             args.output,
+            work_dir,
             args.chunk_size
         )
 

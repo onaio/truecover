@@ -24,7 +24,7 @@ export const DraggableAreaCard: React.FC<DraggableAreaCardProps> = ({
 
   const style = {
     transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   return (

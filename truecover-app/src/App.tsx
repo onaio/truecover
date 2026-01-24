@@ -14,6 +14,7 @@ import CreateOrganizationModal from './components/CreateOrganizationModal';
 import CreateProjectModal from './components/CreateProjectModal';
 import AddVisitModal from './components/AddVisitModal';
 import { TacticalButton, TacticalToaster } from './tactical-ui';
+import { Agentation } from 'agentation';
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
@@ -97,7 +98,7 @@ const AppContent: React.FC = () => {
         <Route path="/tactical" element={<TacticalShowcase />} />
         <Route path="/tools/adaptive-sampling" element={<AdaptiveSamplingPage />} />
         <Route path="/tools/coverage-prediction" element={<CoveragePredictionPage />} />
-        <Route path="/orgs/:orgId/projects/:projectId/areas/:campaignId" element={<LocationsWrapper />} />
+        <Route path="/orgs/:orgId/projects/:projectId/campaigns/:campaignId" element={<LocationsWrapper />} />
       </Routes>
 
       {/* Create Project Modal */}
@@ -161,6 +162,7 @@ function App() {
   return (
     <AppProvider>
       <AppContent />
+      {import.meta.env.DEV && <Agentation />}
     </AppProvider>
   );
 }

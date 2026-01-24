@@ -122,7 +122,7 @@ input[type="password"].cl-formFieldInput {
 }
 
 .mapboxgl-popup {
-  max-width: 300px;
+  max-width: 500px;
 }
 
 .mapboxgl-popup-close-button {

@@ -5,3 +5,9 @@ geoparquet/
 *.pmtiles
 *.log
 .worktrees/
+
+# Work directories
+.bd-worldpop-qk18_work/
+.playwright-mcp/
+
+pixeldata/

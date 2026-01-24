@@ -10,6 +10,7 @@ interface CategoryColumnProps {
   count: number;
   color: 'red' | 'green' | 'yellow' | 'gray';
   children: React.ReactNode;
+  totalPopulation?: number;
 }
 
 const colorClasses = {
@@ -32,6 +33,7 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
   count,
   color,
   children,
+  totalPopulation,
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -39,7 +41,7 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
     <div
       ref={setNodeRef}
       className={`
-        flex-1 min-w-[200px] p-3 rounded border-2
+        flex-1 min-w-[220px] p-3 rounded border-2 flex flex-col
         ${colorClasses[color]}
         ${isOver ? 'ring-2 ring-cyan-400' : ''}
         transition-all
@@ -48,9 +50,14 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
       <div className={`text-sm font-bold mb-3 ${headerClasses[color]}`}>
         {title} ({count})
       </div>
-      <div className="min-h-[200px] max-h-[400px] overflow-y-auto">
+      <div className="flex-1 min-h-[200px] max-h-[350px] overflow-y-auto tactical-scrollbar">
         {children}
       </div>
+      {totalPopulation !== undefined && (
+        <div className={`mt-3 pt-2 border-t border-zinc-700 text-xs font-mono ${headerClasses[color]}`}>
+          Pop: {totalPopulation.toLocaleString()}
+        </div>
+      )}
     </div>
   );
 };

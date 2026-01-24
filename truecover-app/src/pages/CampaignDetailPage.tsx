@@ -65,7 +65,7 @@ const CampaignDetailPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TacticalCard
               hoverable
-              onClick={() => navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/areas/${selectedCampaign?.id}/locations`)}
+              onClick={() => navigate(`/orgs/${selectedOrganization?.id}/projects/${selectedProject?.id}/campaigns/${selectedCampaign?.id}`)}
               padding="none"
               className="overflow-hidden"
             >

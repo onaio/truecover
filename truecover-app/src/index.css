@@ -32,6 +32,13 @@ code {
     position: relative !important;
 }
 
+.tactical-popup,
+.tactical-popup .mapboxgl-popup-content,
+.tactical-popup * {
+    overflow: visible !important;
+    max-height: none !important;
+}
+
 .tactical-popup .mapboxgl-popup-close-button {
     color: #ffffff !important;
     font-size: 18px !important;

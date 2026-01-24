@@ -14,6 +14,13 @@ import { adminBoundariesApi, pixelsApi } from '../services/api';
 import { useGeneratePixels } from '../hooks/usePixels';
 import { tacticalToast } from '../tactical-ui';
 
+interface CampaignArea {
+  id: string;
+  name: string | null;
+  admin_boundary_name: string | null;
+  geometry: any | null;
+}
+
 interface MapViewProps {
   data: GeoJSONFeatureCollection;
   selectedData?: GeoJSONFeatureCollection | null;
@@ -38,9 +45,10 @@ interface MapViewProps {
   histogramDataType?: 'locations' | 'pixels';
   sampledItemsCount?: number;
   planningMode?: boolean;
-  onAddRoundForAdminBoundary?: (pcode: string, name: string) => void;
-  onAddLocationsForAdminBoundary?: (pcode: string, name: string, geometry?: any) => void;
-  onAddAdminBoundaryToCampaign?: (id: string, pcode: string, name: string) => void;
+  campaignAreas?: CampaignArea[];
+  showCampaignAreas?: boolean;
+  onToggleCampaignAreas?: () => void;
+  onAddAdminBoundaryToCampaign?: (id: string, pcode: string, name: string, geometry?: any) => void;
   className?: string;
 }
 
@@ -78,7 +86,7 @@ const getCentroid = (geometry: any): [number, number] => {
 
 const MARTIN_URL = import.meta.env.VITE_MARTIN_URL || 'http://localhost:3052';
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, onAddRoundForAdminBoundary, onAddLocationsForAdminBoundary, onAddAdminBoundaryToCampaign, className }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, campaignAreas = [], showCampaignAreas = true, onToggleCampaignAreas, onAddAdminBoundaryToCampaign, className }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -89,6 +97,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const [visibleAdminLevels, setVisibleAdminLevels] = useState<number[]>([0, 1, 2, 3, 4]);
   const [hoveredAdminId, setHoveredAdminId] = useState<string | null>(null);
   const [showBuildings, setShowBuildings] = useState<boolean>(true);
+  const [adminBoundariesCollapsed, setAdminBoundariesCollapsed] = useState<boolean>(true);
   const [showPixelGenerateModal, setShowPixelGenerateModal] = useState<boolean>(false);
   const [pendingAdminPixelGen, setPendingAdminPixelGen] = useState<{
     pcode: string;
@@ -126,6 +135,27 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     }
     return primaryData?.features?.length || 0;
   }, [mode, locations, primaryData]);
+
+  // Convert campaign areas to GeoJSON for map display
+  const campaignAreasGeoJSON = useMemo(() => {
+    if (!campaignAreas || campaignAreas.length === 0) {
+      return { type: 'FeatureCollection' as const, features: [] };
+    }
+
+    const features = campaignAreas
+      .filter(area => area.geometry)
+      .map(area => ({
+        type: 'Feature' as const,
+        id: area.id,
+        properties: {
+          id: area.id,
+          name: area.name || area.admin_boundary_name || 'Unnamed Area',
+        },
+        geometry: area.geometry,
+      }));
+
+    return { type: 'FeatureCollection' as const, features };
+  }, [campaignAreas]);
 
   // Calculate bounds from all features - BEFORE the early return
   // Use ref to store initial bounds so map doesn't recalculate on every render
@@ -735,8 +765,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         properties: selectedFeature.properties
       });
 
-      // Fetch population summary if this is an admin boundary and we have an area
-      if (selectedFeature.properties?.level !== undefined && campaignId) {
+      // Fetch population summary if this is an admin boundary
+      if (selectedFeature.properties?.level !== undefined) {
         const level = selectedFeature.properties.level;
         const pcode = selectedFeature.properties[`ADM${level}_PCODE`];
 
@@ -746,7 +776,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
 
           getToken().then(token => {
             if (token) {
-              adminBoundariesApi.getPixelSummary(pcode, campaignId, token)
+              adminBoundariesApi.getPixelSummary(pcode, token)
                 .then(summary => {
                   setPopulationSummary(summary);
                   setLoadingPopulation(false);
@@ -785,62 +815,6 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         onBoundsChange([sw.lng, sw.lat, ne.lng, ne.lat]);
       }
     }
-  };
-
-  const handleGeneratePixelsForAdmin = async (pcode: string, _name: string) => {
-    if (!campaignId) return;
-
-    try {
-      const token = await getToken();
-      if (!token) {
-        console.error('No auth token available');
-        return;
-      }
-
-      const boundsData = await adminBoundariesApi.getBounds(pcode, token);
-      setPendingAdminPixelGen({
-        pcode,
-        name: boundsData.name,
-        bbox: boundsData.bbox
-      });
-      setShowPixelGenerateModal(true);
-    } catch (error) {
-      console.error('Failed to fetch admin boundary bounds:', error);
-    }
-  };
-
-  const handleGeneratePixelsForDrawnArea = () => {
-    if (!drawnFeature || !campaignId) return;
-
-    // Calculate bounding box from drawn feature
-    const coords = extractCoordinates(drawnFeature.geometry);
-    if (coords.length === 0) return;
-
-    let minLng = Infinity;
-    let minLat = Infinity;
-    let maxLng = -Infinity;
-    let maxLat = -Infinity;
-
-    coords.forEach(([lng, lat]) => {
-      minLng = Math.min(minLng, lng);
-      minLat = Math.min(minLat, lat);
-      maxLng = Math.max(maxLng, lng);
-      maxLat = Math.max(maxLat, lat);
-    });
-
-    setPendingAdminPixelGen({
-      pcode: '',
-      name: 'Drawn Area',
-      bbox: [minLng, minLat, maxLng, maxLat],
-      geometry: drawnFeature.geometry
-    });
-    setShowPixelGenerateModal(true);
-  };
-
-  const handleAddLocationsForDrawnArea = () => {
-    if (!drawnFeature || !onAddLocationsForAdminBoundary) return;
-    onAddLocationsForAdminBoundary('drawn_area', 'Drawn Area', drawnFeature.geometry);
-    setPopupInfo(null);
   };
 
   const handleConfirmPixelGeneration = async () => {
@@ -1357,7 +1331,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 key={`locations-source-${tileVersion}`}
                 id="locations-source"
                 type="vector"
-                tiles={[`${MARTIN_URL}/locations_by_area/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId}`]}
+                tiles={[`${MARTIN_URL}/locations_by_campaign/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId}`]}
                 minzoom={0}
                 maxzoom={24}
               >
@@ -1428,12 +1402,35 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             </>
           ) : null}
 
+          {/* Campaign Areas layer */}
+          {showCampaignAreas && campaignAreasGeoJSON.features.length > 0 && (
+            <Source id="campaign-areas-source" type="geojson" data={campaignAreasGeoJSON as any}>
+              <Layer
+                id="campaign-areas-fill"
+                type="fill"
+                paint={{
+                  'fill-color': '#f59e0b',
+                  'fill-opacity': 0.1,
+                }}
+              />
+              <Layer
+                id="campaign-areas-line"
+                type="line"
+                paint={{
+                  'line-color': '#f59e0b',
+                  'line-width': 2,
+                  'line-opacity': 0.8,
+                }}
+              />
+            </Source>
+          )}
+
           {/* Pixels layer from Martin */}
           {showPixels && campaignId && (
             <Source
               id="pixels-source"
               type="vector"
-              tiles={[`${MARTIN_URL}/pixels_by_area/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
+              tiles={[`${MARTIN_URL}/pixels_by_campaign/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
               minzoom={0}
               maxzoom={24}
             >
@@ -1505,9 +1502,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                               'case',
                               shouldShowLocation(),
                               '#28a745',
-                              'rgba(0, 0, 0, 0)'
+                              '#1a1a2e'
                             ]
-                          : 'rgba(0, 0, 0, 0)',
+                          : '#1a1a2e',
                   'fill-opacity': interpolationMode === 'coverage'
                     ? [
                         'case',
@@ -1531,14 +1528,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                               0.9,
                               0
                             ]
-                        : showSampled
-                          ? [
-                              'case',
-                              shouldShowLocation(),
-                              0.6,
-                              0
-                            ]
-                          : 0
+                        : 0.6
                 }}
               />
               <Layer
@@ -1906,6 +1896,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           {/* Popup */}
           {popupInfo && (
             <Popup
+              key={`popup-${planningMode}-${popupInfo.longitude}-${popupInfo.latitude}`}
               longitude={popupInfo.longitude}
               latitude={popupInfo.latitude}
               anchor="bottom"
@@ -1913,6 +1904,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               closeButton={true}
               closeOnClick={false}
               className="tactical-popup"
+              maxWidth="400px"
             >
               {popupInfo.properties?.isDrawnFeature ? (
                 /* Drawn feature popup */
@@ -1921,23 +1913,16 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     Drawn Area
                   </div>
 
-                  {/* Generate Pixels button */}
-                  {campaignId && (
+                  {/* Add to Campaign Area button */}
+                  {onAddAdminBoundaryToCampaign && drawnFeature && (
                     <button
-                      onClick={handleGeneratePixelsForDrawnArea}
-                      className="w-full px-3 py-2 bg-tactical-accent-orange hover:bg-opacity-80 text-black font-mono text-sm font-bold uppercase tracking-wider transition-all"
+                      onClick={() => {
+                        onAddAdminBoundaryToCampaign('drawn', 'drawn', 'Drawn Area', drawnFeature.geometry);
+                        setPopupInfo(null);
+                      }}
+                      className="w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-cyan hover:bg-opacity-80 text-black"
                     >
-                      Generate Pixels
-                    </button>
-                  )}
-
-                  {/* Add Locations button */}
-                  {onAddLocationsForAdminBoundary && (
-                    <button
-                      onClick={handleAddLocationsForDrawnArea}
-                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-blue hover:bg-opacity-80 text-black"
-                    >
-                      Add Locations
+                      Add to Campaign Area
                     </button>
                   )}
                 </div>
@@ -1970,9 +1955,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     </div>
                   )}
 
-                  {/* Population Summary */}
-                  {campaignId && (
-                    <div className="mt-3 pt-3 border-t border-tactical-border-medium">
+                  {/* Population Summary - from global pixels */}
+                  <div className="mt-3 pt-3 border-t border-tactical-border-medium">
                       <div className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
                         Population Summary
                       </div>
@@ -2006,59 +1990,15 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                             )}
                           </div>
                         ) : (
-                          <div className="text-xs font-mono text-tactical-text-muted">No pixels in this area</div>
+                          <div className="text-xs font-mono text-tactical-text-muted">No pixels in this area yet</div>
                         )
                       ) : (
-                        <div className="text-xs font-mono text-tactical-text-muted">Click to load population data</div>
+                        <div className="text-xs font-mono text-tactical-text-muted">Loading...</div>
                       )}
                     </div>
-                  )}
 
-                  {/* Generate Pixels button - only show when planning mode is enabled and campaignId exists */}
-                  {planningMode && campaignId && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
-                    <button
-                      onClick={() => handleGeneratePixelsForAdmin(
-                        popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`],
-                        popupInfo.properties[`ADM${popupInfo.properties.level}_EN`]
-                      )}
-                      className="mt-3 w-full px-3 py-2 bg-tactical-accent-orange hover:bg-opacity-80 text-black font-mono text-sm font-bold uppercase tracking-wider transition-all"
-                    >
-                      Generate Pixels
-                    </button>
-                  )}
-
-                  {/* Add Round button - only show when planning mode is enabled and pixels exist */}
-                  {planningMode && onAddRoundForAdminBoundary && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && populationSummary && populationSummary.pixel_count > 0 && (
-                    <button
-                      onClick={() => {
-                        const pcode = popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`];
-                        const name = popupInfo.properties[`ADM${popupInfo.properties.level}_EN`];
-                        onAddRoundForAdminBoundary(pcode, name);
-                        setPopupInfo(null);
-                      }}
-                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-green hover:bg-opacity-80 text-black"
-                    >
-                      Add Round
-                    </button>
-                  )}
-
-                  {/* Add Locations button - only show when planning mode is enabled */}
-                  {planningMode && onAddLocationsForAdminBoundary && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
-                    <button
-                      onClick={() => {
-                        const pcode = popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`];
-                        const name = popupInfo.properties[`ADM${popupInfo.properties.level}_EN`];
-                        onAddLocationsForAdminBoundary(pcode, name);
-                        setPopupInfo(null);
-                      }}
-                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-blue hover:bg-opacity-80 text-black"
-                    >
-                      Add Locations
-                    </button>
-                  )}
-
-                  {/* Add to Campaign button */}
-                  {onAddAdminBoundaryToCampaign && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
+                  {/* Add to Campaign Area button - only in planning mode */}
+                  {planningMode && onAddAdminBoundaryToCampaign && popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`] && (
                     <button
                       onClick={() => {
                         const pcode = popupInfo.properties[`ADM${popupInfo.properties.level}_PCODE`];
@@ -2066,9 +2006,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                         onAddAdminBoundaryToCampaign(pcode, pcode, name);
                         setPopupInfo(null);
                       }}
-                      className="mt-2 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-cyan hover:bg-opacity-80 text-black"
+                      className="mt-3 w-full px-3 py-2 font-mono text-sm font-bold uppercase tracking-wider transition-all bg-tactical-accent-cyan hover:bg-opacity-80 text-black"
                     >
-                      Add to Campaign
+                      Add to Campaign Area
                     </button>
                   )}
                 </div>
@@ -2134,6 +2074,20 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 Sample
               </button>
             )}
+
+            {/* Campaign Areas Toggle Button */}
+            {onToggleCampaignAreas && campaignAreas.length > 0 && (
+              <button
+                onClick={onToggleCampaignAreas}
+                className={`px-3 py-2 font-mono text-xs uppercase tracking-wider border transition-colors ${
+                  showCampaignAreas
+                    ? 'bg-amber-500 border-amber-500 text-black'
+                    : 'bg-tactical-bg-tertiary border-tactical-border-medium text-tactical-text-primary hover:border-amber-500'
+                }`}
+              >
+                Areas
+              </button>
+            )}
           </div>
         )}
 
@@ -2154,34 +2108,88 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
           </select>
 
           <div className="mt-3 pt-3 border-t border-tactical-border-medium">
-            <div className="mb-2 font-mono font-bold text-xs text-tactical-text-muted uppercase tracking-wider">
-              Admin Boundaries
+            <div className="flex items-center justify-between mb-1">
+              <button
+                onClick={() => setAdminBoundariesCollapsed(!adminBoundariesCollapsed)}
+                className="flex items-center gap-1 font-mono font-bold text-xs text-tactical-text-muted uppercase tracking-wider hover:text-tactical-text-primary transition-colors"
+              >
+                <span>Admin</span>
+                <span className="text-tactical-text-dim text-sm -mt-0.5">{adminBoundariesCollapsed ? '▸' : '▾'}</span>
+              </button>
+              {/* Inline level toggles */}
+              <div className="flex gap-1">
+                {[0, 1, 2, 3, 4].map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => {
+                      if (visibleAdminLevels.includes(level)) {
+                        setVisibleAdminLevels(visibleAdminLevels.filter(l => l !== level));
+                      } else {
+                        setVisibleAdminLevels([...visibleAdminLevels, level].sort());
+                      }
+                    }}
+                    className={`w-4 h-4 flex items-center justify-center font-mono text-xs transition-colors ${
+                      visibleAdminLevels.includes(level)
+                        ? 'text-tactical-accent-green'
+                        : 'text-tactical-text-dim hover:text-tactical-text-muted'
+                    }`}
+                    title={['Country', 'Division', 'District', 'Upazila', 'Union'][level]}
+                  >
+                    {visibleAdminLevels.includes(level) ? level : '×'}
+                  </button>
+                ))}
+              </div>
             </div>
-            {[
-              { level: 0, label: 'Country' },
-              { level: 1, label: 'Division' },
-              { level: 2, label: 'District' },
-              { level: 3, label: 'Upazila' },
-              { level: 4, label: 'Union' }
-            ].map(({ level, label }) => (
-              <label key={level} className="flex items-center mb-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={visibleAdminLevels.includes(level)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setVisibleAdminLevels([...visibleAdminLevels, level].sort());
+            {!adminBoundariesCollapsed && (
+              <>
+                <button
+                  onClick={() => {
+                    if (visibleAdminLevels.length === 5) {
+                      setVisibleAdminLevels([]);
                     } else {
-                      setVisibleAdminLevels(visibleAdminLevels.filter(l => l !== level));
+                      setVisibleAdminLevels([0, 1, 2, 3, 4]);
                     }
                   }}
-                  className="mr-2"
-                />
-                <span className="font-mono text-xs text-tactical-text-primary">
-                  {label} (L{level})
-                </span>
-              </label>
-            ))}
+                  className="mb-2 font-mono text-xs text-tactical-text-dim hover:text-tactical-text-primary transition-colors"
+                >
+                  {visibleAdminLevels.length === 5 ? 'Deselect all' : 'Select all'}
+                </button>
+                {[
+                  { level: 0, label: 'Country' },
+                  { level: 1, label: 'Division' },
+                  { level: 2, label: 'District' },
+                  { level: 3, label: 'Upazila' },
+                  { level: 4, label: 'Union' }
+                ].map(({ level, label }) => (
+                  <button
+                    key={level}
+                    onClick={() => {
+                      if (visibleAdminLevels.includes(level)) {
+                        setVisibleAdminLevels(visibleAdminLevels.filter(l => l !== level));
+                      } else {
+                        setVisibleAdminLevels([...visibleAdminLevels, level].sort());
+                      }
+                    }}
+                    className="flex items-center justify-between w-full mb-1 group"
+                  >
+                    <span className={`font-mono text-xs transition-colors ${
+                      visibleAdminLevels.includes(level)
+                        ? 'text-tactical-text-primary'
+                        : 'text-tactical-text-dim'
+                    }`}>
+                      {label} (L{level})
+                    </span>
+                    <span className={`font-mono text-xs transition-colors ${
+                      visibleAdminLevels.includes(level)
+                        ? 'text-tactical-accent-green'
+                        : 'text-tactical-text-dim group-hover:text-tactical-text-muted'
+                    }`}>
+                      {visibleAdminLevels.includes(level) ? '✓' : '×'}
+                    </span>
+                  </button>
+                ))}
+              </>
+            )}
           </div>
 
           <div className="mt-3 pt-3 border-t border-tactical-border-medium">

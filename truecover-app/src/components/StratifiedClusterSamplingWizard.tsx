@@ -1,7 +1,7 @@
 // ABOUTME: Three-step wizard for stratified cluster sampling round creation
 // ABOUTME: Step 0: Select division/district, Step 1: Categorize areas, Step 2: Parameters
 import React, { useState, useEffect } from 'react';
-import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCenter } from '@dnd-kit/core';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 import {
@@ -13,6 +13,7 @@ import {
 } from '../tactical-ui';
 import { DraggableAreaCard } from './DraggableAreaCard';
 import { CategoryColumn } from './CategoryColumn';
+import { useDivisions, useDistricts, useAdminBoundaryChildren } from '../hooks/useAdminBoundaries';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -56,24 +57,23 @@ export const StratifiedClusterSamplingWizard: React.FC<
   void _projectId;
   const { getToken } = useAuth();
   const [step, setStep] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Step 0 state - area selection
-  const [divisions, setDivisions] = useState<AdminBoundary[]>([]);
-  const [districts, setDistricts] = useState<AdminBoundary[]>([]);
   const [selectedDivision, setSelectedDivision] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedDistrictName, setSelectedDistrictName] = useState('');
 
   // Step 1 state - categorization
-  const [children, setChildren] = useState<AdminBoundary[]>([]);
   const [categories, setCategories] = useState<Categories>({
     high_risk: [],
     low_risk: [],
     hard_to_reach: [],
     uncategorized: [],
   });
+
+  // Drag state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
   // Step 2 state - parameters
   const [roundName, setRoundName] = useState('');
@@ -83,6 +83,15 @@ export const StratifiedClusterSamplingWizard: React.FC<
   const [populationWeighted, setPopulationWeighted] = useState(false);
   const [minPopulation, setMinPopulation] = useState('');
 
+  // React Query hooks for fetching admin boundaries
+  const { data: divisions = [], isLoading: divisionsLoading } = useDivisions();
+  const { data: districts = [], isLoading: districtsLoading } = useDistricts(
+    selectedDivision || undefined
+  );
+  const { data: upazilas = [], isLoading: upazilasLoading } = useAdminBoundaryChildren(
+    selectedDistrict || undefined
+  );
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
@@ -91,95 +100,31 @@ export const StratifiedClusterSamplingWizard: React.FC<
         setSelectedDistrict(initialPcode);
         setSelectedDistrictName(initialName || '');
         setStep(1);
-        fetchChildren(initialPcode);
       } else {
         setStep(0);
-        fetchDivisions();
       }
     } else {
       // Reset all state when closed
       setStep(0);
-      setDivisions([]);
-      setDistricts([]);
       setSelectedDivision('');
       setSelectedDistrict('');
       setSelectedDistrictName('');
-      setChildren([]);
       setCategories({ high_risk: [], low_risk: [], hard_to_reach: [], uncategorized: [] });
       setRoundName('');
     }
-  }, [isOpen, initialPcode]);
+  }, [isOpen, initialPcode, initialName]);
 
-  // Fetch divisions (adm1) on mount
-  const fetchDivisions = async () => {
-    setIsLoading(true);
-    try {
-      const token = await getToken();
-      // Get country level (BD) children which are divisions
-      const response = await axios.get(
-        `${API_URL}/api/admin-boundaries/BD/children`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setDivisions(response.data.children || []);
-    } catch (error) {
-      console.error('Error fetching divisions:', error);
-      tacticalToast.error('Failed to load divisions');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch districts when division changes
+  // Update categories when upazilas load
   useEffect(() => {
-    if (selectedDivision) {
-      fetchDistricts(selectedDivision);
-    } else {
-      setDistricts([]);
-      setSelectedDistrict('');
-    }
-  }, [selectedDivision]);
-
-  const fetchDistricts = async (divisionPcode: string) => {
-    setIsLoading(true);
-    try {
-      const token = await getToken();
-      const response = await axios.get(
-        `${API_URL}/api/admin-boundaries/${divisionPcode}/children`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setDistricts(response.data.children || []);
-    } catch (error) {
-      console.error('Error fetching districts:', error);
-      tacticalToast.error('Failed to load districts');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchChildren = async (pcode: string) => {
-    setIsLoading(true);
-    try {
-      const token = await getToken();
-      const response = await axios.get(
-        `${API_URL}/api/admin-boundaries/${pcode}/children`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const childData = response.data.children || [];
-      setChildren(childData);
+    if (upazilas.length > 0 && step === 1) {
       setCategories({
         high_risk: [],
         low_risk: [],
         hard_to_reach: [],
-        uncategorized: childData.map((c: AdminBoundary) => c.pcode),
+        uncategorized: upazilas.map((u) => u.pcode),
       });
-    } catch (error) {
-      console.error('Error fetching children:', error);
-      tacticalToast.error('Failed to load areas');
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [upazilas, step]);
 
   const handleDistrictSelect = (pcode: string) => {
     setSelectedDistrict(pcode);
@@ -189,13 +134,18 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
   const handleProceedToStep1 = () => {
     if (selectedDistrict) {
-      fetchChildren(selectedDistrict);
       setStep(1);
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveDragId(null);
+
     if (!over) return;
 
     const draggedPcode = active.id as string;
@@ -209,8 +159,8 @@ export const StratifiedClusterSamplingWizard: React.FC<
     setCategories(newCategories);
   };
 
-  const getAreaByPcode = (pcode: string) =>
-    children.find((c) => c.pcode === pcode);
+  const getAreaByPcode = (pcode: string): AdminBoundary | undefined =>
+    upazilas.find((c) => c.pcode === pcode) as AdminBoundary | undefined;
 
   const canProceedStep1 = categories.uncategorized.length === 0;
 
@@ -261,12 +211,23 @@ export const StratifiedClusterSamplingWizard: React.FC<
     }
   };
 
+  // Calculate population totals for each category
+  const getPopulationForCategory = (pcodes: string[]): number => {
+    return pcodes.reduce((sum, pcode) => {
+      const area = getAreaByPcode(pcode);
+      return sum + (area?.population || 0);
+    }, 0);
+  };
+
+  // Use wider modal only for step 1 (categorization)
+  const modalSize = step === 1 ? '2xl' : 'lg';
+
   return (
     <TacticalModal
       isOpen={isOpen}
       onClose={onClose}
       title="Stratified Round"
-      size="xl"
+      size={modalSize}
     >
       {/* Step 0: Select Division and District */}
       {step === 0 && (
@@ -280,12 +241,16 @@ export const StratifiedClusterSamplingWizard: React.FC<
               <label className="block text-sm font-medium text-zinc-400 mb-2">
                 Division
               </label>
-              <TacticalSelect
-                value={selectedDivision}
-                onChange={setSelectedDivision}
-                options={divisions.map(d => ({ value: d.pcode, label: d.name }))}
-                placeholder="Select a division..."
-              />
+              {divisionsLoading ? (
+                <div className="text-zinc-500">Loading divisions...</div>
+              ) : (
+                <TacticalSelect
+                  value={selectedDivision}
+                  onChange={setSelectedDivision}
+                  options={divisions.map(d => ({ value: d.pcode, label: d.name }))}
+                  placeholder="Select a division..."
+                />
+              )}
             </div>
 
             {selectedDivision && (
@@ -293,7 +258,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                 <label className="block text-sm font-medium text-zinc-400 mb-2">
                   District
                 </label>
-                {isLoading ? (
+                {districtsLoading ? (
                   <div className="text-zinc-500">Loading districts...</div>
                 ) : (
                   <TacticalSelect
@@ -330,11 +295,12 @@ export const StratifiedClusterSamplingWizard: React.FC<
             into categories. All must be categorized to proceed.
           </div>
 
-          {isLoading ? (
+          {upazilasLoading ? (
             <div className="text-center py-8 text-zinc-400">Loading...</div>
           ) : (
             <DndContext
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               <div className="flex gap-3 overflow-x-auto pb-4">
@@ -343,6 +309,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   title="Uncategorized"
                   count={categories.uncategorized.length}
                   color="gray"
+                  totalPopulation={getPopulationForCategory(categories.uncategorized)}
                 >
                   {categories.uncategorized.map((pcode) => {
                     const area = getAreaByPcode(pcode);
@@ -363,6 +330,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   title="High Risk"
                   count={categories.high_risk.length}
                   color="red"
+                  totalPopulation={getPopulationForCategory(categories.high_risk)}
                 >
                   {categories.high_risk.map((pcode) => {
                     const area = getAreaByPcode(pcode);
@@ -383,6 +351,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   title="Low Risk"
                   count={categories.low_risk.length}
                   color="green"
+                  totalPopulation={getPopulationForCategory(categories.low_risk)}
                 >
                   {categories.low_risk.map((pcode) => {
                     const area = getAreaByPcode(pcode);
@@ -403,6 +372,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   title="Hard to Reach"
                   count={categories.hard_to_reach.length}
                   color="yellow"
+                  totalPopulation={getPopulationForCategory(categories.hard_to_reach)}
                 >
                   {categories.hard_to_reach.map((pcode) => {
                     const area = getAreaByPcode(pcode);
@@ -418,6 +388,25 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   })}
                 </CategoryColumn>
               </div>
+
+              <DragOverlay>
+                {activeDragId ? (
+                  (() => {
+                    const area = getAreaByPcode(activeDragId);
+                    return area ? (
+                      <div className="p-2 bg-zinc-800 border-2 border-cyan-500 rounded shadow-xl cursor-grabbing">
+                        <div className="text-sm font-medium text-zinc-100">{area.name}</div>
+                        <div className="text-xs text-zinc-400">{area.pcode}</div>
+                        {area.population !== undefined && area.population > 0 && (
+                          <div className="text-xs text-cyan-400 mt-1">
+                            Pop: {area.population.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    ) : null;
+                  })()
+                ) : null}
+              </DragOverlay>
             </DndContext>
           )}
 

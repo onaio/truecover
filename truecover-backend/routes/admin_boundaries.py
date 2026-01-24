@@ -112,38 +112,39 @@ def get_admin_boundary_children(user, pcode):
         if child_level > 4:
             return jsonify({'children': [], 'message': 'No child level exists'}), 200
 
-        # Build the parent pcode column name
+        # Build the parent and child pcode column names
         parent_col = f'adm{parent_level}_pcode'
+        child_col = f'adm{child_level}_pcode'
 
-        # Query for children at the next level with population from pixels
-        cursor.execute(f"""
-            SELECT DISTINCT
-                ab.name,
-                ab.level,
-                CASE
-                    WHEN ab.level = 1 THEN ab.adm1_pcode
-                    WHEN ab.level = 2 THEN ab.adm2_pcode
-                    WHEN ab.level = 3 THEN ab.adm3_pcode
-                    WHEN ab.level = 4 THEN ab.adm4_pcode
-                END as pcode,
-                ab.{parent_col} as parent_pcode,
-                COALESCE(
-                    (SELECT SUM(p.population)
-                     FROM pixels p
-                     WHERE p.adm{child_level}_pcode =
-                           CASE
-                               WHEN ab.level = 1 THEN ab.adm1_pcode
-                               WHEN ab.level = 2 THEN ab.adm2_pcode
-                               WHEN ab.level = 3 THEN ab.adm3_pcode
-                               WHEN ab.level = 4 THEN ab.adm4_pcode
-                           END
-                     AND p.population IS NOT NULL
-                    ), 0
-                ) as population
-            FROM admin_boundaries ab
-            WHERE ab.level = %s AND ab.{parent_col} = %s
-            ORDER BY ab.name
-        """, (child_level, pcode))
+        # Query for children at the next level
+        # Only calculate population for lower admin levels (3+) where it's useful
+        if child_level >= 3:
+            cursor.execute(f"""
+                SELECT
+                    ab.name,
+                    ab.level,
+                    ab.{child_col} as pcode,
+                    ab.{parent_col} as parent_pcode,
+                    COALESCE(SUM(p.population), 0) as population
+                FROM admin_boundaries ab
+                LEFT JOIN pixels p ON p.{child_col} = ab.{child_col}
+                WHERE ab.level = %s AND ab.{parent_col} = %s
+                GROUP BY ab.name, ab.level, ab.{child_col}, ab.{parent_col}
+                ORDER BY ab.name
+            """, (child_level, pcode))
+        else:
+            # For divisions and districts, skip population (too slow)
+            cursor.execute(f"""
+                SELECT DISTINCT
+                    ab.name,
+                    ab.level,
+                    ab.{child_col} as pcode,
+                    ab.{parent_col} as parent_pcode,
+                    0 as population
+                FROM admin_boundaries ab
+                WHERE ab.level = %s AND ab.{parent_col} = %s
+                ORDER BY ab.name
+            """, (child_level, pcode))
 
         children = cursor.fetchall()
 
