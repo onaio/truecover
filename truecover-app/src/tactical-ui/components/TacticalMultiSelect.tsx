@@ -12,6 +12,7 @@ export interface TacticalMultiSelectProps {
   onChange: (value: (number | string)[]) => void;
   disabled?: boolean;
   placeholder?: string;
+  autoApply?: boolean;
 }
 
 export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
@@ -20,7 +21,8 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
   value,
   onChange,
   disabled = false,
-  placeholder = 'Select options...'
+  placeholder = 'Select options...',
+  autoApply = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingValue, setPendingValue] = useState<(number | string)[]>(value);
@@ -31,43 +33,52 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
     setPendingValue(value);
   }, [value]);
 
-  // Close dropdown when clicking outside (without applying changes)
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         if (isOpen) {
           setIsOpen(false);
-          // Reset pending value to current value when closing without applying
-          setPendingValue(value);
+          // Reset pending value to current value when closing without applying (only in non-autoApply mode)
+          if (!autoApply) {
+            setPendingValue(value);
+          }
         }
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, value]);
+  }, [isOpen, value, autoApply]);
 
   const toggleOption = (optionValue: number | string) => {
+    let newValue: (number | string)[];
+
     // Special handling for "all" option
     if (optionValue === 'all') {
       // If "all" is being selected, clear all other selections
       if (!pendingValue.includes('all')) {
-        setPendingValue(['all']);
+        newValue = ['all'];
       } else {
         // If "all" is being deselected, just remove it
-        setPendingValue(pendingValue.filter(v => v !== 'all'));
+        newValue = pendingValue.filter(v => v !== 'all');
       }
     } else {
       // For regular options, remove "all" if it's present
-      let newValue = pendingValue.filter(v => v !== 'all');
+      newValue = pendingValue.filter(v => v !== 'all');
 
       if (newValue.includes(optionValue)) {
         newValue = newValue.filter(v => v !== optionValue);
       } else {
         newValue = [...newValue, optionValue];
       }
+    }
 
-      setPendingValue(newValue);
+    setPendingValue(newValue);
+
+    // In autoApply mode, immediately call onChange
+    if (autoApply) {
+      onChange(newValue);
     }
   };
 
@@ -77,12 +88,15 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
   };
 
   const getSelectedLabels = () => {
-    if (value.length === 0) return placeholder;
+    // In autoApply mode, value is always current; otherwise show pending when open
+    const displayValue = autoApply ? value : (isOpen ? pendingValue : value);
 
-    const selectedOptions = options.filter(opt => value.includes(opt.value));
+    if (displayValue.length === 0) return placeholder;
+
+    const selectedOptions = options.filter(opt => displayValue.includes(opt.value));
 
     // If "all" is selected, just show that option's label
-    if (value.includes('all')) {
+    if (displayValue.includes('all')) {
       const allOption = selectedOptions.find(opt => opt.value === 'all');
       return allOption?.label || placeholder;
     }
@@ -93,7 +107,7 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
     }
 
     // If multiple options are selected, show count
-    return `${selectedOptions.length} Rounds Selected`;
+    return `${selectedOptions.length} selected`;
   };
 
   return (
@@ -149,15 +163,17 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={applyChanges}
-        disabled={disabled}
-        className="px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-base hover:bg-tactical-bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ marginTop: label ? '32px' : '0' }}
-      >
-        Go
-      </button>
+      {!autoApply && (
+        <button
+          type="button"
+          onClick={applyChanges}
+          disabled={disabled}
+          className="px-3 py-2 bg-tactical-bg-secondary border border-tactical-border-medium text-tactical-text-primary font-mono text-base hover:bg-tactical-bg-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ marginTop: label ? '32px' : '0' }}
+        >
+          Go
+        </button>
+      )}
     </div>
   );
 };

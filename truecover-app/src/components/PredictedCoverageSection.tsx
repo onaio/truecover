@@ -156,6 +156,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                       }))
                   ]}
                   placeholder="Select Rounds"
+                  autoApply
                 />
               </div>
             )}
