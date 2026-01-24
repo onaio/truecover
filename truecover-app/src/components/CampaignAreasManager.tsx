@@ -342,35 +342,9 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
               ? `(${areas.length} ${areas.length === 1 ? 'Area' : 'Areas'}, ${totalPixels.toLocaleString()} Pixels, Pop: ${totalPopulation.toLocaleString()})`
               : undefined
           }
-        >
-          {error && (
-            <div className="mb-4 p-3 border border-tactical-accent-red bg-tactical-accent-red/10">
-              <div className="flex items-start gap-3">
-                <TacticalBadge variant="danger">ERROR</TacticalBadge>
-                <span className="text-sm text-tactical-accent-red">{error}</span>
-              </div>
-            </div>
-          )}
-
-          {isLoading ? (
-            <div className="text-center py-8">
-              <span className="text-sm text-tactical-text-muted tactical-loading-dots">
-                LOADING AREAS<span>.</span><span>.</span><span>.</span>
-              </span>
-            </div>
-          ) : areas.length === 0 ? (
-            <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
-              <p className="text-sm text-tactical-text-dim mb-3">
-                No areas defined for this campaign
-              </p>
-              <p className="text-xs text-tactical-text-muted">
-                Enable planning mode and click on admin boundaries or draw shapes on the map to add areas
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Top-level action buttons */}
-              <div className="flex justify-end gap-2 mb-2">
+          actionButton={
+            !isLoading && areas.length > 0 && (
+              <div className="flex gap-2">
                 {areas.some(a => a.pixel_count === 0) && (
                   <TacticalButton
                     variant="primary"
@@ -404,7 +378,35 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                   </TacticalButton>
                 )}
               </div>
+            )
+          }
+        >
+          {error && (
+            <div className="mb-4 p-3 border border-tactical-accent-red bg-tactical-accent-red/10">
+              <div className="flex items-start gap-3">
+                <TacticalBadge variant="danger">ERROR</TacticalBadge>
+                <span className="text-sm text-tactical-accent-red">{error}</span>
+              </div>
+            </div>
+          )}
 
+          {isLoading ? (
+            <div className="text-center py-8">
+              <span className="text-sm text-tactical-text-muted tactical-loading-dots">
+                LOADING AREAS<span>.</span><span>.</span><span>.</span>
+              </span>
+            </div>
+          ) : areas.length === 0 ? (
+            <div className="text-center py-8 border border-tactical-border-medium bg-tactical-bg-secondary">
+              <p className="text-sm text-tactical-text-dim mb-3">
+                No areas defined for this campaign
+              </p>
+              <p className="text-xs text-tactical-text-muted">
+                Enable planning mode and click on admin boundaries or draw shapes on the map to add areas
+              </p>
+            </div>
+          ) : (
+            <>
               {/* Areas Table */}
               <div className="w-full overflow-auto tactical-scrollbar border border-tactical-border-medium bg-tactical-bg-secondary">
                 <table className="tactical-table text-tactical-text-secondary w-full">
@@ -531,7 +533,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                   </tfoot>
                 </table>
               </div>
-            </div>
+            </>
           )}
         </TacticalCollapsible>
       </TacticalCard>
