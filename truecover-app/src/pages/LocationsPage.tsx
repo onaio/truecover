@@ -919,7 +919,7 @@ const LocationsPage: React.FC = () => {
               areaName={selectedCampaign?.name || ''}
               projectId={selectedProject?.id || ''}
               selectedIndicatorId={selectedIndicatorId}
-              selectedRoundId={coverageRoundId}
+              selectedRoundIds={selectedRoundIds}
               indicators={indicators || []}
               coverageData={coverageData}
               coveragePixelData={coveragePixelData}
@@ -931,13 +931,7 @@ const LocationsPage: React.FC = () => {
               locationTotalCount={locationTotalCount}
               pixelTotalCount={pixelTotalCount}
               rounds={rounds}
-              onRoundChange={(roundId) => {
-                if (roundId) {
-                  setSelectedRoundIds([roundId]);
-                } else {
-                  setSelectedRoundIds(['all']);
-                }
-              }}
+              onRoundsChange={setSelectedRoundIds}
               onRoundClick={(roundNumber) => {
                 const round = rounds?.find(r => r.round_number === roundNumber);
                 if (round) {

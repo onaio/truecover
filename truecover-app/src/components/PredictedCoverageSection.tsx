@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { TacticalCard, TacticalButton, TacticalCollapsible } from '../tactical-ui';
+import { TacticalCard, TacticalButton, TacticalCollapsible, TacticalMultiSelect } from '../tactical-ui';
 import PredictCoverageModal from './PredictCoverageModal';
 import GenerateMockVisitDataModal from './GenerateMockVisitDataModal';
 import AddVisitModal from './AddVisitModal';
@@ -17,7 +17,7 @@ interface PredictedCoverageSectionProps {
   areaName: string;
   projectId: string;
   selectedIndicatorId: string;
-  selectedRoundId: string | undefined;
+  selectedRoundIds: (string | number)[];
   indicators: Array<{ id: string; name: string }>;
   coverageData: CoverageRecord[];
   coveragePixelData: CoveragePixelRecord[];
@@ -29,7 +29,7 @@ interface PredictedCoverageSectionProps {
   locationTotalCount: number;
   pixelTotalCount: number;
   rounds?: Round[];
-  onRoundChange?: (roundId: string | undefined) => void;
+  onRoundsChange?: (roundIds: (string | number)[]) => void;
   onRoundClick?: (roundNumber: number) => void;
 }
 
@@ -37,7 +37,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   campaignId,
   areaName,
   projectId,
-  selectedRoundId,
+  selectedRoundIds,
   indicators,
   coverageData,
   coveragePixelData,
@@ -49,14 +49,14 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
   locationTotalCount,
   pixelTotalCount,
   rounds,
-  onRoundChange,
+  onRoundsChange,
   onRoundClick,
 }) => {
   const [isPredictCoverageModalOpen, setIsPredictCoverageModalOpen] = useState(false);
   const [isGenerateMockDataModalOpen, setIsGenerateMockDataModalOpen] = useState(false);
   const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
   const [isExportDataModalOpen, setIsExportDataModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'locations' | 'pixels'>('locations');
+  const [activeTab, setActiveTab] = useState<'locations' | 'pixels'>('pixels');
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -121,16 +121,6 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
             <div className="flex gap-2">
               <button
                 className={`px-4 py-2 font-medium transition-colors ${
-                  activeTab === 'locations'
-                    ? 'text-tactical-accent-green border-b-2 border-tactical-accent-green'
-                    : 'text-tactical-text-dim hover:text-tactical-text-secondary'
-                }`}
-                onClick={() => setActiveTab('locations')}
-              >
-                Locations ({locationTotalCount})
-              </button>
-              <button
-                className={`px-4 py-2 font-medium transition-colors ${
                   activeTab === 'pixels'
                     ? 'text-tactical-accent-green border-b-2 border-tactical-accent-green'
                     : 'text-tactical-text-dim hover:text-tactical-text-secondary'
@@ -139,23 +129,35 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
               >
                 Pixels ({pixelTotalCount})
               </button>
+              <button
+                className={`px-4 py-2 font-medium transition-colors ${
+                  activeTab === 'locations'
+                    ? 'text-tactical-accent-green border-b-2 border-tactical-accent-green'
+                    : 'text-tactical-text-dim hover:text-tactical-text-secondary'
+                }`}
+                onClick={() => setActiveTab('locations')}
+              >
+                Locations ({locationTotalCount})
+              </button>
             </div>
             {/* Round Filter */}
-            {rounds && rounds.length > 0 && onRoundChange && (
-              <select
-                value={selectedRoundId || 'all'}
-                onChange={(e) => onRoundChange(e.target.value === 'all' ? undefined : e.target.value)}
-                className="px-3 py-1 mb-1 text-sm font-medium rounded bg-tactical-bg-tertiary text-tactical-text-secondary border border-tactical-border-medium hover:bg-tactical-bg-quaternary focus:outline-none focus:border-tactical-accent-green"
-              >
-                <option value="all">All Rounds</option>
-                {rounds
-                  .sort((a, b) => a.round_number - b.round_number)
-                  .map((round) => (
-                    <option key={round.id} value={round.id}>
-                      Round {round.round_number}
-                    </option>
-                  ))}
-              </select>
+            {rounds && rounds.length > 0 && onRoundsChange && (
+              <div className="w-48 text-sm mb-1">
+                <TacticalMultiSelect
+                  value={selectedRoundIds}
+                  onChange={onRoundsChange}
+                  options={[
+                    { value: 'all', label: 'All Rounds' },
+                    ...rounds
+                      .sort((a, b) => a.round_number - b.round_number)
+                      .map((round) => ({
+                        value: round.id,
+                        label: `Round ${round.round_number}`
+                      }))
+                  ]}
+                  placeholder="Select Rounds"
+                />
+              </div>
             )}
           </div>
 
@@ -386,7 +388,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
         onClose={() => setIsAddVisitModalOpen(false)}
         campaignId={campaignId}
         areaName={areaName}
-        roundId={selectedRoundId || ''}
+        roundId={selectedRoundIds.length > 0 && selectedRoundIds[0] !== 'all' ? String(selectedRoundIds[0]) : ''}
         projectId={projectId}
         onSuccess={onRefetchCoverage}
       />
