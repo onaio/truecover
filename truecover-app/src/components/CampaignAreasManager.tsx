@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { campaignAreasApi, enrichmentApi } from '../services/api';
+import { campaignAreasApi, enrichmentApi, adminBoundariesApi } from '../services/api';
 import {
   TacticalCard,
   TacticalButton,
@@ -38,12 +38,16 @@ interface CampaignAreasManagerProps {
   campaignId: string;
   indicatorId?: string;
   onRefresh?: () => void;
+  buildingWorkflows?: Map<string, string>; // areaId -> workflowId
+  onBuildingWorkflowComplete?: (areaId: string) => void;
 }
 
 const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   campaignId,
   indicatorId,
-  onRefresh
+  onRefresh,
+  buildingWorkflows,
+  onBuildingWorkflowComplete
 }) => {
   const { getToken } = useAuth();
   const [areas, setAreas] = useState<CampaignArea[]>([]);
@@ -57,12 +61,78 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   const [sampleCount, setSampleCount] = useState<number>(50);
   const [isSampling, setIsSampling] = useState(false);
   const [samplingWorkflows, setSamplingWorkflows] = useState<Map<string, { workflowId: string; status: string }>>(new Map());
+  const [buildingExtractionWorkflows, setBuildingExtractionWorkflows] = useState<Map<string, { workflowId: string; status: string }>>(new Map());
 
   useEffect(() => {
     if (campaignId) {
       loadAreas();
     }
   }, [campaignId]);
+
+  // Start polling for any new building workflows passed from parent
+  useEffect(() => {
+    if (!buildingWorkflows) return;
+
+    buildingWorkflows.forEach((workflowId, areaId) => {
+      // Only start polling if we're not already tracking this workflow
+      if (!buildingExtractionWorkflows.has(areaId)) {
+        setBuildingExtractionWorkflows(prev => new Map(prev).set(areaId, {
+          workflowId,
+          status: 'running'
+        }));
+        pollBuildingWorkflowStatus(areaId, workflowId);
+      }
+    });
+  }, [buildingWorkflows]);
+
+  const pollBuildingWorkflowStatus = async (areaId: string, workflowId: string) => {
+    const token = await getToken();
+    if (!token) return;
+
+    const poll = async () => {
+      try {
+        const status = await adminBoundariesApi.getOvertureImportStatus(workflowId, token);
+
+        if (status.status === 'completed') {
+          // Remove from tracking
+          setBuildingExtractionWorkflows(prev => {
+            const next = new Map(prev);
+            next.delete(areaId);
+            return next;
+          });
+
+          tacticalToast.success(`Building extraction complete: ${status.result?.inserted || 0} buildings imported`);
+          onBuildingWorkflowComplete?.(areaId);
+          loadAreas(); // Refresh to get updated building counts
+        } else if (status.status === 'failed') {
+          setBuildingExtractionWorkflows(prev => {
+            const next = new Map(prev);
+            next.delete(areaId);
+            return next;
+          });
+
+          tacticalToast.error(`Building extraction failed: ${status.error || 'Unknown error'}`);
+          onBuildingWorkflowComplete?.(areaId);
+        } else {
+          // Still running, update status and continue polling
+          setBuildingExtractionWorkflows(prev => new Map(prev).set(areaId, {
+            workflowId,
+            status: 'running'
+          }));
+
+          // Poll again in 3 seconds
+          setTimeout(poll, 3000);
+        }
+      } catch (err) {
+        console.error('Error polling building workflow status:', err);
+        // Continue polling on error
+        setTimeout(poll, 5000);
+      }
+    };
+
+    // Start polling
+    poll();
+  };
 
   const loadAreas = async () => {
     setIsLoading(true);
@@ -348,7 +418,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                       <th className="bg-tactical-bg-secondary text-right">Sampled / Pixels</th>
                       <th className="bg-tactical-bg-secondary text-right">Population</th>
                       <th className="bg-tactical-bg-secondary text-right">Buildings</th>
-                      <th className="bg-tactical-bg-secondary text-right">Actions</th>
+                      <th className="bg-tactical-bg-secondary text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -372,17 +442,15 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                         <td className="text-right font-mono">
                           {area.pixel_count === 0 ? (
                             <span className="text-tactical-accent-red">—</span>
-                          ) : samplingWorkflows.has(area.id) ? (
-                            <span className="text-tactical-accent-yellow tactical-loading-dots">
-                              {samplingWorkflows.get(area.id)?.status || 'sampling'}<span>.</span><span>.</span><span>.</span>
-                            </span>
                           ) : (
                             <span>
-                              <span className={area.sampled_count > 0 ? 'text-tactical-accent-green' : 'text-tactical-text-muted'}>
+                              <span className="text-tactical-accent-green">
                                 {area.sampled_count.toLocaleString()}
                               </span>
                               <span className="text-tactical-text-muted"> / </span>
-                              {area.pixel_count.toLocaleString()}
+                              <span className="text-tactical-text-primary">
+                                {area.pixel_count.toLocaleString()}
+                              </span>
                             </span>
                           )}
                         </td>
@@ -390,10 +458,16 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                           {area.total_population.toLocaleString()}
                         </td>
                         <td className="text-right font-mono">
-                          {area.building_count.toLocaleString()}
+                          {buildingExtractionWorkflows.has(area.id) ? (
+                            <span className="tactical-shimmer">
+                              Extracting...
+                            </span>
+                          ) : (
+                            area.building_count.toLocaleString()
+                          )}
                         </td>
-                        <td className="text-right">
-                          <div className="flex gap-2 justify-end">
+                        <td className="text-center">
+                          <div className="flex gap-2 justify-center">
                             {area.pixel_count === 0 && (
                               <TacticalButton
                                 variant="primary"
@@ -404,23 +478,25 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                                 {computingAreaId === area.id ? '...' : 'Compute'}
                               </TacticalButton>
                             )}
-                            {area.pixel_count > 0 && indicatorId && (
+                            {samplingWorkflows.has(area.id) ? (
+                              <TacticalButton
+                                variant="secondary"
+                                size="sm"
+                                disabled
+                              >
+                                <span className="tactical-shimmer tactical-loading-dots">
+                                  Sampling<span>.</span><span>.</span><span>.</span>
+                                </span>
+                              </TacticalButton>
+                            ) : (
                               <TacticalButton
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => openEditModal(area)}
-                                disabled={samplingWorkflows.has(area.id)}
                               >
-                                {samplingWorkflows.has(area.id) ? 'Sampling...' : area.sampled_count > 0 ? 'Edit' : 'Sample'}
+                                {area.sampled_count > 0 ? 'Edit' : area.pixel_count > 0 && indicatorId ? 'Sample' : 'View'}
                               </TacticalButton>
                             )}
-                            <TacticalButton
-                              variant="danger"
-                              size="sm"
-                              onClick={() => setAreaToDelete(area)}
-                            >
-                              Remove
-                            </TacticalButton>
                           </div>
                         </td>
                       </tr>
@@ -435,12 +511,14 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                       <td></td>
                       <td></td>
                       <td></td>
-                      <td className="text-right font-mono font-bold text-tactical-text-primary">
-                        <span className={totalSampled > 0 ? 'text-tactical-accent-green' : ''}>
+                      <td className="text-right font-mono font-bold">
+                        <span className="text-tactical-accent-green">
                           {totalSampled.toLocaleString()}
                         </span>
                         <span className="text-tactical-text-muted"> / </span>
-                        {totalPixels.toLocaleString()}
+                        <span className="text-tactical-text-primary">
+                          {totalPixels.toLocaleString()}
+                        </span>
                       </td>
                       <td className="text-right font-mono font-bold text-tactical-text-primary">
                         {totalPopulation.toLocaleString()}
@@ -497,60 +575,85 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
         <TacticalModal
           isOpen={!!areaToEdit}
           onClose={() => setAreaToEdit(null)}
-          title={areaToEdit.sampled_count > 0 ? 'Edit Area Sampling' : 'Sample Area'}
+          title={areaToEdit.name || areaToEdit.admin_boundary_name || 'Area'}
           size="sm"
         >
           <div className="space-y-4">
-            <div>
-              <p className="text-sm text-tactical-text-secondary mb-2">
-                <span className="font-bold">{areaToEdit.name || areaToEdit.admin_boundary_name || 'Area'}</span>
-              </p>
-              <p className="text-xs text-tactical-text-muted">
-                {areaToEdit.pixel_count.toLocaleString()} total pixels
-                {areaToEdit.sampled_count > 0 && (
-                  <span className="text-tactical-accent-green"> ({areaToEdit.sampled_count.toLocaleString()} currently sampled)</span>
-                )}
-              </p>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="text-tactical-text-muted">Pixels:</span>
+                <span className="ml-2 font-mono text-tactical-text-primary">{areaToEdit.pixel_count.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-tactical-text-muted">Sampled:</span>
+                <span className={`ml-2 font-mono ${areaToEdit.sampled_count > 0 ? 'text-tactical-accent-green' : 'text-tactical-text-muted'}`}>
+                  {areaToEdit.sampled_count.toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-tactical-text-muted">Population:</span>
+                <span className="ml-2 font-mono text-tactical-text-primary">{areaToEdit.total_population.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-tactical-text-muted">Buildings:</span>
+                <span className="ml-2 font-mono text-tactical-text-primary">{areaToEdit.building_count.toLocaleString()}</span>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs text-tactical-text-muted mb-1">
-                Number of pixels to sample
-              </label>
-              <input
-                type="number"
-                value={sampleCount}
-                onChange={(e) => setSampleCount(Math.max(1, parseInt(e.target.value) || 1))}
-                min={1}
-                max={areaToEdit.pixel_count}
-                className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
-              />
-            </div>
+            {indicatorId && areaToEdit.pixel_count > 0 && (
+              <div className="pt-4 border-t border-tactical-border-medium">
+                <label className="block text-xs text-tactical-text-muted mb-1">
+                  Number of pixels to sample
+                </label>
+                <input
+                  type="number"
+                  value={sampleCount}
+                  onChange={(e) => setSampleCount(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  max={areaToEdit.pixel_count}
+                  className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
+                />
+              </div>
+            )}
 
-            <div className="flex gap-3 justify-end pt-4 border-t border-tactical-border-medium">
+            <div className="flex gap-3 justify-between pt-4 border-t border-tactical-border-medium">
               <TacticalButton
-                variant="secondary"
-                onClick={() => setAreaToEdit(null)}
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  setAreaToDelete(areaToEdit);
+                  setAreaToEdit(null);
+                }}
               >
-                Cancel
+                Remove
               </TacticalButton>
-              {areaToEdit.sampled_count > 0 ? (
+              <div className="flex gap-3">
                 <TacticalButton
-                  variant="primary"
-                  onClick={() => handleSample(true)}
-                  disabled={isSampling}
+                  variant="secondary"
+                  onClick={() => setAreaToEdit(null)}
                 >
-                  {isSampling ? 'Resampling...' : 'Resample'}
+                  Cancel
                 </TacticalButton>
-              ) : (
-                <TacticalButton
-                  variant="primary"
-                  onClick={() => handleSample(false)}
-                  disabled={isSampling}
-                >
-                  {isSampling ? 'Sampling...' : 'Sample'}
-                </TacticalButton>
-              )}
+                {indicatorId && areaToEdit.pixel_count > 0 && (
+                  areaToEdit.sampled_count > 0 ? (
+                    <TacticalButton
+                      variant="primary"
+                      onClick={() => handleSample(true)}
+                      disabled={isSampling}
+                    >
+                      {isSampling ? 'Resampling...' : 'Resample'}
+                    </TacticalButton>
+                  ) : (
+                    <TacticalButton
+                      variant="primary"
+                      onClick={() => handleSample(false)}
+                      disabled={isSampling}
+                    >
+                      {isSampling ? 'Sampling...' : 'Sample'}
+                    </TacticalButton>
+                  )
+                )}
+              </div>
             </div>
           </div>
         </TacticalModal>

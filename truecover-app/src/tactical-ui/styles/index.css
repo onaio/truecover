@@ -219,6 +219,29 @@
   animation-delay: 0.4s;
 }
 
+/* Shimmer Animation - subtle color cycling */
+@keyframes tactical-shimmer {
+  0% {
+    color: #666666;
+  }
+  25% {
+    color: #888888;
+  }
+  50% {
+    color: #44aaff;
+  }
+  75% {
+    color: #888888;
+  }
+  100% {
+    color: #666666;
+  }
+}
+
+.tactical-shimmer {
+  animation: tactical-shimmer 2s ease-in-out infinite;
+}
+
 /* Utility Classes */
 .tactical-divider {
   height: 1px;

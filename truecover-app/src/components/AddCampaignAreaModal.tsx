@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { campaignAreasApi } from '../services/api';
+import { campaignAreasApi, adminBoundariesApi } from '../services/api';
 import {
   TacticalModal,
   TacticalButton,
@@ -19,7 +19,7 @@ interface AddCampaignAreaModalProps {
     name: string;
   } | null;
   drawnGeometry?: any;
-  onAreaAdded?: () => void;
+  onAreaAdded?: (result?: { areaId: string; buildingWorkflowId?: string }) => void;
 }
 
 const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
@@ -35,7 +35,7 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
   const [name, setName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [computePixels, setComputePixels] = useState(true);
+  const [extractBuildings, setExtractBuildings] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,8 +63,8 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
 
       const result = await campaignAreasApi.add(campaignId, areaData, token);
 
-      // Optionally compute pixels immediately
-      if (computePixels && result.id) {
+      // Always compute pixels for the area
+      if (result.id) {
         try {
           const pixelResult = await campaignAreasApi.computePixels(result.id, token);
           tacticalToast.success(`Area added with ${pixelResult.pixels_computed.toLocaleString()} pixels`);
@@ -72,13 +72,32 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
           console.error('Failed to compute pixels:', pixelErr);
           tacticalToast.warning('Area added, but pixel computation failed. You can retry later.');
         }
-      } else {
-        tacticalToast.success('Area added to campaign');
+      }
+
+      // Optionally extract buildings from Overture
+      let buildingWorkflowId: string | undefined;
+      if (extractBuildings) {
+        try {
+          const pcode = mode === 'admin_boundary' ? adminBoundary?.pcode : undefined;
+          const geometry = mode === 'drawn' ? drawnGeometry : undefined;
+
+          const importResult = await adminBoundariesApi.importOvertureBuildingsAsync(
+            pcode || 'drawn_area',
+            campaignId,
+            token,
+            geometry
+          );
+          buildingWorkflowId = importResult.workflow_id;
+          tacticalToast.info('Building extraction started...');
+        } catch (buildingErr: any) {
+          console.error('Failed to start building extraction:', buildingErr);
+          tacticalToast.warning('Area added, but building extraction failed to start.');
+        }
       }
 
       setName('');
       onClose();
-      onAreaAdded?.();
+      onAreaAdded?.({ areaId: result.id, buildingWorkflowId });
     } catch (err: any) {
       console.error('Failed to add area:', err);
       setError(err.response?.data?.error || 'Failed to add area');
@@ -90,12 +109,13 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
   const handleClose = () => {
     setName('');
     setError(null);
+    setExtractBuildings(false);
     onClose();
   };
 
   return (
     <TacticalModal
-      title={mode === 'admin_boundary' ? 'Add Admin Boundary' : 'Add Drawn Area'}
+      title="Add Campaign Area"
       isOpen={isOpen}
       onClose={handleClose}
       size="md"
@@ -141,7 +161,7 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
             htmlFor="areaName"
             className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2"
           >
-            Area Name (Optional)
+            Area Name {mode === 'drawn' ? '' : '(Optional)'}
           </label>
           <TacticalInput
             type="text"
@@ -151,24 +171,26 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
             disabled={isAdding}
           />
           <p className="text-xs text-tactical-text-muted mt-1">
-            Leave blank to use the default name
+            {mode === 'admin_boundary'
+              ? 'Leave blank to use the admin boundary name'
+              : 'Give this drawn area a descriptive name'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
-            id="computePixels"
-            checked={computePixels}
-            onChange={(e) => setComputePixels(e.target.checked)}
+            id="extractBuildings"
+            checked={extractBuildings}
+            onChange={(e) => setExtractBuildings(e.target.checked)}
             className="w-4 h-4"
           />
-          <label htmlFor="computePixels" className="text-sm text-tactical-text-secondary">
-            Compute pixels immediately
+          <label htmlFor="extractBuildings" className="text-sm text-tactical-text-secondary">
+            Extract buildings from Overture Maps
           </label>
         </div>
         <p className="text-xs text-tactical-text-muted -mt-2 ml-6">
-          This will find all global pixels that intersect this area
+          Import building footprints from Overture Maps for this area
         </p>
 
         <div className="flex gap-3 justify-end pt-2">
@@ -183,7 +205,7 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
           <TacticalButton
             type="submit"
             variant="primary"
-            disabled={isAdding || (mode === 'admin_boundary' && !adminBoundary) || (mode === 'drawn' && !drawnGeometry)}
+            disabled={isAdding || (mode === 'admin_boundary' && !adminBoundary) || (mode === 'drawn' && (!drawnGeometry || !name.trim()))}
           >
             {isAdding ? (
               <span className="tactical-loading-dots">

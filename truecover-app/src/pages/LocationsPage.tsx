@@ -84,6 +84,7 @@ const LocationsPage: React.FC = () => {
   const [selectedAdminBoundaryForCampaign, setSelectedAdminBoundaryForCampaign] = useState<{ pcode: string; name: string } | null>(null);
   const [drawnGeometryForCampaign, setDrawnGeometryForCampaign] = useState<any>(null);
   const [campaignAreasRefreshKey, setCampaignAreasRefreshKey] = useState(0);
+  const [buildingWorkflows, setBuildingWorkflows] = useState<Map<string, string>>(new Map()); // areaId -> workflowId
   const [showCampaignAreas, setShowCampaignAreas] = useState<boolean>(true);
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedCampaign?.id);
@@ -958,6 +959,14 @@ const LocationsPage: React.FC = () => {
               key={campaignAreasRefreshKey}
               campaignId={selectedCampaign?.id || ''}
               indicatorId={selectedIndicatorId}
+              buildingWorkflows={buildingWorkflows}
+              onBuildingWorkflowComplete={(areaId) => {
+                setBuildingWorkflows(prev => {
+                  const next = new Map(prev);
+                  next.delete(areaId);
+                  return next;
+                });
+              }}
             />
 
             {/* Buildings Stats */}
@@ -1083,9 +1092,15 @@ const LocationsPage: React.FC = () => {
         mode={campaignAreaMode}
         adminBoundary={selectedAdminBoundaryForCampaign}
         drawnGeometry={drawnGeometryForCampaign}
-        onAreaAdded={() => {
+        onAreaAdded={(result) => {
           setCampaignAreasRefreshKey(prev => prev + 1);
           refetchPixelStats();
+          // Track building extraction workflow if one was started
+          const workflowId = result?.buildingWorkflowId;
+          const areaId = result?.areaId;
+          if (workflowId && areaId) {
+            setBuildingWorkflows(prev => new Map(prev).set(areaId, workflowId));
+          }
         }}
       />
     </>
