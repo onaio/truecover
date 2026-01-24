@@ -45,7 +45,7 @@ const CondensedStatsBar: React.FC<CondensedStatsBarProps> = ({
       <div className="flex items-center gap-2 px-4">
         <span className="text-tactical-text-dim text-xs uppercase tracking-wider">Rounds:</span>
         <span className="text-tactical-text-primary font-bold text-sm font-mono">
-          {roundCount}
+          {roundCount.toLocaleString()}
         </span>
       </div>
 
