@@ -142,7 +142,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
             </div>
             {/* Round Filter */}
             {rounds && rounds.length > 0 && onRoundsChange && (
-              <div className="w-48 text-sm mb-1">
+              <div className="w-64 text-sm mb-1">
                 <TacticalMultiSelect
                   value={selectedRoundIds}
                   onChange={onRoundsChange}
