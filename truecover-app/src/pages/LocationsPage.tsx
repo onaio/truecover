@@ -84,6 +84,7 @@ const LocationsPage: React.FC = () => {
   const [campaignAreasRefreshKey, setCampaignAreasRefreshKey] = useState(0);
   const [buildingWorkflows, setBuildingWorkflows] = useState<Map<string, string>>(new Map()); // areaId -> workflowId
   const [showCampaignAreas, setShowCampaignAreas] = useState<boolean>(true);
+  const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const { data: indicators } = useIndicators(selectedProject?.id);
   const { data: rounds } = useRounds(selectedCampaign?.id);
   const { data: pixelStats, refetch: refetchPixelStats } = usePixelStats(selectedCampaign?.id);
@@ -91,6 +92,15 @@ const LocationsPage: React.FC = () => {
   const enrichmentJobs = enrichmentJobsData?.jobs || [];
   const { data: pixelMetadataStats } = usePixelMetadataStats(selectedCampaign?.id);
   const { data: campaignAreas } = useCampaignAreas(selectedCampaign?.id);
+
+  // Compute bounds for selected area filter (for map zoom)
+  const selectedAreaBounds = useMemo(() => {
+    if (!selectedAreaId || !campaignAreas) return null;
+    const area = campaignAreas.find(a => a.id === selectedAreaId);
+    if (!area?.bbox) return null;
+    const { min_lng, min_lat, max_lng, max_lat } = area.bbox;
+    return [[min_lng, min_lat], [max_lng, max_lat]] as [[number, number], [number, number]];
+  }, [selectedAreaId, campaignAreas]);
 
   // Compute roundId for coverage data query
   const coverageRoundId = useMemo(() => {
@@ -447,6 +457,24 @@ const LocationsPage: React.FC = () => {
               />
             </div>
 
+            {/* Area Filter */}
+            {campaignAreas && campaignAreas.length > 0 && (
+              <div className="w-48 text-sm">
+                <TacticalSelect
+                  value={selectedAreaId}
+                  onChange={(value) => setSelectedAreaId(value)}
+                  options={[
+                    { value: '', label: 'All Areas' },
+                    ...campaignAreas.map(area => ({
+                      value: area.id,
+                      label: area.name || area.admin_boundary_name || 'Unnamed Area'
+                    }))
+                  ]}
+                  placeholder="Filter by Area"
+                />
+              </div>
+            )}
+
             {/* Coverage Toggle */}
             <TacticalButton
               variant={interpolationMode === 'coverage' ? "primary" : "secondary"}
@@ -553,6 +581,7 @@ const LocationsPage: React.FC = () => {
                 }
                 setIsAddCampaignAreaModalOpen(true);
               }}
+              selectedAreaBounds={selectedAreaBounds}
               className="h-full"
             />
 
@@ -750,6 +779,24 @@ const LocationsPage: React.FC = () => {
                 />
               </div>
 
+              {/* Area Filter */}
+              {campaignAreas && campaignAreas.length > 0 && (
+                <div className="w-64 text-lg">
+                  <TacticalSelect
+                    value={selectedAreaId}
+                    onChange={(value) => setSelectedAreaId(value)}
+                    options={[
+                      { value: '', label: 'All Areas' },
+                      ...campaignAreas.map(area => ({
+                        value: area.id,
+                        label: area.name || area.admin_boundary_name || 'Unnamed Area'
+                      }))
+                    ]}
+                    placeholder="Filter by Area"
+                  />
+                </div>
+              )}
+
               {/* Coverage Toggle */}
               <TacticalButton
                 variant={interpolationMode === 'coverage' ? "primary" : "secondary"}
@@ -871,6 +918,7 @@ const LocationsPage: React.FC = () => {
                   }
                   setIsAddCampaignAreaModalOpen(true);
                 }}
+                selectedAreaBounds={selectedAreaBounds}
               />
             </TacticalCard>
 

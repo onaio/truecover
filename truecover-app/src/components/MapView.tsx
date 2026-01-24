@@ -49,6 +49,7 @@ interface MapViewProps {
   showCampaignAreas?: boolean;
   onToggleCampaignAreas?: () => void;
   onAddAdminBoundaryToCampaign?: (id: string, pcode: string, name: string, geometry?: any) => void;
+  selectedAreaBounds?: [[number, number], [number, number]] | null;
   className?: string;
 }
 
@@ -86,7 +87,7 @@ const getCentroid = (geometry: any): [number, number] => {
 
 const MARTIN_URL = import.meta.env.VITE_MARTIN_URL || 'http://localhost:3052';
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, campaignAreas = [], showCampaignAreas = true, onToggleCampaignAreas, onAddAdminBoundaryToCampaign, className }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, campaignAreas = [], showCampaignAreas = true, onToggleCampaignAreas, onAddAdminBoundaryToCampaign, selectedAreaBounds, className }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -364,6 +365,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       mapInstance.fitBounds(bounds, { padding: 40, duration: 1000 });
     }
   }, [mapInstance, bounds, campaignId]);
+
+  // Zoom to selected area bounds when area filter changes
+  React.useEffect(() => {
+    if (mapInstance && selectedAreaBounds) {
+      mapInstance.fitBounds(selectedAreaBounds, { padding: 40, duration: 1000 });
+    }
+  }, [mapInstance, selectedAreaBounds]);
 
   // Extract selected features - BEFORE the early return
   const selectedFeatures = useMemo(() => {
