@@ -620,6 +620,7 @@ def list_area_coverage(user, campaign_id):
 
         # Get query parameters for filtering
         indicator_id = request.args.get('indicator_id')
+        round_id = request.args.get('round_id')
 
         # Get pagination parameters
         limit = request.args.get('limit', type=int, default=200)
@@ -632,6 +633,15 @@ def list_area_coverage(user, campaign_id):
         if indicator_id:
             where_clause += " AND c.indicator_id = %s"
             params.append(indicator_id)
+
+        # Filter by round if specified (round_id is UUID, need to get round_number)
+        if round_id:
+            cursor.execute("SELECT round_number FROM rounds WHERE id = %s", (round_id,))
+            round_result = cursor.fetchone()
+            if round_result:
+                round_number = round_result[0]
+                where_clause += " AND %s = ANY(c.rounds)"
+                params.append(round_number)
 
         # Get total count first
         count_query = f"""
@@ -966,6 +976,7 @@ def list_area_coverage_pixel(user, campaign_id):
 
         # Get query parameters for filtering
         indicator_id = request.args.get('indicator_id')
+        round_id = request.args.get('round_id')
         only_with_locations = request.args.get('only_with_locations', 'false').lower() == 'true'
 
         # Get pagination parameters
@@ -979,6 +990,15 @@ def list_area_coverage_pixel(user, campaign_id):
         if indicator_id:
             where_clause += " AND cp.indicator_id = %s"
             params.append(indicator_id)
+
+        # Filter by round if specified (round_id is UUID, need to get round_number)
+        if round_id:
+            cursor.execute("SELECT round_number FROM rounds WHERE id = %s", (round_id,))
+            round_result = cursor.fetchone()
+            if round_result:
+                round_number = round_result[0]
+                where_clause += " AND %s = ANY(cp.rounds)"
+                params.append(round_number)
 
         if only_with_locations:
             where_clause += """

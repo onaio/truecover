@@ -148,11 +148,13 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                 className="px-3 py-1 mb-1 text-sm font-medium rounded bg-tactical-bg-tertiary text-tactical-text-secondary border border-tactical-border-medium hover:bg-tactical-bg-quaternary focus:outline-none focus:border-tactical-accent-green"
               >
                 <option value="all">All Rounds</option>
-                {rounds.map((round) => (
-                  <option key={round.id} value={round.id}>
-                    {round.name || `Round ${round.round_number}`}
-                  </option>
-                ))}
+                {rounds
+                  .sort((a, b) => a.round_number - b.round_number)
+                  .map((round) => (
+                    <option key={round.id} value={round.id}>
+                      Round {round.round_number}
+                    </option>
+                  ))}
               </select>
             )}
           </div>
