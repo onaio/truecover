@@ -4,8 +4,11 @@
 # Build stage
 FROM oven/bun:alpine AS build
 
-# Accept build arguments
+# Accept build arguments for Vite environment variables
 ARG VITE_MAPBOX_TOKEN
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ARG VITE_API_URL
+ARG VITE_MARTIN_URL
 
 WORKDIR /app
 
@@ -20,6 +23,9 @@ COPY . .
 
 # Build the React app with environment variables
 ENV VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_MARTIN_URL=${VITE_MARTIN_URL}
 RUN bun run build
 
 # Production stage

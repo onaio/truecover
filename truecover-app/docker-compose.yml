@@ -6,7 +6,10 @@ services:
     build:
       context: .
       args:
-        - REACT_APP_MAPBOX_TOKEN=${REACT_APP_MAPBOX_TOKEN}
+        - VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+        - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
+        - VITE_API_URL=${VITE_API_URL:-http://host.docker.internal:5001}
+        - VITE_MARTIN_URL=${VITE_MARTIN_URL:-http://host.docker.internal:3052}
     ports:
       - "3030:80"
     depends_on:
