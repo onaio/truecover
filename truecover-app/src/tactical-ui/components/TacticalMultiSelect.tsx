@@ -53,7 +53,6 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
 
   const toggleOption = (optionValue: number | string) => {
     let newValue: (number | string)[];
-    const nonAllOptions = options.filter(opt => opt.value !== 'all').map(opt => opt.value);
 
     console.log('[TacticalMultiSelect] toggleOption called with:', optionValue);
     console.log('[TacticalMultiSelect] current pendingValue:', pendingValue);

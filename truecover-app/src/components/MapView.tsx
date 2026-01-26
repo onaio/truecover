@@ -13,6 +13,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { adminBoundariesApi, pixelsApi } from '../services/api';
 import { useGeneratePixels } from '../hooks/usePixels';
 import { tacticalToast } from '../tactical-ui';
+import { env } from '../config/env';
 
 interface CampaignArea {
   id: string;
@@ -85,7 +86,7 @@ const getCentroid = (geometry: any): [number, number] => {
   return [sum[0] / coords.length, sum[1] / coords.length];
 };
 
-const MARTIN_URL = import.meta.env.VITE_MARTIN_URL || 'http://localhost:3052';
+const MARTIN_URL = env.VITE_MARTIN_URL;
 
 const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, campaignAreas = [], showCampaignAreas = true, onToggleCampaignAreas, onAddAdminBoundaryToCampaign, selectedAreaBounds, className }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
@@ -116,7 +117,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const [drawnFeature, setDrawnFeature] = useState<any>(null);
   const drawControlRef = useRef<MapboxDraw | null>(null);
   const geocoderInputRef = useRef<HTMLDivElement>(null);
-  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+  const mapboxToken = env.VITE_MAPBOX_TOKEN;
 
   const { getToken } = useAuth();
   const generatePixelsMutation = useGeneratePixels();

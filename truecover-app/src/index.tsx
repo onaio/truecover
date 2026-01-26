@@ -7,6 +7,7 @@ import { ClerkProvider } from '@clerk/clerk-react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { env } from './config/env';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -19,7 +20,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkPubKey = env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!clerkPubKey) {
   throw new Error('Missing Clerk Publishable Key');

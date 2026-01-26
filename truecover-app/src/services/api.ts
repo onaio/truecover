@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { Organization, OrganizationMember, Project, Campaign } from '../types';
+import { env } from '../config/env';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = env.VITE_API_URL;
 
 // Organization API calls
 export const organizationsApi = {

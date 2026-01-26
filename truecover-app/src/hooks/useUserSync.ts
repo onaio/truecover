@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import axios from 'axios';
+import { env } from '../config/env';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = env.VITE_API_URL;
 
 /**
  * Hook to automatically sync Clerk user with backend database on sign-in

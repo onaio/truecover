@@ -6,8 +6,9 @@ import { StratifiedClusterSamplingWizard } from './StratifiedClusterSamplingWiza
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 import { useIndicators } from '../hooks/useIndicators';
+import { env } from '../config/env';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = env.VITE_API_URL;
 
 interface Round {
   id: string;
