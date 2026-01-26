@@ -795,9 +795,27 @@ def sample_campaign_area(user, area_id):
         sample_count = data.get('sample_count', 50)
         indicator_id = data.get('indicator_id')
         resample = data.get('resample', False)
+        round_id = data.get('round_id')
+        sample_target = data.get('sample_target', 'pixels')  # 'pixels' or 'buildings'
 
         if not indicator_id:
             return jsonify({'error': 'indicator_id is required'}), 400
+
+        if not round_id:
+            return jsonify({'error': 'round_id is required'}), 400
+
+        # Look up round_number from round_id
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT round_number FROM rounds WHERE id = %s AND campaign_id = %s
+        """, (round_id, campaign_id))
+        round_result = cursor.fetchone()
+        cursor.close()
+
+        if not round_result:
+            return jsonify({'error': 'Round not found'}), 404
+
+        round_number = round_result[0]
 
         # Start workflow
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -812,7 +830,10 @@ def sample_campaign_area(user, area_id):
                     indicator_id,
                     area_id,
                     sample_count,
-                    resample
+                    resample,
+                    round_number,
+                    None,  # round_name (not needed since round exists)
+                    sample_target
                 ],
                 id=workflow_id,
                 task_queue="truecover-tasks"

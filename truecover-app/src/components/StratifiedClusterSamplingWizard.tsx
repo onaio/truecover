@@ -1,6 +1,6 @@
 // ABOUTME: Three-step wizard for stratified cluster sampling round creation
-// ABOUTME: Step 0: Select division/district, Step 1: Categorize areas, Step 2: Parameters
-import React, { useState, useEffect } from 'react';
+// ABOUTME: Step 0: Select division/district, Step 1: Categorize areas, Step 2: Parameters, Step 3: Progress
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCenter } from '@dnd-kit/core';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
@@ -16,6 +16,13 @@ import { CategoryColumn } from './CategoryColumn';
 import { useDivisions, useDistricts, useAdminBoundaryChildren } from '../hooks/useAdminBoundaries';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+interface WorkflowProgress {
+  status: string;
+  selected_upazilas: number;
+  selected_unions: number;
+  child_workflows_started: number;
+}
 
 interface AdminBoundary {
   pcode: string;
@@ -59,6 +66,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Workflow tracking state
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [workflowStatus, setWorkflowStatus] = useState<string>('');
+  const [workflowProgress, setWorkflowProgress] = useState<WorkflowProgress | null>(null);
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
+  const [workflowResult, setWorkflowResult] = useState<any>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
   // Step 0 state - area selection
   const [selectedDivision, setSelectedDivision] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -92,6 +107,52 @@ export const StratifiedClusterSamplingWizard: React.FC<
     selectedDistrict || undefined
   );
 
+  // Polling function for workflow status
+  const pollWorkflowStatus = useCallback(async (wfId: string) => {
+    try {
+      const token = await getToken();
+      const response = await axios.get(
+        `${API_URL}/api/rounds/stratified-cluster/${wfId}/status`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const data = response.data;
+      setWorkflowStatus(data.status);
+
+      if (data.progress) {
+        setWorkflowProgress(data.progress);
+      }
+
+      if (data.status === 'completed') {
+        setWorkflowResult(data.result);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        tacticalToast.success('Stratified cluster sampling completed!');
+        onRoundCreated();
+      } else if (data.status === 'failed') {
+        setWorkflowError(data.error || 'Workflow failed');
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        tacticalToast.error(data.error || 'Workflow failed');
+      }
+    } catch (error: any) {
+      console.error('Error polling workflow status:', error);
+    }
+  }, [getToken, onRoundCreated]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
@@ -111,6 +172,16 @@ export const StratifiedClusterSamplingWizard: React.FC<
       setSelectedDistrictName('');
       setCategories({ high_risk: [], low_risk: [], hard_to_reach: [], uncategorized: [] });
       setRoundName('');
+      // Reset workflow tracking state
+      setWorkflowId(null);
+      setWorkflowStatus('');
+      setWorkflowProgress(null);
+      setWorkflowError(null);
+      setWorkflowResult(null);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
     }
   }, [isOpen, initialPcode, initialName]);
 
@@ -178,7 +249,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
     setIsSubmitting(true);
     try {
       const token = await getToken();
-      await axios.post(
+      const response = await axios.post(
         `${API_URL}/api/campaigns/${campaignId}/rounds/stratified-cluster`,
         {
           name: roundName.trim(),
@@ -198,9 +269,19 @@ export const StratifiedClusterSamplingWizard: React.FC<
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      tacticalToast.success('Stratified cluster sampling started');
-      onRoundCreated();
-      onClose();
+      const wfId = response.data.workflow_id;
+      setWorkflowId(wfId);
+      setWorkflowStatus('running');
+      setStep(3); // Move to progress view
+
+      // Start polling for status
+      pollingRef.current = setInterval(() => {
+        pollWorkflowStatus(wfId);
+      }, 2000);
+
+      // Initial poll
+      pollWorkflowStatus(wfId);
+
     } catch (error: any) {
       console.error('Error creating round:', error);
       tacticalToast.error(
@@ -507,6 +588,105 @@ export const StratifiedClusterSamplingWizard: React.FC<
                 {isSubmitting ? 'Creating...' : 'Create Round'}
               </TacticalButton>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Workflow Progress */}
+      {step === 3 && (
+        <div>
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-zinc-100 mb-2">
+              Stratified Cluster Sampling
+            </h3>
+            <p className="text-sm text-zinc-400">
+              Workflow ID: <span className="font-mono text-cyan-400">{workflowId}</span>
+            </p>
+          </div>
+
+          {/* Status indicator */}
+          <div className="mb-6 p-4 bg-zinc-800 rounded border border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              {workflowStatus === 'running' && (
+                <>
+                  <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-cyan-400 font-medium">Running...</span>
+                </>
+              )}
+              {workflowStatus === 'completed' && (
+                <>
+                  <div className="w-4 h-4 bg-green-500 rounded-full" />
+                  <span className="text-green-400 font-medium">Completed</span>
+                </>
+              )}
+              {workflowStatus === 'failed' && (
+                <>
+                  <div className="w-4 h-4 bg-red-500 rounded-full" />
+                  <span className="text-red-400 font-medium">Failed</span>
+                </>
+              )}
+            </div>
+
+            {/* Progress details */}
+            {workflowProgress && (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-zinc-300">
+                  <span>Status:</span>
+                  <span className="text-cyan-400 font-mono">{workflowProgress.status}</span>
+                </div>
+                <div className="flex justify-between text-zinc-300">
+                  <span>Upazilas Selected:</span>
+                  <span className="text-cyan-400">{workflowProgress.selected_upazilas}</span>
+                </div>
+                <div className="flex justify-between text-zinc-300">
+                  <span>Unions Selected:</span>
+                  <span className="text-cyan-400">{workflowProgress.selected_unions}</span>
+                </div>
+                <div className="flex justify-between text-zinc-300">
+                  <span>Sampling Workflows Started:</span>
+                  <span className="text-cyan-400">{workflowProgress.child_workflows_started}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Error message */}
+            {workflowError && (
+              <div className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded text-red-300 text-sm">
+                {workflowError}
+              </div>
+            )}
+
+            {/* Result summary */}
+            {workflowResult && (
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="text-green-400 font-medium mb-2">Sampling Complete!</div>
+                <div className="flex justify-between text-zinc-300">
+                  <span>Round Number:</span>
+                  <span className="text-green-400">{workflowResult.round_number}</span>
+                </div>
+                <div className="flex justify-between text-zinc-300">
+                  <span>Selected Upazilas:</span>
+                  <span className="text-green-400">{workflowResult.selected_upazilas?.length || 0}</span>
+                </div>
+                <div className="flex justify-between text-zinc-300">
+                  <span>Selected Unions:</span>
+                  <span className="text-green-400">{workflowResult.selected_unions?.length || 0}</span>
+                </div>
+                <div className="flex justify-between text-zinc-300">
+                  <span>Campaign Areas Created:</span>
+                  <span className="text-green-400">{workflowResult.campaign_area_ids?.length || 0}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end mt-6">
+            <TacticalButton
+              onClick={onClose}
+              variant={workflowStatus === 'completed' || workflowStatus === 'failed' ? 'primary' : 'secondary'}
+            >
+              {workflowStatus === 'completed' || workflowStatus === 'failed' ? 'Close' : 'Run in Background'}
+            </TacticalButton>
           </div>
         </div>
       )}

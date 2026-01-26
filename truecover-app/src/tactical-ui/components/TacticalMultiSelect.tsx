@@ -55,37 +55,42 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
     let newValue: (number | string)[];
     const nonAllOptions = options.filter(opt => opt.value !== 'all').map(opt => opt.value);
 
-    // Special handling for "all" option
+    console.log('[TacticalMultiSelect] toggleOption called with:', optionValue);
+    console.log('[TacticalMultiSelect] current pendingValue:', pendingValue);
+
+    // Simple toggle logic:
+    // - "all" is mutually exclusive with specific options
+    // - Clicking "all" selects only "all"
+    // - Clicking a specific option when "all" is selected switches to that option
+    // - Clicking a specific option otherwise toggles it
+
     if (optionValue === 'all') {
-      // If "all" is being selected, select all options
-      if (!pendingValue.includes('all')) {
-        newValue = ['all'];
-      } else {
-        // If "all" is being deselected, clear everything
+      // Toggle "all" - if selected, deselect; if not, select only "all"
+      if (pendingValue.includes('all')) {
         newValue = [];
+      } else {
+        newValue = ['all'];
       }
     } else {
-      // For regular options
+      // Clicking a specific option
       if (pendingValue.includes('all')) {
-        // If "all" was selected, uncheck this specific one (select all others)
-        newValue = nonAllOptions.filter(v => v !== optionValue);
+        // Switch from "all" to just this specific option
+        newValue = [optionValue];
       } else if (pendingValue.includes(optionValue)) {
-        // Uncheck this option
+        // Deselect this option
         newValue = pendingValue.filter(v => v !== optionValue);
       } else {
-        // Check this option
+        // Add this option
         newValue = [...pendingValue, optionValue];
-        // If all non-all options are now selected, switch to "all"
-        if (newValue.length === nonAllOptions.length && nonAllOptions.every(v => newValue.includes(v))) {
-          newValue = ['all'];
-        }
       }
     }
 
+    console.log('[TacticalMultiSelect] Setting new value:', newValue);
     setPendingValue(newValue);
 
     // In autoApply mode, immediately call onChange
     if (autoApply) {
+      console.log('[TacticalMultiSelect] Auto-applying onChange with:', newValue);
       onChange(newValue);
     }
   };
@@ -159,20 +164,25 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
                 </div>
               ) : (
                 options.map(option => (
-                  <label
+                  <div
                     key={option.value}
                     className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-tactical-bg-tertiary transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOption(option.value);
+                    }}
                   >
                     <input
                       type="checkbox"
                       checked={isOptionChecked(option.value)}
-                      onChange={() => toggleOption(option.value)}
+                      onChange={() => {}} // Handled by div onClick
+                      onClick={(e) => e.stopPropagation()}
                       className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
                     />
                     <span className="text-base text-tactical-text-primary font-mono">
                       {option.label}
                     </span>
-                  </label>
+                  </div>
                 ))
               )}
             </div>

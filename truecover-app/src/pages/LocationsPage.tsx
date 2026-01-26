@@ -103,15 +103,27 @@ const LocationsPage: React.FC = () => {
   }, [selectedAreaId, campaignAreas]);
 
   // Compute roundId for coverage data query
+  // 'all' means "show only rows with ANY round assigned"
+  // specific round ID means "filter by that round"
+  // empty array means "show everything" (no filter)
   const coverageRoundId = useMemo(() => {
-    // If "all" is selected or multiple rounds, use undefined for round_id
-    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+    if (selectedRoundIds.length === 0) {
+      console.log('[Round Filter] Empty selection, no filter', selectedRoundIds);
       return undefined;
     }
-    if (selectedRoundIds.length === 1) {
-      return String(selectedRoundIds[0]);
+    if (selectedRoundIds.includes('all')) {
+      // "All Rounds" = filter to show only rows with rounds assigned
+      console.log('[Round Filter] All rounds = show only sampled rows');
+      return 'has_rounds';  // Special value to filter for non-empty rounds
     }
-    return undefined;
+    if (selectedRoundIds.length === 1) {
+      const roundId = String(selectedRoundIds[0]);
+      console.log('[Round Filter] Single round selected:', roundId);
+      return roundId;
+    }
+    // Multiple specific rounds selected - for now treat as "has_rounds"
+    console.log('[Round Filter] Multiple rounds selected, showing all with rounds');
+    return 'has_rounds';
   }, [selectedRoundIds]);
 
   // Use React Query hook to fetch coverage data with infinite scroll
@@ -470,7 +482,7 @@ const LocationsPage: React.FC = () => {
                       label: area.name || area.admin_boundary_name || 'Unnamed Area'
                     }))
                   ]}
-                  placeholder="Filter by Area"
+                  placeholder="Go to Area"
                 />
               </div>
             )}
@@ -792,7 +804,7 @@ const LocationsPage: React.FC = () => {
                         label: area.name || area.admin_boundary_name || 'Unnamed Area'
                       }))
                     ]}
-                    placeholder="Filter by Area"
+                    placeholder="Go to Area"
                   />
                 </div>
               )}

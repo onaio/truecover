@@ -634,14 +634,19 @@ def list_area_coverage(user, campaign_id):
             where_clause += " AND c.indicator_id = %s"
             params.append(indicator_id)
 
-        # Filter by round if specified (round_id is UUID, need to get round_number)
+        # Filter by round if specified
         if round_id:
-            cursor.execute("SELECT round_number FROM rounds WHERE id = %s", (round_id,))
-            round_result = cursor.fetchone()
-            if round_result:
-                round_number = round_result[0]
-                where_clause += " AND %s = ANY(c.rounds)"
-                params.append(round_number)
+            if round_id == 'has_rounds':
+                # Special filter: show only rows with any rounds assigned
+                where_clause += " AND c.rounds IS NOT NULL AND array_length(c.rounds, 1) > 0"
+            else:
+                # round_id is UUID, need to get round_number
+                cursor.execute("SELECT round_number FROM rounds WHERE id = %s", (round_id,))
+                round_result = cursor.fetchone()
+                if round_result:
+                    round_number = round_result[0]
+                    where_clause += " AND %s = ANY(c.rounds)"
+                    params.append(round_number)
 
         # Get total count first
         count_query = f"""
@@ -991,14 +996,19 @@ def list_area_coverage_pixel(user, campaign_id):
             where_clause += " AND cp.indicator_id = %s"
             params.append(indicator_id)
 
-        # Filter by round if specified (round_id is UUID, need to get round_number)
+        # Filter by round if specified
         if round_id:
-            cursor.execute("SELECT round_number FROM rounds WHERE id = %s", (round_id,))
-            round_result = cursor.fetchone()
-            if round_result:
-                round_number = round_result[0]
-                where_clause += " AND %s = ANY(cp.rounds)"
-                params.append(round_number)
+            if round_id == 'has_rounds':
+                # Special filter: show only rows with any rounds assigned
+                where_clause += " AND cp.rounds IS NOT NULL AND array_length(cp.rounds, 1) > 0"
+            else:
+                # round_id is UUID, need to get round_number
+                cursor.execute("SELECT round_number FROM rounds WHERE id = %s", (round_id,))
+                round_result = cursor.fetchone()
+                if round_result:
+                    round_number = round_result[0]
+                    where_clause += " AND %s = ANY(cp.rounds)"
+                    params.append(round_number)
 
         if only_with_locations:
             where_clause += """

@@ -335,6 +335,76 @@ def create_stratified_cluster_round(user, campaign_id):
         return jsonify({'error': 'Failed to start workflow', 'details': str(e)}), 500
 
 
+@rounds_bp.route('/api/rounds/stratified-cluster/<workflow_id>/status', methods=['GET'])
+@require_auth
+def get_stratified_cluster_workflow_status(user, workflow_id):
+    """Get status of stratified cluster sampling workflow"""
+    from temporal.client import get_temporal_client, run_async
+    from temporal.workflows.stratified_cluster_sampling import StratifiedClusterSamplingWorkflow
+    from temporalio.client import WorkflowExecutionStatus
+
+    try:
+        async def get_status():
+            client = await get_temporal_client()
+            handle = client.get_workflow_handle(workflow_id)
+
+            try:
+                desc = await handle.describe()
+
+                if desc.status == WorkflowExecutionStatus.RUNNING:
+                    try:
+                        progress = await handle.query(StratifiedClusterSamplingWorkflow.get_progress)
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": progress
+                        }
+                    except Exception:
+                        return {
+                            "workflow_id": workflow_id,
+                            "status": "running",
+                            "progress": None
+                        }
+                elif desc.status == WorkflowExecutionStatus.COMPLETED:
+                    result = await handle.result()
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "completed",
+                        "result": result
+                    }
+                elif desc.status == WorkflowExecutionStatus.FAILED:
+                    error_message = "Workflow failed"
+                    try:
+                        await handle.result()
+                    except Exception as e:
+                        error_message = str(e)
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": "failed",
+                        "error": error_message
+                    }
+                else:
+                    return {
+                        "workflow_id": workflow_id,
+                        "status": desc.status.name.lower()
+                    }
+            except Exception as e:
+                return {
+                    "workflow_id": workflow_id,
+                    "status": "failed",
+                    "error": str(e)
+                }
+
+        status = run_async(get_status())
+        return jsonify(status), 200
+
+    except Exception as e:
+        print(f"Error getting stratified cluster workflow status: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to get workflow status', 'details': str(e)}), 500
+
+
 @rounds_bp.route('/api/campaigns/<campaign_id>/rounds_old', methods=['POST'])
 @require_auth
 def create_round_old(user, campaign_id):

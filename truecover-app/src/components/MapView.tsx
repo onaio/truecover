@@ -360,11 +360,12 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   }, [primaryData, pixelsBounds, pixelCount, locations, mode]);
 
   // Update map viewport when bounds change (e.g., new area selected or pixels generated)
+  // Skip if selectedAreaBounds is set, as that takes priority
   React.useEffect(() => {
-    if (mapInstance && bounds) {
+    if (mapInstance && bounds && !selectedAreaBounds) {
       mapInstance.fitBounds(bounds, { padding: 40, duration: 1000 });
     }
-  }, [mapInstance, bounds, campaignId]);
+  }, [mapInstance, bounds, campaignId, selectedAreaBounds]);
 
   // Zoom to selected area bounds when area filter changes
   React.useEffect(() => {
