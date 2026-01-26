@@ -14,16 +14,17 @@ declare global {
 }
 
 // Helper to get env value with runtime override support
+// Uses explicit undefined/null checks so empty strings are valid values
 const getEnv = (key: string, fallback: string = ''): string => {
   // First check runtime config (injected by docker-entrypoint.sh)
   const runtimeValue = window.__ENV__?.[key as keyof typeof window.__ENV__];
-  if (runtimeValue) {
+  if (runtimeValue !== undefined && runtimeValue !== null) {
     return runtimeValue;
   }
 
   // Fall back to build-time Vite env
   const buildValue = import.meta.env[key];
-  if (buildValue) {
+  if (buildValue !== undefined && buildValue !== null) {
     return buildValue;
   }
 
