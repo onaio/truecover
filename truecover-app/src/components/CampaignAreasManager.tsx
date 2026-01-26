@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { campaignAreasApi, enrichmentApi, adminBoundariesApi } from '../services/api';
+import { useRounds } from '../hooks/useRounds';
 import {
   TacticalCard,
   TacticalButton,
   TacticalBadge,
   TacticalCollapsible,
   TacticalModal,
+  TacticalSelect,
   tacticalToast
 } from '../tactical-ui';
 
@@ -42,6 +44,8 @@ interface CampaignAreasManagerProps {
   onBuildingWorkflowComplete?: (areaId: string) => void;
 }
 
+type SampleTarget = 'pixels' | 'buildings';
+
 const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   campaignId,
   indicatorId,
@@ -59,9 +63,14 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [areaToEdit, setAreaToEdit] = useState<CampaignArea | null>(null);
   const [sampleCount, setSampleCount] = useState<number>(50);
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('');
+  const [sampleTarget, setSampleTarget] = useState<SampleTarget>('pixels');
   const [isSampling, setIsSampling] = useState(false);
   const [samplingWorkflows, setSamplingWorkflows] = useState<Map<string, { workflowId: string; status: string }>>(new Map());
   const [buildingExtractionWorkflows, setBuildingExtractionWorkflows] = useState<Map<string, { workflowId: string; status: string }>>(new Map());
+
+  // Fetch rounds for the campaign
+  const { data: rounds } = useRounds(campaignId);
 
   useEffect(() => {
     if (campaignId) {
@@ -236,7 +245,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   };
 
   const handleSample = async (resample: boolean = false) => {
-    if (!areaToEdit || !indicatorId) return;
+    if (!areaToEdit || !indicatorId || !selectedRoundId) return;
 
     setIsSampling(true);
     const areaId = areaToEdit.id;
@@ -250,7 +259,9 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
         {
           indicator_id: indicatorId,
           sample_count: sampleCount,
-          resample
+          resample,
+          round_id: selectedRoundId,
+          sample_target: sampleTarget
         },
         token
       );
@@ -261,13 +272,14 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
         status: 'running'
       }));
 
-      tacticalToast.success(`Sampling ${sampleCount} pixels${resample ? ' (resample)' : ''}...`);
+      const targetLabel = sampleTarget === 'buildings' ? 'buildings' : 'pixels';
+      tacticalToast.success(`Sampling ${sampleCount} ${targetLabel}${resample ? ' (resample)' : ''}...`);
       setAreaToEdit(null);
 
       // Start polling for status
       pollWorkflowStatus(areaId, result.workflow_id);
     } catch (err: any) {
-      console.error('Failed to sample pixels:', err);
+      console.error('Failed to sample:', err);
       tacticalToast.error(err.response?.data?.error || 'Failed to start sampling');
     } finally {
       setIsSampling(false);
@@ -324,6 +336,9 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   const openEditModal = (area: CampaignArea) => {
     setAreaToEdit(area);
     setSampleCount(area.sampled_count > 0 ? area.sampled_count : 50);
+    setSelectedRoundId('');
+    // Default to pixels if available, otherwise buildings
+    setSampleTarget(area.pixel_count > 0 ? 'pixels' : 'buildings');
   };
 
   const totalPixels = areas.reduce((sum, area) => sum + (area.pixel_count || 0), 0);
@@ -602,19 +617,73 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
               </div>
             </div>
 
-            {indicatorId && areaToEdit.pixel_count > 0 && (
-              <div className="pt-4 border-t border-tactical-border-medium">
-                <label className="block text-xs text-tactical-text-muted mb-1">
-                  Number of pixels to sample
-                </label>
-                <input
-                  type="number"
-                  value={sampleCount}
-                  onChange={(e) => setSampleCount(Math.max(1, parseInt(e.target.value) || 1))}
-                  min={1}
-                  max={areaToEdit.pixel_count}
-                  className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
-                />
+            {indicatorId && (areaToEdit.pixel_count > 0 || areaToEdit.building_count > 0) && rounds && rounds.length > 0 && (
+              <div className="pt-4 border-t border-tactical-border-medium space-y-4">
+                {/* Round Selection */}
+                <div>
+                  <label className="block text-xs text-tactical-text-muted mb-1">
+                    Assign to Round
+                  </label>
+                  <TacticalSelect
+                    value={selectedRoundId}
+                    onChange={(value) => setSelectedRoundId(value)}
+                    options={rounds
+                      .sort((a, b) => a.round_number - b.round_number)
+                      .map((round) => ({
+                        value: round.id,
+                        label: `Round ${round.round_number}${round.name ? ` - ${round.name}` : ''}`
+                      }))}
+                    placeholder="Select a round"
+                  />
+                </div>
+
+                {/* Sample Target Toggle */}
+                <div>
+                  <label className="block text-xs text-tactical-text-muted mb-1">
+                    Sample From
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSampleTarget('pixels')}
+                      disabled={areaToEdit.pixel_count === 0}
+                      className={`flex-1 px-3 py-2 text-sm font-mono border transition-colors ${
+                        sampleTarget === 'pixels'
+                          ? 'bg-tactical-accent-green text-tactical-bg-primary border-tactical-accent-green'
+                          : 'bg-tactical-bg-tertiary text-tactical-text-secondary border-tactical-border-medium hover:bg-tactical-bg-quaternary'
+                      } ${areaToEdit.pixel_count === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      Pixels ({areaToEdit.pixel_count.toLocaleString()})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSampleTarget('buildings')}
+                      disabled={areaToEdit.building_count === 0}
+                      className={`flex-1 px-3 py-2 text-sm font-mono border transition-colors ${
+                        sampleTarget === 'buildings'
+                          ? 'bg-tactical-accent-green text-tactical-bg-primary border-tactical-accent-green'
+                          : 'bg-tactical-bg-tertiary text-tactical-text-secondary border-tactical-border-medium hover:bg-tactical-bg-quaternary'
+                      } ${areaToEdit.building_count === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      Buildings ({areaToEdit.building_count.toLocaleString()})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sample Count */}
+                <div>
+                  <label className="block text-xs text-tactical-text-muted mb-1">
+                    Number of {sampleTarget} to sample
+                  </label>
+                  <input
+                    type="number"
+                    value={sampleCount}
+                    onChange={(e) => setSampleCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    min={1}
+                    max={sampleTarget === 'buildings' ? areaToEdit.building_count : areaToEdit.pixel_count}
+                    className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
+                  />
+                </div>
               </div>
             )}
 
@@ -636,12 +705,12 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                 >
                   Cancel
                 </TacticalButton>
-                {indicatorId && areaToEdit.pixel_count > 0 && (
+                {indicatorId && (areaToEdit.pixel_count > 0 || areaToEdit.building_count > 0) && rounds && rounds.length > 0 && (
                   areaToEdit.sampled_count > 0 ? (
                     <TacticalButton
                       variant="primary"
                       onClick={() => handleSample(true)}
-                      disabled={isSampling}
+                      disabled={isSampling || !selectedRoundId}
                     >
                       {isSampling ? 'Resampling...' : 'Resample'}
                     </TacticalButton>
@@ -649,7 +718,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                     <TacticalButton
                       variant="primary"
                       onClick={() => handleSample(false)}
-                      disabled={isSampling}
+                      disabled={isSampling || !selectedRoundId}
                     >
                       {isSampling ? 'Sampling...' : 'Sample'}
                     </TacticalButton>

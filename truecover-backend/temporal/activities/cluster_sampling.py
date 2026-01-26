@@ -345,7 +345,15 @@ async def compute_pixels_for_campaign_areas(
                 ON CONFLICT (quadkey, campaign_area_id) DO NOTHING
             """, (area_id, area_id))
 
-            total_pixels += cursor.rowcount
+            area_pixel_count = cursor.rowcount
+            total_pixels += area_pixel_count
+
+            # Update cached_pixel_count on the campaign_area
+            cursor.execute("""
+                UPDATE campaign_areas
+                SET cached_pixel_count = %s, updated_at = NOW()
+                WHERE id = %s
+            """, (area_pixel_count, area_id))
 
         conn.commit()
         activity.logger.info(f"Computed {total_pixels} pixel associations for {len(campaign_area_ids)} areas")
@@ -833,6 +841,311 @@ async def update_campaign_area_sampled_counts(
 
         activity.logger.info(f"Updated sampled counts for {len(campaign_area_ids)} campaign areas")
         return results
+
+    finally:
+        if conn:
+            cursor.close()
+            return_db_connection(conn)
+
+
+@activity.defn
+async def sample_buildings_for_campaign_area(
+    campaign_id: str,
+    indicator_id: str,
+    campaign_area_id: str,
+    sample_count: int,
+    uncertainty_field: str = 'prevalence_bci_width'
+) -> Dict[str, Any]:
+    """
+    Sample buildings (locations) from a campaign area using adaptive sampling.
+
+    Args:
+        campaign_id: Campaign ID
+        indicator_id: Indicator ID
+        campaign_area_id: Campaign area to sample from
+        sample_count: Number of buildings to sample
+        uncertainty_field: Field to use for uncertainty-based sampling
+
+    Returns:
+        Dict with selected_ids and count
+    """
+    import requests
+    import os
+
+    SAMPLING_URL = os.getenv('DOCKER_FN_SAMPLING_URL', 'http://localhost:8083')
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get the campaign area geometry bounds
+        cursor.execute("""
+            SELECT bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat
+            FROM campaign_areas
+            WHERE id = %s
+        """, (campaign_area_id,))
+
+        row = cursor.fetchone()
+        if not row:
+            return {'selected_ids': [], 'error': 'Campaign area not found'}
+
+        # Fetch buildings (locations) within this campaign area that haven't been sampled
+        cursor.execute("""
+            SELECT
+                l.id as location_id,
+                l.quadkey,
+                l.latitude, l.longitude,
+                c.exceedance_probability, c.exceedance_uncertainty,
+                c.prevalence_bci_width, c.prevalence_prediction
+            FROM locations l
+            LEFT JOIN coverage c ON c.location_id = l.id
+                AND c.campaign_id = %s
+                AND c.indicator_id = %s
+            JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+                AND ST_Intersects(l.geometry, ca.geometry)
+            WHERE l.campaign_id = %s
+              AND ca.id = %s
+              AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
+        """, (campaign_id, indicator_id, campaign_id, campaign_area_id))
+
+        records = cursor.fetchall()
+
+        if not records:
+            return {'selected_ids': [], 'total_items': 0, 'message': 'No unsampled buildings found'}
+
+        # Build GeoJSON features
+        features = []
+        location_id_map = {}
+
+        for idx, r in enumerate(records):
+            location_id = str(r[0])
+            quadkey = r[1]
+            lat, lon = float(r[2]), float(r[3])
+
+            features.append({
+                'type': 'Feature',
+                'id': idx,
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [lon, lat]
+                },
+                'properties': {
+                    'location_id': location_id,
+                    'quadkey': quadkey,
+                    'exceedance_probability': float(r[4]) if r[4] else 0.5,
+                    'exceedance_uncertainty': float(r[5]) if r[5] else 0.5,
+                    'prevalence_bci_width': float(r[6]) if r[6] else 0.5,
+                    'prevalence_prediction': float(r[7]) if r[7] else 0.5,
+                }
+            })
+            location_id_map[idx] = location_id
+
+        # Call adaptive sampling
+        payload = {
+            'point_data': {
+                'type': 'FeatureCollection',
+                'features': features
+            },
+            'uncertainty_fieldname': uncertainty_field,
+            'batch_size': min(sample_count, len(features))
+        }
+
+        activity.logger.info(f"Calling adaptive sampling for {len(features)} buildings, selecting {sample_count}")
+
+        response = requests.post(
+            SAMPLING_URL,
+            json=payload,
+            headers={'Content-Type': 'application/json'},
+            timeout=300
+        )
+        response.raise_for_status()
+
+        # Parse response
+        response_text = response.text
+        json_start = response_text.find('{')
+        if json_start == -1:
+            return {'selected_ids': [], 'error': 'No JSON in response'}
+
+        depth = 0
+        json_end = json_start
+        for i, char in enumerate(response_text[json_start:], start=json_start):
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    json_end = i + 1
+                    break
+
+        result = json.loads(response_text[json_start:json_end])
+
+        if result.get('function_status') == 'success' and result.get('result'):
+            result = result['result']
+
+        # Extract selected IDs
+        selected_ids = []
+        for feature in result.get('features', []):
+            props = feature.get('properties', {})
+            if props.get('adaptively_selected', 0) == 1:
+                location_id = props.get('location_id')
+                if location_id:
+                    selected_ids.append(location_id)
+
+        activity.logger.info(f"Selected {len(selected_ids)} buildings from campaign_area {campaign_area_id}")
+
+        return {
+            'selected_ids': selected_ids,
+            'total_items': len(records)
+        }
+
+    finally:
+        if conn:
+            cursor.close()
+            return_db_connection(conn)
+
+
+@activity.defn
+async def assign_buildings_to_round(
+    campaign_area_id: str,
+    campaign_id: str,
+    indicator_id: str,
+    selected_location_ids: List[str],
+    round_number: int
+) -> int:
+    """
+    Assign selected buildings (locations) to a round via coverage table.
+
+    Args:
+        campaign_area_id: Campaign area ID (for updating cached count)
+        campaign_id: Campaign ID
+        indicator_id: Indicator ID
+        selected_location_ids: List of location IDs to assign
+        round_number: Round number to assign
+
+    Returns:
+        Number of buildings assigned
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if not selected_location_ids:
+            return 0
+
+        for location_id in selected_location_ids:
+            # Create or update coverage record for this location
+            cursor.execute("""
+                INSERT INTO coverage (
+                    campaign_id, indicator_id, location_id, version,
+                    n_trials, n_covered, rounds,
+                    exceedance_probability, exceedance_uncertainty,
+                    prevalence_prediction, prevalence_bci_width
+                )
+                VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s], 0.5, 0.5, 0.5, 0.5)
+                ON CONFLICT (campaign_id, indicator_id, location_id, version)
+                DO UPDATE SET
+                    rounds = array_append(COALESCE(coverage.rounds, '{}'), %s),
+                    updated_at = NOW()
+                WHERE NOT (%s = ANY(COALESCE(coverage.rounds, '{}')))
+            """, (campaign_id, indicator_id, location_id, round_number, round_number, round_number))
+
+        # Update cached_sampled_count on campaign_area (count buildings with any round)
+        cursor.execute("""
+            WITH sampled AS (
+                SELECT COUNT(DISTINCT c.location_id) as cnt
+                FROM coverage c
+                JOIN locations l ON c.location_id = l.id
+                JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+                WHERE ca.id = %s
+                  AND c.campaign_id = %s
+                  AND c.rounds IS NOT NULL
+                  AND array_length(c.rounds, 1) > 0
+            )
+            UPDATE campaign_areas
+            SET cached_sampled_count = (SELECT cnt FROM sampled),
+                updated_at = NOW()
+            WHERE id = %s
+        """, (campaign_area_id, campaign_id, campaign_area_id))
+
+        conn.commit()
+
+        activity.logger.info(f"Assigned {len(selected_location_ids)} buildings to round {round_number} for campaign_area {campaign_area_id}")
+        return len(selected_location_ids)
+
+    finally:
+        if conn:
+            cursor.close()
+            return_db_connection(conn)
+
+
+@activity.defn
+async def clear_round_from_buildings(
+    campaign_id: str,
+    indicator_id: str,
+    campaign_area_id: str,
+    round_number: int
+) -> int:
+    """
+    Remove a round assignment from buildings in a campaign area (for resampling).
+
+    Args:
+        campaign_id: Campaign ID
+        indicator_id: Indicator ID
+        campaign_area_id: Campaign area to clear samples from
+        round_number: Round number to remove
+
+    Returns:
+        Number of buildings cleared
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Remove round_number from rounds array for buildings in this area
+        cursor.execute("""
+            UPDATE coverage c
+            SET rounds = array_remove(rounds, %s),
+                updated_at = NOW()
+            FROM locations l
+            JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+            WHERE c.location_id = l.id
+              AND ca.id = %s
+              AND c.campaign_id = %s
+              AND c.indicator_id = %s
+              AND %s = ANY(COALESCE(c.rounds, '{}'))
+        """, (round_number, campaign_area_id, campaign_id, indicator_id, round_number))
+
+        cleared_count = cursor.rowcount
+
+        # Update cached_sampled_count
+        cursor.execute("""
+            WITH sampled AS (
+                SELECT COUNT(DISTINCT c.location_id) as cnt
+                FROM coverage c
+                JOIN locations l ON c.location_id = l.id
+                JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+                WHERE ca.id = %s
+                  AND c.campaign_id = %s
+                  AND c.rounds IS NOT NULL
+                  AND array_length(c.rounds, 1) > 0
+            )
+            UPDATE campaign_areas
+            SET cached_sampled_count = (SELECT cnt FROM sampled),
+                updated_at = NOW()
+            WHERE id = %s
+        """, (campaign_area_id, campaign_id, campaign_area_id))
+
+        conn.commit()
+
+        activity.logger.info(f"Cleared round {round_number} from {cleared_count} buildings in campaign_area {campaign_area_id}")
+        return cleared_count
 
     finally:
         if conn:

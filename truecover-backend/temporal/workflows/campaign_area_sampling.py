@@ -12,6 +12,9 @@ with workflow.unsafe.imports_passed_through():
         sample_pixels_for_campaign_area,
         assign_pixels_to_round,
         clear_round_from_pixels,
+        sample_buildings_for_campaign_area,
+        assign_buildings_to_round,
+        clear_round_from_buildings,
     )
     from ..activities.rounds import create_round_record
 
@@ -51,11 +54,12 @@ class CampaignAreaSamplingWorkflow:
         sample_count: int,
         resample: bool = False,
         round_number: Optional[int] = None,
-        round_name: Optional[str] = None
+        round_name: Optional[str] = None,
+        sample_target: str = 'pixels'  # 'pixels' or 'buildings'
     ) -> Dict[str, Any]:
         """Run sampling for a campaign area."""
 
-        workflow.logger.info(f"Starting sampling for campaign_area {campaign_area_id}, count={sample_count}, resample={resample}")
+        workflow.logger.info(f"Starting sampling for campaign_area {campaign_area_id}, count={sample_count}, resample={resample}, target={sample_target}")
 
         retry_policy = RetryPolicy(
             initial_interval=timedelta(seconds=1),
@@ -90,55 +94,98 @@ class CampaignAreaSamplingWorkflow:
         # Step 2: Clear existing samples if resampling
         if resample:
             self.status = "clearing_samples"
-            await workflow.execute_activity(
-                clear_round_from_pixels,
-                args=[campaign_id, indicator_id, campaign_area_id, self.round_number],
-                start_to_close_timeout=timedelta(minutes=2),
+            if sample_target == 'buildings':
+                await workflow.execute_activity(
+                    clear_round_from_buildings,
+                    args=[campaign_id, indicator_id, campaign_area_id, self.round_number],
+                    start_to_close_timeout=timedelta(minutes=2),
+                    retry_policy=retry_policy
+                )
+            else:
+                await workflow.execute_activity(
+                    clear_round_from_pixels,
+                    args=[campaign_id, indicator_id, campaign_area_id, self.round_number],
+                    start_to_close_timeout=timedelta(minutes=2),
+                    retry_policy=retry_policy
+                )
+
+        if sample_target == 'buildings':
+            # Building sampling: sample from locations table
+            self.status = "sampling_buildings"
+            sampling_result = await workflow.execute_activity(
+                sample_buildings_for_campaign_area,
+                args=[campaign_id, indicator_id, campaign_area_id, sample_count],
+                start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=retry_policy
             )
 
-        # Step 3: Create coverage_pixel records if they don't exist
-        self.status = "creating_coverage_pixels"
-        created = await workflow.execute_activity(
-            create_coverage_pixels_for_campaign_area,
-            args=[campaign_id, indicator_id, campaign_area_id, None],
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=retry_policy
-        )
-        workflow.logger.info(f"Created {created} coverage_pixel records")
+            selected_ids = sampling_result.get('selected_ids', [])
+            self.pixels_sampled = len(selected_ids)
 
-        # Step 4: Run adaptive sampling
-        self.status = "sampling"
-        sampling_result = await workflow.execute_activity(
-            sample_pixels_for_campaign_area,
-            args=[campaign_id, indicator_id, campaign_area_id, sample_count],
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=retry_policy
-        )
+            if not selected_ids:
+                workflow.logger.warning(f"No buildings selected for campaign_area {campaign_area_id}")
+                self.status = "completed_empty"
+                return {
+                    'campaign_area_id': campaign_area_id,
+                    'round_number': self.round_number,
+                    'pixels_sampled': 0,
+                    'total_available': sampling_result.get('total_items', 0),
+                    'status': 'completed_empty',
+                    'message': sampling_result.get('message', 'No buildings available for sampling')
+                }
 
-        selected_ids = sampling_result.get('selected_ids', [])
-        self.pixels_sampled = len(selected_ids)
+            # Assign buildings to round
+            self.status = "assigning_to_round"
+            await workflow.execute_activity(
+                assign_buildings_to_round,
+                args=[campaign_area_id, campaign_id, indicator_id, selected_ids, self.round_number],
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=retry_policy
+            )
+        else:
+            # Pixel sampling: use coverage_pixel table
+            # Step 3: Create coverage_pixel records if they don't exist
+            self.status = "creating_coverage_pixels"
+            created = await workflow.execute_activity(
+                create_coverage_pixels_for_campaign_area,
+                args=[campaign_id, indicator_id, campaign_area_id, None],
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=retry_policy
+            )
+            workflow.logger.info(f"Created {created} coverage_pixel records")
 
-        if not selected_ids:
-            workflow.logger.warning(f"No pixels selected for campaign_area {campaign_area_id}")
-            self.status = "completed_empty"
-            return {
-                'campaign_area_id': campaign_area_id,
-                'round_number': self.round_number,
-                'pixels_sampled': 0,
-                'total_available': sampling_result.get('total_items', 0),
-                'status': 'completed_empty',
-                'message': sampling_result.get('message', 'No pixels available for sampling')
-            }
+            # Step 4: Run adaptive sampling
+            self.status = "sampling"
+            sampling_result = await workflow.execute_activity(
+                sample_pixels_for_campaign_area,
+                args=[campaign_id, indicator_id, campaign_area_id, sample_count],
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=retry_policy
+            )
 
-        # Step 5: Assign pixels to round
-        self.status = "assigning_to_round"
-        await workflow.execute_activity(
-            assign_pixels_to_round,
-            args=[campaign_area_id, selected_ids, self.round_number],
-            start_to_close_timeout=timedelta(minutes=2),
-            retry_policy=retry_policy
-        )
+            selected_ids = sampling_result.get('selected_ids', [])
+            self.pixels_sampled = len(selected_ids)
+
+            if not selected_ids:
+                workflow.logger.warning(f"No pixels selected for campaign_area {campaign_area_id}")
+                self.status = "completed_empty"
+                return {
+                    'campaign_area_id': campaign_area_id,
+                    'round_number': self.round_number,
+                    'pixels_sampled': 0,
+                    'total_available': sampling_result.get('total_items', 0),
+                    'status': 'completed_empty',
+                    'message': sampling_result.get('message', 'No pixels available for sampling')
+                }
+
+            # Step 5: Assign pixels to round
+            self.status = "assigning_to_round"
+            await workflow.execute_activity(
+                assign_pixels_to_round,
+                args=[campaign_area_id, selected_ids, self.round_number],
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=retry_policy
+            )
 
         self.status = "completed"
         workflow.logger.info(f"Completed sampling for campaign_area {campaign_area_id}: {self.pixels_sampled} pixels in round {self.round_number}")

@@ -329,6 +329,8 @@ export const campaignAreasApi = {
       indicator_id: string;
       sample_count: number;
       resample?: boolean;
+      round_id?: string;
+      sample_target?: 'pixels' | 'buildings';
     },
     token: string
   ): Promise<{ workflow_id: string; area_id: string; status: string; message: string }> {
