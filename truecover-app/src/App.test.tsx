@@ -1,9 +1,19 @@
-import { render, screen } from '@testing-library/react';
-import { test, expect } from 'vitest';
-import App from './App';
+import { test, expect, vi } from 'vitest';
+import React from 'react';
+import { renderWithProviders } from './test-utils';
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+// Mock Clerk auth before importing App
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isSignedIn: false, getToken: vi.fn() }),
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => children,
+  SignedIn: (_props: { children: React.ReactNode }) => null,
+  SignedOut: ({ children }: { children: React.ReactNode }) => children,
+  SignInButton: () => null,
+  UserButton: () => null,
+}));
+
+test('renders app without crashing', async () => {
+  const { default: App } = await import('./App');
+  renderWithProviders(<App />);
+  expect(document.body).toBeTruthy();
 });
