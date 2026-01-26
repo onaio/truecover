@@ -1,0 +1,9 @@
+---
+apiVersion: v2
+name: truecover
+description: A Helm chart to deploy TrueCover
+version: 0.1.0
+dependencies:
+  - name: truecover
+    repository: file://../../../../charts/truecover
+    version: "*"

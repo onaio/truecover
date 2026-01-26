@@ -1,0 +1,263 @@
+#! /bin/bash
+
+set -Eeuo pipefail
+
+HELM_RELEASES_ROOT="helm/releases"
+HELM_RELEASES_V2_ROOT="helm/releases"
+HELM_CHART_DETAILS_FILE=".chart_details"
+HELM_CHART_FILE="Chart.yaml"
+HELM_PRE_DEPLOY_SCRIPT=".pre_deploy_script"
+HELM_POST_DEPLOY_SCRIPT=".post_deploy_script"
+HELM_SECRETS_FILE="secrets.yaml"
+HELM_VALUES_FILE="values.yaml"
+
+# Determines whether helm secrets should be used instead of the regular helm
+# command
+useHelmSecrets() {
+  local cluster="$1"
+  local namespace="$2"
+  local helmRelease="$3"
+
+  getHelmReleasePath "$cluster" "$namespace" "$helmRelease"
+  if ! [[ -f "$helmReleasePath/$HELM_SECRETS_FILE" ]]; then
+    return 1
+  fi
+}
+
+# Checks whether a Helm release has already been installed
+checkHelmReleaseAlreadyInstalled() {
+  local cluster="$1"
+  local namespace="$2"
+  local helmRelease="$3"
+
+  echo "Checking if the $namespace/$helmRelease release has already been installed in the $cluster cluster"
+
+  # helm status will have an exit code 0 if the release exists and 1 if doesn't
+  helm --kube-context="$cluster" status -n "$namespace" "$helmRelease" 1>/dev/null 2>&1
+}
+
+# Checks whether the directory containing the helm release contains
+# all the prerequisites required for the script to run Helm
+checkFilePrerequisites() {
+  local cluster="$1"
+  local namespace="$2"
+  local helmRelease="$3"
+
+  getHelmReleasePath "$cluster" "$namespace" "$helmRelease"
+
+  if [[ "$helmReleaseLayout" == "v2" ]]; then
+    if ! [[ -f "$helmReleasePath/$HELM_CHART_FILE" ]]; then
+      echo -e "
+$helmReleasePath/$HELM_CHART_FILE does not exist."
+      return 1
+    fi
+    if ! [[ -f "$helmReleasePath/$HELM_VALUES_FILE" ]]; then
+      echo -e "
+$helmReleasePath/$HELM_VALUES_FILE does not exist."
+      return 1
+    fi
+    return 0
+  fi
+
+  if ! [[ -f "$helmReleasePath/$HELM_CHART_DETAILS_FILE" ]]; then
+    echo -e "
+$helmReleasePath/$HELM_CHART_DETAILS_FILE does not exist."
+    printHelmChartDetailsFileFormat
+    return 1
+  fi
+}
+
+printHelmChartDetailsFileFormat() {
+  echo -e "The file should have the following content:
+"
+  echo -e "<NAME OF HELM REPO> <URL FOR HELM REPO> <NAME OF HELM CHART> <OPTIONAL VERSION OF THE HELM CHART TO USE>"
+  echo -e "
+OR
+"
+  echo -e "<RELATIVE PATH TO THE HELM CHART FROM THIS GIT REPOSITORY'S ROOT>"
+}
+
+# Adds the helm repository specified in the helm releaase directory
+addHelmRepo() {
+  local cluster="$1"
+  local namespace="$2"
+  local helmRelease="$3"
+
+  getHelmReleasePath "$cluster" "$namespace" "$helmRelease"
+  if [[ "$helmReleaseLayout" != "legacy" ]]; then
+    return 0
+  fi
+
+  getHelmChartDetails "$cluster" "$namespace" "$helmRelease"
+
+  if [[ "$helmRepoURL" != "" ]] && [[ "$helmRepoName" != "" ]]; then
+    helm repo add "$helmRepoName" "$helmRepoURL" --force-update
+  fi
+}
+
+# Sets the helmChartName, helmChartVersion, helmRepoName, and helmRepoURL variables
+getHelmChartDetails() {
+  local cluster="$1"
+  local namespace="$2"
+  local helmRelease="$3"
+
+  getHelmReleasePath "$cluster" "$namespace" "$helmRelease"
+  if [[ "$helmReleaseLayout" != "legacy" ]]; then
+    return 0
+  fi
+
+  local helmChartFileContent=$(cat "$helmReleasePath/$HELM_CHART_DETAILS_FILE")
+  read -a helmChartFileArr <<<"$helmChartFileContent"
+
+  export helmChartName=""
+  export helmChartVersion=""
+  export helmRepoName=""
+  export helmRepoURL=""
+
+  if [[ ${#helmChartFileArr[@]} != "1" ]] && [[ ${#helmChartFileArr[@]} != "3" ]] && [[ ${#helmChartFileArr[@]} != "4" ]]; then
+    echo "$helmReleasePath/$HELM_CHART_DETAILS_FILE does not seem to contain the correct information"
+    printHelmChartDetailsFileFormat
+    return 1
+  fi
+
+  if [[ ${#helmChartFileArr[@]} -eq 1 ]]; then
+    helmChartName="${helmChartFileArr[0]}"
+  elif [[ ${#helmChartFileArr[@]} -gt 2 ]]; then # handle cases when lenght is 3 and 4
+    helmRepoName="${helmChartFileArr[0]}"
+    helmRepoURL="${helmChartFileArr[1]}"
+    helmChartName="${helmChartFileArr[2]}"
+  fi
+
+  if [[ ${#helmChartFileArr[@]} -gt 3 ]]; then
+    helmChartVersion="${helmChartFileArr[3]}"
+  fi
+}
+
+# Sets the helmReleasePath variable
+getHelmReleasePath() {
+  export k8sCluster="$1"
+  export k8sNamespace="$2"
+  export helmRelease="$3"
+
+  export helmReleaseLayout="legacy"
+  local v2Path="$HELM_RELEASES_V2_ROOT/$helmRelease"
+
+  if [[ -f "$v2Path/$HELM_CHART_FILE" ]]; then
+    helmReleaseLayout="v2"
+    helmReleasePath="$v2Path"
+  else
+    helmReleasePath="$HELM_RELEASES_ROOT/$k8sCluster/$k8sNamespace/$helmRelease"
+  fi
+}
+
+# Installs or upgrades a helm release depending on whether the release was previously installed
+helmInstallRelease() {
+  local cluster="$1"
+  local namespace="$2"
+  local helmRelease="$3"
+  local dryRun="$4"
+
+  checkFilePrerequisites "$cluster" "$namespace" "$helmRelease"
+  getHelmReleasePath "$cluster" "$namespace" "$helmRelease"
+
+  local installCommand="install"
+  if checkHelmReleaseAlreadyInstalled "$cluster" "$namespace" "$helmRelease"; then
+    echo "Release already installed, using upgrade command"
+    installCommand="upgrade"
+  fi
+
+  if [[ "$helmReleaseLayout" == "legacy" ]]; then
+    addHelmRepo "$cluster" "$namespace" "$helmRelease"
+  else
+    echo "Updating chart dependencies in $helmReleasePath"
+    helm dependency update "$helmReleasePath"
+  fi
+
+  local helmMainSubCommand=""
+  local extraFlags=""
+  if useHelmSecrets "$cluster" "$namespace" "$helmRelease"; then
+    echo "Will use 'helm secrets $installCommand' instead of 'helm $installCommand'"
+    helmMainSubCommand="secrets"
+    extraFlags="-f $helmReleasePath/$HELM_SECRETS_FILE"
+  fi
+
+  local helmChartDetails=""
+  local helmChartVerDetails=""
+  if [[ "$helmReleaseLayout" == "legacy" ]]; then
+    getHelmChartDetails "$cluster" "$namespace" "$helmRelease"
+    helmChartDetails="$helmChartName"
+    if [[ $helmRepoName != "" ]]; then
+      helmChartDetails="$helmRepoName/$helmChartName"
+    fi
+    if [[ $helmChartVersion != "" ]]; then
+      helmChartVerDetails="--version $helmChartVersion"
+    fi
+  else
+    helmChartDetails="$helmReleasePath"
+  fi
+
+  if [[ -f "$helmReleasePath/$HELM_PRE_DEPLOY_SCRIPT" ]]; then
+    echo "Running the pre-deploy script"
+    bash "$helmReleasePath/$HELM_PRE_DEPLOY_SCRIPT"
+  fi
+
+  local dryRunFlag=""
+  if [[ "$dryRun" == "true" ]]; then
+    dryRunFlag="--dry-run"
+  fi
+
+  local createNamespaceFlag=""
+  if [[ "$installCommand" == "install" ]]; then
+    createNamespaceFlag="--create-namespace"
+  fi
+
+  helm --kube-context="$cluster" $helmMainSubCommand $installCommand $dryRunFlag $helmChartVerDetails -n "$namespace" $createNamespaceFlag -f "$helmReleasePath/$HELM_VALUES_FILE" $extraFlags "$helmRelease" "$helmChartDetails"
+
+  if [[ -f "$helmReleasePath/$HELM_POST_DEPLOY_SCRIPT" ]]; then
+    echo "Running the post-deploy script"
+    bash "$helmReleasePath/$HELM_POST_DEPLOY_SCRIPT"
+  fi
+}
+
+# Prints out the usage manual for the command
+usage() {
+  cat <<-EOF
+	NAME
+	  Helm release install & update script
+
+	SYNOPSIS
+	  $0 [--dry-run] <name of cluster> <name of namespace> <name of Helm release>
+
+	DESCRIPTION
+  Script for safely installing and updating Helm releases in this repository.
+  - If helm/releases/<release>/Chart.yaml exists, use that release layout.
+  - Otherwise fall back to helm/releases/<cluster>/<namespace>/<release>.
+
+	OPTIONS
+	  --dry-run   Run the script in dry-run mode, which will simulate the Helm commands without applying changes.
+	EOF
+}
+
+# Script entrypoint
+run() {
+  local dryRun=false
+
+  # check for --dry-run flag
+  if [[ "$1" == "--dry-run" ]]; then
+    dryRun=true
+    shift # remove the dry run argument
+  fi
+
+  if [[ "$#" -lt 3 ]]; then
+    usage
+    return 2
+  fi
+
+  local cluster="$1"
+  local namespace="$2"
+  local helmRelease="$3"
+
+  helmInstallRelease "$cluster" "$namespace" "$helmRelease" "$dryRun"
+}
+
+run "$@"

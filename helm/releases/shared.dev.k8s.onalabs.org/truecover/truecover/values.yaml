@@ -1,0 +1,99 @@
+---
+truecover:
+  # Global configuration
+  global:
+    imageRegistry: ""
+    imagePullSecrets: []
+
+  # Backend configuration
+  backend:
+    enabled: true
+    replicaCount: 1
+
+    image:
+      repository: 447036922786.dkr.ecr.eu-central-1.amazonaws.com/onaio/truecover-backend
+      tag: "master"
+      pullPolicy: Always
+
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+    env:
+      FLASK_ENV: "development"
+      PYTHONUNBUFFERED: "1"
+
+    database:
+      host: "ona-stage-enc-aurora.co1dqshnixcv.eu-west-1.rds.amazonaws.com"
+      port: "5432"
+      name: "truecover"
+
+    temporal:
+      host: "temporal"
+      port: "7233"
+      namespace: "default"
+
+  # Frontend configuration
+  frontend:
+    enabled: true
+    replicaCount: 1
+
+    image:
+      repository: 447036922786.dkr.ecr.eu-central-1.amazonaws.com/onaio/truecover-frontend
+      tag: "master"
+      pullPolicy: Always
+
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "64Mi"
+      limits:
+        cpu: "100m"
+        memory: "128Mi"
+
+  # Tiles (Martin) configuration
+  tiles:
+    enabled: true
+    replicaCount: 1
+
+    image:
+      repository: ghcr.io/maplibre/martin
+      tag: "latest"
+      pullPolicy: IfNotPresent
+
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+      limits:
+        cpu: "200m"
+        memory: "256Mi"
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      kubernetes.io/tls-acme: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-production
+      ona.io/use-external-dns: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+
+    tls:
+      enabled: true
+      secretName: truecover-onalabs-org-tls
+
+    hosts:
+      frontend: truecover.onalabs.org
+      api: api.truecover.onalabs.org
+      tiles: tiles.truecover.onalabs.org
+
+  serviceAccount:
+    create: true

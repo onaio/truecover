@@ -1,0 +1,14 @@
+---
+apiVersion: v2
+name: truecover
+description: A Helm chart to deploy TrueCover - geospatial disease surveillance platform
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - truecover
+  - geospatial
+  - disease-surveillance
+  - flask
+  - react
+maintainers:
+  - name: TrueCover Team

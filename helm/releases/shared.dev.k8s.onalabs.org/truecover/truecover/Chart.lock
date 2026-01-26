@@ -1,0 +1,6 @@
+dependencies:
+- name: truecover
+  repository: file://../../../../charts/truecover
+  version: 0.1.0
+digest: sha256:3d389a5b7f9cca54485bc89ea042bd461cd7de7d4e2ccde032189403a2ddc93b
+generated: "2026-01-26T16:18:18.476113808+03:00"

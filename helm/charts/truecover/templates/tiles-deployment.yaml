@@ -1,0 +1,73 @@
+{{- if .Values.tiles.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "truecover.fullname" . }}-tiles
+  labels:
+    {{- include "truecover.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tiles
+spec:
+  replicas: {{ .Values.tiles.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "truecover.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: tiles
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "truecover.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: tiles
+    spec:
+      {{- include "truecover.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "truecover.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: tiles
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.tiles.image.repository }}:{{ .Values.tiles.image.tag }}"
+          imagePullPolicy: {{ .Values.tiles.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "truecover.fullname" . }}
+                  key: DATABASE_URL
+          {{- with .Values.tiles.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tiles.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tiles.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
