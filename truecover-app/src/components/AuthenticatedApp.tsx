@@ -13,10 +13,11 @@ import {
   TacticalBadge,
 } from '../tactical-ui';
 import { useAuth } from '@clerk/clerk-react';
+import { env } from '../config/env';
 
 type AppView = 'home' | 'adaptive-sampling' | 'coverage-prediction';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = env.VITE_API_URL;
 
 function AuthenticatedApp() {
   const { getToken } = useAuth();

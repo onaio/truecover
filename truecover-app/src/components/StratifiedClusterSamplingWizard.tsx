@@ -14,8 +14,9 @@ import {
 import { DraggableAreaCard } from './DraggableAreaCard';
 import { CategoryColumn } from './CategoryColumn';
 import { useDivisions, useDistricts, useAdminBoundaryChildren } from '../hooks/useAdminBoundaries';
+import { env } from '../config/env';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = env.VITE_API_URL;
 
 interface WorkflowProgress {
   status: string;

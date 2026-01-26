@@ -37,6 +37,11 @@ COPY --from=build /app/build /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Copy entrypoint script for runtime config injection
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint to generate env-config.js at container startup
+ENTRYPOINT ["/docker-entrypoint.sh"]
