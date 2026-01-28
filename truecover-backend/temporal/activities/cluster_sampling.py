@@ -348,12 +348,32 @@ async def compute_pixels_for_campaign_areas(
             area_pixel_count = cursor.rowcount
             total_pixels += area_pixel_count
 
-            # Update cached_pixel_count on the campaign_area
+            # Update cached_pixel_count, cached_population, and cached_building_count
             cursor.execute("""
+                WITH pixel_stats AS (
+                    SELECT
+                        COUNT(*) as pixel_count,
+                        COALESCE(SUM(p.population), 0) as total_population
+                    FROM pixel_area pa
+                    JOIN pixels p ON pa.quadkey = p.quadkey
+                    WHERE pa.campaign_area_id = %s
+                ),
+                location_counts AS (
+                    SELECT COUNT(l.id) as building_count
+                    FROM campaign_areas ca
+                    LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
+                        AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                        AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+                        AND ST_Intersects(l.geometry, ca.geometry)
+                    WHERE ca.id = %s
+                )
                 UPDATE campaign_areas
-                SET cached_pixel_count = %s, updated_at = NOW()
+                SET cached_pixel_count = (SELECT pixel_count FROM pixel_stats),
+                    cached_population = (SELECT total_population FROM pixel_stats),
+                    cached_building_count = (SELECT building_count FROM location_counts),
+                    updated_at = NOW()
                 WHERE id = %s
-            """, (area_pixel_count, area_id))
+            """, (area_id, area_id, area_id))
 
         conn.commit()
         activity.logger.info(f"Computed {total_pixels} pixel associations for {len(campaign_area_ids)} areas")
@@ -688,18 +708,22 @@ async def assign_pixels_to_round(
                 WHERE id = %s AND NOT (%s = ANY(COALESCE(rounds, '{}')))
             """, (round_number, coverage_id, round_number))
 
-        # Update cached_sampled_count on campaign_area (count pixels with any round)
+        # Update cached_sampled_count and cached_sampled_population on campaign_area
         cursor.execute("""
             WITH sampled AS (
-                SELECT COUNT(DISTINCT cp.quadkey) as cnt
+                SELECT
+                    COUNT(DISTINCT cp.quadkey) as cnt,
+                    COALESCE(SUM(p.population), 0) as sampled_pop
                 FROM coverage_pixel cp
                 JOIN pixel_area pa ON cp.quadkey = pa.quadkey
+                JOIN pixels p ON cp.quadkey = p.quadkey
                 WHERE pa.campaign_area_id = %s
                   AND cp.rounds IS NOT NULL
                   AND array_length(cp.rounds, 1) > 0
             )
             UPDATE campaign_areas
             SET cached_sampled_count = (SELECT cnt FROM sampled),
+                cached_sampled_population = (SELECT sampled_pop FROM sampled),
                 updated_at = NOW()
             WHERE id = %s
         """, (campaign_area_id, campaign_area_id))
@@ -756,12 +780,15 @@ async def update_campaign_area_sampled_count_for_union(
 
         area_id = str(row[0])
 
-        # Count pixels with rounds assigned
+        # Count pixels and population with rounds assigned
         cursor.execute("""
             WITH sampled AS (
-                SELECT COUNT(DISTINCT cp.quadkey) as cnt
+                SELECT
+                    COUNT(DISTINCT cp.quadkey) as cnt,
+                    COALESCE(SUM(p.population), 0) as sampled_pop
                 FROM coverage_pixel cp
                 JOIN pixel_area pa ON cp.quadkey = pa.quadkey
+                JOIN pixels p ON cp.quadkey = p.quadkey
                 WHERE pa.campaign_area_id = %s
                   AND cp.campaign_id = %s
                   AND cp.indicator_id = %s
@@ -770,6 +797,7 @@ async def update_campaign_area_sampled_count_for_union(
             )
             UPDATE campaign_areas
             SET cached_sampled_count = (SELECT cnt FROM sampled),
+                cached_sampled_population = (SELECT sampled_pop FROM sampled),
                 updated_at = NOW()
             WHERE id = %s
             RETURNING cached_sampled_count
@@ -814,11 +842,14 @@ async def update_campaign_area_sampled_counts(
         results = {}
 
         for area_id in campaign_area_ids:
-            # Count pixels that have been sampled (have any round assigned)
+            # Count pixels and population that have been sampled (have any round assigned)
             cursor.execute("""
-                SELECT COUNT(DISTINCT cp.quadkey)
+                SELECT
+                    COUNT(DISTINCT cp.quadkey),
+                    COALESCE(SUM(p.population), 0)
                 FROM coverage_pixel cp
                 JOIN pixel_area pa ON cp.quadkey = pa.quadkey
+                JOIN pixels p ON cp.quadkey = p.quadkey
                 WHERE pa.campaign_area_id = %s
                   AND cp.campaign_id = %s
                   AND cp.indicator_id = %s
@@ -826,16 +857,19 @@ async def update_campaign_area_sampled_counts(
                   AND array_length(cp.rounds, 1) > 0
             """, (area_id, campaign_id, indicator_id))
 
-            sampled_count = cursor.fetchone()[0] or 0
+            row = cursor.fetchone()
+            sampled_count = row[0] or 0
+            sampled_population = row[1] or 0
             results[area_id] = sampled_count
 
-            # Update cached count
+            # Update cached counts
             cursor.execute("""
                 UPDATE campaign_areas
                 SET cached_sampled_count = %s,
+                    cached_sampled_population = %s,
                     updated_at = NOW()
                 WHERE id = %s
-            """, (sampled_count, area_id))
+            """, (sampled_count, sampled_population, area_id))
 
         conn.commit()
 
@@ -1192,18 +1226,22 @@ async def clear_round_from_pixels(
 
         cleared_count = cursor.rowcount
 
-        # Update cached_sampled_count (count pixels still having rounds)
+        # Update cached_sampled_count and cached_sampled_population (count pixels still having rounds)
         cursor.execute("""
             WITH sampled AS (
-                SELECT COUNT(DISTINCT cp.quadkey) as cnt
+                SELECT
+                    COUNT(DISTINCT cp.quadkey) as cnt,
+                    COALESCE(SUM(p.population), 0) as sampled_pop
                 FROM coverage_pixel cp
                 JOIN pixel_area pa ON cp.quadkey = pa.quadkey
+                JOIN pixels p ON cp.quadkey = p.quadkey
                 WHERE pa.campaign_area_id = %s
                   AND cp.rounds IS NOT NULL
                   AND array_length(cp.rounds, 1) > 0
             )
             UPDATE campaign_areas
             SET cached_sampled_count = (SELECT cnt FROM sampled),
+                cached_sampled_population = (SELECT sampled_pop FROM sampled),
                 updated_at = NOW()
             WHERE id = %s
         """, (campaign_area_id, campaign_area_id))

@@ -869,6 +869,15 @@ def list_rounds(user, campaign_id):
             """, (campaign_id, row[1]))
             pixel_count = cursor.fetchone()[0]
 
+            # Sum population from pixels in this round
+            cursor.execute("""
+                SELECT COALESCE(SUM(p.population), 0)
+                FROM coverage_pixel cp
+                JOIN pixels p ON cp.quadkey = p.quadkey
+                WHERE cp.campaign_id = %s AND %s = ANY(cp.rounds)
+            """, (campaign_id, row[1]))
+            sampled_population = cursor.fetchone()[0] or 0
+
             rounds.append({
                 'id': str(row[0]),
                 'round_number': row[1],
@@ -880,11 +889,23 @@ def list_rounds(user, campaign_id):
                 'updated_at': row[7].isoformat() if row[7] else None,
                 'sampling_target': row[8] if len(row) > 8 else 'locations',
                 'location_count': location_count,
-                'pixel_count': pixel_count
+                'pixel_count': pixel_count,
+                'sampled_population': int(sampled_population)
             })
 
+        # Get total population from all campaign areas
+        cursor.execute("""
+            SELECT COALESCE(SUM(cached_population), 0)
+            FROM campaign_areas
+            WHERE campaign_id = %s
+        """, (campaign_id,))
+        total_population = cursor.fetchone()[0] or 0
+
         cursor.close()
-        return jsonify({'rounds': rounds}), 200
+        return jsonify({
+            'rounds': rounds,
+            'total_population': int(total_population)
+        }), 200
 
     except Exception as e:
         print(f"Error listing rounds: {e}")

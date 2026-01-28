@@ -20,6 +20,7 @@ interface Round {
   updated_at: string;
   location_count: number;
   pixel_count: number;
+  sampled_population: number;
 }
 
 interface RoundsManagerProps {
@@ -38,6 +39,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
   const { getToken } = useAuth();
   const { data: indicators } = useIndicators(projectId);
   const [rounds, setRounds] = useState<Round[]>([]);
+  const [totalPopulation, setTotalPopulation] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -66,6 +68,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
       );
 
       setRounds(response.data.rounds || []);
+      setTotalPopulation(response.data.total_population || 0);
     } catch (err: any) {
       console.error('Error loading rounds:', err);
       // Don't set error if it's just an empty result or table doesn't exist
@@ -192,6 +195,9 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
                   <th className="px-4 py-3 text-center text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
                     Pixels
                   </th>
+                  <th className="px-4 py-3 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">
+                    Sampled Population
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -244,6 +250,27 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
                       onClick={() => handleRoundClick(round.round_number)}
                     >
                       {round.pixel_count}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-right text-sm font-mono cursor-pointer"
+                      onClick={() => handleRoundClick(round.round_number)}
+                    >
+                      {totalPopulation === 0 ? (
+                        <span className="text-tactical-text-muted">—</span>
+                      ) : (
+                        <span>
+                          <span className="text-tactical-accent-green">
+                            {round.sampled_population.toLocaleString()}
+                          </span>
+                          <span className="text-tactical-text-muted"> / </span>
+                          <span className="text-tactical-text-primary">
+                            {totalPopulation.toLocaleString()}
+                          </span>
+                          <span className="text-tactical-accent-green ml-1">
+                            ({Math.round(round.sampled_population / totalPopulation * 100)}%)
+                          </span>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
