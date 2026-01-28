@@ -11,3 +11,7 @@ geoparquet/
 .playwright-mcp/
 
 pixeldata/
+
+# Database dumps
+*.dump
+*.sql.gz

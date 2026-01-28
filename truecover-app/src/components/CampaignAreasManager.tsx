@@ -28,6 +28,7 @@ interface CampaignArea {
   pixel_count: number;
   sampled_count: number;
   total_population: number;
+  sampled_population: number;
   building_count: number;
   division_name: string | null;
   district_name: string | null;
@@ -344,6 +345,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   const totalPixels = areas.reduce((sum, area) => sum + (area.pixel_count || 0), 0);
   const totalSampled = areas.reduce((sum, area) => sum + (area.sampled_count || 0), 0);
   const totalPopulation = areas.reduce((sum, area) => sum + (area.total_population || 0), 0);
+  const totalSampledPopulation = areas.reduce((sum, area) => sum + (area.sampled_population || 0), 0);
   const totalBuildings = areas.reduce((sum, area) => sum + (area.building_count || 0), 0);
 
   return (
@@ -472,7 +474,22 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                           )}
                         </td>
                         <td className="text-right font-mono">
-                          {area.total_population.toLocaleString()}
+                          {area.total_population === 0 ? (
+                            <span className="text-tactical-text-muted">—</span>
+                          ) : (
+                            <span>
+                              <span className="text-tactical-accent-green">
+                                {area.sampled_population.toLocaleString()}
+                              </span>
+                              <span className="text-tactical-text-muted"> / </span>
+                              <span className="text-tactical-text-primary">
+                                {area.total_population.toLocaleString()}
+                              </span>
+                              <span className="text-tactical-accent-green ml-1">
+                                ({Math.round(area.sampled_population / area.total_population * 100)}%)
+                              </span>
+                            </span>
+                          )}
                         </td>
                         <td className="text-right font-mono">
                           {buildingExtractionWorkflows.has(area.id) ? (
@@ -537,8 +554,19 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                           {totalPixels.toLocaleString()}
                         </span>
                       </td>
-                      <td className="text-right font-mono font-bold text-tactical-text-primary">
-                        {totalPopulation.toLocaleString()}
+                      <td className="text-right font-mono font-bold">
+                        <span className="text-tactical-accent-green">
+                          {totalSampledPopulation.toLocaleString()}
+                        </span>
+                        <span className="text-tactical-text-muted"> / </span>
+                        <span className="text-tactical-text-primary">
+                          {totalPopulation.toLocaleString()}
+                        </span>
+                        {totalPopulation > 0 && (
+                          <span className="text-tactical-accent-green ml-1">
+                            ({Math.round(totalSampledPopulation / totalPopulation * 100)}%)
+                          </span>
+                        )}
                       </td>
                       <td className="text-right font-mono font-bold text-tactical-text-primary">
                         {totalBuildings.toLocaleString()}
