@@ -1,20 +1,22 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 import { AppProvider, useAppContext } from './contexts/AppContext';
 import { useUserSync } from './hooks/useUserSync';
 import { locationsApi } from './services/api';
-import HomePage from './pages/HomePage';
-import AdaptiveSamplingPage from './pages/AdaptiveSamplingPage';
-import CoveragePredictionPage from './pages/CoveragePredictionPage';
-import OrganizationManagementPage from './pages/OrganizationManagementPage';
-import TacticalShowcase from './pages/TacticalShowcase';
 import { LocationsWrapper } from './components/RouteWrappers';
 import CreateOrganizationModal from './components/CreateOrganizationModal';
 import CreateProjectModal from './components/CreateProjectModal';
 import AddVisitModal from './components/AddVisitModal';
-import { TacticalButton, TacticalToaster } from './tactical-ui';
+import { TacticalButton, TacticalToaster, TacticalLoader } from './tactical-ui';
 import { Agentation } from 'agentation';
+
+// Lazy-loaded page components for code-splitting
+const HomePage = lazy(() => import('./pages/HomePage'));
+const AdaptiveSamplingPage = lazy(() => import('./pages/AdaptiveSamplingPage'));
+const CoveragePredictionPage = lazy(() => import('./pages/CoveragePredictionPage'));
+const OrganizationManagementPage = lazy(() => import('./pages/OrganizationManagementPage'));
+const TacticalShowcase = lazy(() => import('./pages/TacticalShowcase'));
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
@@ -92,14 +94,20 @@ const AppContent: React.FC = () => {
         )}
       </div>
 
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/admin" element={<OrganizationManagementPage />} />
-        <Route path="/tactical" element={<TacticalShowcase />} />
-        <Route path="/tools/adaptive-sampling" element={<AdaptiveSamplingPage />} />
-        <Route path="/tools/coverage-prediction" element={<CoveragePredictionPage />} />
-        <Route path="/orgs/:orgId/projects/:projectId/campaigns/:campaignId" element={<LocationsWrapper />} />
-      </Routes>
+      <Suspense fallback={
+        <div className="min-h-screen bg-tactical-bg-primary flex items-center justify-center">
+          <TacticalLoader size="lg" />
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/admin" element={<OrganizationManagementPage />} />
+          <Route path="/tactical" element={<TacticalShowcase />} />
+          <Route path="/tools/adaptive-sampling" element={<AdaptiveSamplingPage />} />
+          <Route path="/tools/coverage-prediction" element={<CoveragePredictionPage />} />
+          <Route path="/orgs/:orgId/projects/:projectId/campaigns/:campaignId" element={<LocationsWrapper />} />
+        </Routes>
+      </Suspense>
 
       {/* Create Project Modal */}
       <CreateProjectModal

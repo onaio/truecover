@@ -1,13 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
 import { useOrganization } from '../hooks/useOrganizations';
 import { useProject } from '../hooks/useProjects';
 import { useCampaign } from '../hooks/useCampaigns';
 import { useLocations } from '../hooks/useLocations';
-import CampaignDetailPage from '../pages/CampaignDetailPage';
-import LocationsPage from '../pages/LocationsPage';
 import { TacticalLoader } from '../tactical-ui';
+
+// Lazy-loaded page components for code-splitting
+const CampaignDetailPage = lazy(() => import('../pages/CampaignDetailPage'));
+const LocationsPage = lazy(() => import('../pages/LocationsPage'));
 
 /**
  * Wrapper component for Campaign Detail with deep linking using React Query
@@ -58,7 +60,15 @@ export const AreaDetailWrapper: React.FC = () => {
     );
   }
 
-  return <CampaignDetailPage />;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-tactical-bg-primary flex items-center justify-center">
+        <TacticalLoader size="lg" />
+      </div>
+    }>
+      <CampaignDetailPage />
+    </Suspense>
+  );
 };
 
 /**
@@ -118,5 +128,13 @@ export const LocationsWrapper: React.FC = () => {
     );
   }
 
-  return <LocationsPage />;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-tactical-bg-primary flex items-center justify-center">
+        <TacticalLoader size="lg" />
+      </div>
+    }>
+      <LocationsPage />
+    </Suspense>
+  );
 };
