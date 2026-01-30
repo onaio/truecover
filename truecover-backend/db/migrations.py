@@ -736,6 +736,16 @@ def run_migrations():
             CREATE INDEX IF NOT EXISTS idx_coverage_created_at ON coverage(created_at DESC);
         """)
 
+        # Composite index for campaign + location duplicate detection
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_campaign_location ON coverage(campaign_id, location_id);
+        """)
+
+        # Composite index for location + indicator queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_coverage_location_indicator ON coverage(location_id, indicator_id);
+        """)
+
         # Create coverage_pixel table for storing aggregated pixel-level predictions
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS coverage_pixel (

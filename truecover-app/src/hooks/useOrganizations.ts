@@ -19,6 +19,8 @@ export function useOrganizations() {
       return organizationsApi.list(token);
     },
     enabled: isSignedIn,
+    staleTime: 300000, // Fresh for 5 minutes
+    gcTime: 600000, // Keep in cache for 10 minutes
   });
 }
 
@@ -43,6 +45,8 @@ export function useOrganization(orgId: string | undefined) {
       return organizationsApi.get(orgId, token);
     },
     enabled: !!orgId && isSignedIn,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 

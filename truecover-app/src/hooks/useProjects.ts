@@ -23,6 +23,8 @@ export function useProjects(orgId: string | undefined) {
       return projectsApi.list(orgId, token);
     },
     enabled: !!orgId && isSignedIn,
+    staleTime: 300000, // Fresh for 5 minutes
+    gcTime: 600000, // Keep in cache for 10 minutes
   });
 }
 
@@ -47,6 +49,8 @@ export function useProject(projectId: string | undefined) {
       return projectsApi.get(projectId, token);
     },
     enabled: !!projectId && isSignedIn,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 

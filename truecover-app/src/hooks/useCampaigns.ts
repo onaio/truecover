@@ -23,6 +23,8 @@ export function useCampaigns(projectId: string | undefined) {
       return campaignsApi.list(projectId, token);
     },
     enabled: !!projectId && isSignedIn,
+    staleTime: 300000, // Fresh for 5 minutes
+    gcTime: 600000, // Keep in cache for 10 minutes
   });
 }
 
@@ -47,6 +49,8 @@ export function useCampaign(campaignId: string | undefined) {
       return campaignsApi.get(campaignId, token);
     },
     enabled: !!campaignId && isSignedIn,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 

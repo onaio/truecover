@@ -55,6 +55,7 @@ export const useCampaignAreas = (campaignId: string | undefined) => {
       return response.data.areas || [];
     },
     enabled: !!campaignId,
-    staleTime: 30000,
+    staleTime: 60000, // Fresh for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 };

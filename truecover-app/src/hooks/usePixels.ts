@@ -26,6 +26,8 @@ export function usePixelStats(campaignId: string | undefined) {
       return pixelsApi.getStats(campaignId, token);
     },
     enabled: !!campaignId && isSignedIn,
+    staleTime: 60000, // Fresh for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 
@@ -110,5 +112,7 @@ export function usePixelMetadataStats(campaignId: string | undefined) {
       return pixelsApi.getMetadataStats(campaignId, token);
     },
     enabled: !!campaignId && isSignedIn,
+    staleTime: 60000,
+    gcTime: 300000,
   });
 }

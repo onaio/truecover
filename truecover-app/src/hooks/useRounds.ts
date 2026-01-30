@@ -42,6 +42,7 @@ export const useRounds = (campaignId: string | undefined) => {
       return response.data.rounds || [];
     },
     enabled: !!campaignId,
-    staleTime: 30000, // Consider data fresh for 30 seconds
+    staleTime: 60000, // Fresh for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 };
