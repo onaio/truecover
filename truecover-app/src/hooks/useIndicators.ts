@@ -23,6 +23,8 @@ export function useIndicators(projectId: string | undefined) {
       return indicatorsApi.list(projectId, token);
     },
     enabled: !!projectId && isSignedIn,
+    staleTime: 300000, // Fresh for 5 minutes
+    gcTime: 600000, // Keep in cache for 10 minutes
   });
 }
 
@@ -47,6 +49,8 @@ export function useIndicator(indicatorId: string | undefined) {
       return indicatorsApi.get(indicatorId, token);
     },
     enabled: !!indicatorId && isSignedIn,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
 

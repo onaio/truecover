@@ -35,6 +35,8 @@ export function useAdminBoundaryChildren(pcode: string | undefined) {
       return response.children;
     },
     enabled: !!pcode && isSignedIn,
+    staleTime: 600000, // Fresh for 10 minutes (rarely changes)
+    gcTime: 1800000, // Keep in cache for 30 minutes
   });
 }
 

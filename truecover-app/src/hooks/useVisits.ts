@@ -63,6 +63,8 @@ export function useVisits(roundId: string | undefined) {
       return response.data.visits as Visit[];
     },
     enabled: !!roundId && isSignedIn,
+    staleTime: 30000, // Fresh for 30 seconds (active data entry)
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 
@@ -96,6 +98,8 @@ export function useVisit(visitId: string | undefined) {
       return response.data as Visit;
     },
     enabled: !!visitId && isSignedIn,
+    staleTime: 30000,
+    gcTime: 300000,
   });
 }
 

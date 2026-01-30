@@ -27,6 +27,8 @@ export function useLocations(campaignId: string | undefined) {
       return locationsApi.list(campaignId, token);
     },
     enabled: !!campaignId && isSignedIn,
+    staleTime: 60000, // Fresh for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 
@@ -66,6 +68,8 @@ export function useInfiniteLocations(campaignId: string | undefined) {
     },
     initialPageParam: 0,
     enabled: !!campaignId && isSignedIn,
+    staleTime: 60000,
+    gcTime: 300000,
   });
 }
 

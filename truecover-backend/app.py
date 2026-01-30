@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_compress import Compress
 from dotenv import load_dotenv
 import os
 
@@ -30,6 +31,9 @@ from db.migrations import run_migrations
 
 # Create Flask app
 app = Flask(__name__)
+
+# Enable gzip compression for responses
+Compress(app)
 
 # Configure CORS - allow requests from React app
 CORS(app, origins=[

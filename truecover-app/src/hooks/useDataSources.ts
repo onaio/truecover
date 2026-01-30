@@ -22,6 +22,8 @@ export function useDataSources() {
       return dataSourcesApi.list(token);
     },
     enabled: isSignedIn,
+    staleTime: 300000, // Fresh for 5 minutes
+    gcTime: 600000, // Keep in cache for 10 minutes
   });
 }
 
@@ -46,5 +48,7 @@ export function useDataSource(id: string | undefined) {
       return dataSourcesApi.get(id, token);
     },
     enabled: !!id && isSignedIn,
+    staleTime: 300000,
+    gcTime: 600000,
   });
 }
