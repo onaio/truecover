@@ -45,6 +45,7 @@ interface CampaignAreasManagerProps {
   buildingWorkflows?: Map<string, string>; // areaId -> workflowId
   onBuildingWorkflowComplete?: (areaId: string) => void;
   externalSamplingWorkflows?: Map<string, string>; // areaId -> workflowId
+  isGenerating?: boolean;
 }
 
 type SampleTarget = 'pixels' | 'buildings';
@@ -55,7 +56,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   onRefresh,
   buildingWorkflows,
   onBuildingWorkflowComplete,
-  externalSamplingWorkflows
+  externalSamplingWorkflows,
+  isGenerating
 }) => {
   const { getToken } = useAuth();
   const [areas, setAreas] = useState<CampaignArea[]>([]);
@@ -82,12 +84,21 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     }
   }, [campaignId]);
 
+  // Periodically reload areas while the parent workflow is generating them
+  useEffect(() => {
+    if (!isGenerating) return;
+    const interval = setInterval(() => {
+      loadAreas(true);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
+
   // Start polling for any external sampling workflows (e.g. from stratified cluster)
   useEffect(() => {
     if (!externalSamplingWorkflows) return;
 
     // Reload areas since stratified cluster workflow creates new campaign areas
-    loadAreas();
+    loadAreas(true);
 
     externalSamplingWorkflows.forEach((workflowId, areaId) => {
       if (!samplingWorkflows.has(areaId)) {
@@ -165,8 +176,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     poll();
   };
 
-  const loadAreas = async () => {
-    setIsLoading(true);
+  const loadAreas = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError(null);
 
     try {
@@ -179,7 +190,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
       console.error('Failed to load campaign areas:', err);
       setError(err.response?.data?.error || 'Failed to load areas');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -373,7 +384,23 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     <>
       <TacticalCard padding="lg">
         <TacticalCollapsible
-          title="Campaign Areas"
+          title={
+            isGenerating ? (
+              <span className="flex items-center gap-2">
+                Campaign Areas
+                <span className="tactical-shimmer text-xs font-normal tactical-loading-dots">
+                  Generating<span>.</span><span>.</span><span>.</span>
+                </span>
+              </span>
+            ) : samplingWorkflows.size > 0 ? (
+              <span className="flex items-center gap-2">
+                Campaign Areas
+                <span className="tactical-shimmer text-xs font-normal tactical-loading-dots">
+                  Sampling {samplingWorkflows.size} {samplingWorkflows.size === 1 ? 'area' : 'areas'}<span>.</span><span>.</span><span>.</span>
+                </span>
+              </span>
+            ) : "Campaign Areas"
+          }
           defaultCollapsed={false}
           collapsedSummary={
             !isLoading
@@ -467,7 +494,12 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                         <td className="font-mono font-bold text-tactical-text-primary">
                           {area.name || area.admin_boundary_name || 'Unnamed Area'}
                           {area.category && (
-                            <span className="ml-2 text-xs font-normal text-tactical-text-muted">
+                            <span className={`ml-2 text-xs font-normal ${
+                              area.category === 'high_risk' ? 'text-red-400' :
+                              area.category === 'hard_to_reach' ? 'text-yellow-400' :
+                              area.category === 'low_risk' ? 'text-green-400' :
+                              'text-tactical-text-muted'
+                            }`}>
                               ({area.category.replace(/_/g, ' ')})
                             </span>
                           )}

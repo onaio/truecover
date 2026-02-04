@@ -84,6 +84,7 @@ const LocationsPage: React.FC = () => {
   const [campaignAreasRefreshKey, setCampaignAreasRefreshKey] = useState(0);
   const [buildingWorkflows, setBuildingWorkflows] = useState<Map<string, string>>(new Map()); // areaId -> workflowId
   const [samplingWorkflows, setSamplingWorkflows] = useState<Map<string, string>>(new Map()); // areaId -> workflowId
+  const [isGeneratingAreas, setIsGeneratingAreas] = useState(false);
   const [showCampaignAreas, setShowCampaignAreas] = useState<boolean>(true);
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const { data: indicators } = useIndicators(selectedProject?.id);
@@ -1013,7 +1014,9 @@ const LocationsPage: React.FC = () => {
               onClearAdminBoundary={() => setSelectedAdminBoundary(null)}
               pixelCount={pixelStats?.count || 0}
               indicatorId={selectedIndicatorId}
+              onGeneratingStarted={() => setIsGeneratingAreas(true)}
               onSamplingWorkflowsStarted={(areaWorkflowMap) => {
+                setIsGeneratingAreas(false);
                 setSamplingWorkflows(new Map(Object.entries(areaWorkflowMap)));
               }}
             />
@@ -1025,6 +1028,7 @@ const LocationsPage: React.FC = () => {
               indicatorId={selectedIndicatorId}
               buildingWorkflows={buildingWorkflows}
               externalSamplingWorkflows={samplingWorkflows}
+              isGenerating={isGeneratingAreas}
               onBuildingWorkflowComplete={(areaId) => {
                 setBuildingWorkflows(prev => {
                   const next = new Map(prev);
