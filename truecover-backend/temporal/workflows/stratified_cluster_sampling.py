@@ -22,6 +22,7 @@ with workflow.unsafe.imports_passed_through():
         delete_round_record,
         call_adaptive_sampling,
         update_round_assignments,
+        remove_round_assignments,
     )
 
 
@@ -64,74 +65,102 @@ class UnionPixelSamplingWorkflow:
             maximum_attempts=3
         )
 
-        # Step 1: Create coverage_pixel records for this union
-        self.status = "creating_coverage_pixels"
-        await workflow.execute_activity(
-            create_coverage_pixels_for_union,
-            args=[campaign_id, indicator_id, union_pcode, min_population],
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=retry_policy
-        )
+        selected_ids = []
 
-        # Step 2: Run adaptive sampling
-        self.status = "adaptive_sampling"
-        sampling_result = await workflow.execute_activity(
-            call_adaptive_sampling,
-            args=[
-                campaign_id,
-                indicator_id,
-                'pixels',
-                pixels_per_union,
-                uncertainty_field,
-                False,  # allow_revisit
-                union_pcode,  # admin_pcode filter
-                min_population,
-                'population'  # population_field
-            ],
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=retry_policy
-        )
+        try:
+            # Step 1: Create coverage_pixel records for this union
+            self.status = "creating_coverage_pixels"
+            await workflow.execute_activity(
+                create_coverage_pixels_for_union,
+                args=[campaign_id, indicator_id, union_pcode, min_population],
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=retry_policy
+            )
 
-        selected_ids = sampling_result.get('selected_ids', [])
-        self.pixels_selected = len(selected_ids)
+            # Step 2: Run adaptive sampling
+            self.status = "adaptive_sampling"
+            sampling_result = await workflow.execute_activity(
+                call_adaptive_sampling,
+                args=[
+                    campaign_id,
+                    indicator_id,
+                    'pixels',
+                    pixels_per_union,
+                    uncertainty_field,
+                    False,  # allow_revisit
+                    union_pcode,  # admin_pcode filter
+                    min_population,
+                    'population'  # population_field
+                ],
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=retry_policy
+            )
 
-        if not selected_ids:
-            workflow.logger.warning(f"No pixels selected for union {union_pcode}")
-            self.status = "completed_empty"
+            selected_ids = sampling_result.get('selected_ids', [])
+            self.pixels_selected = len(selected_ids)
+
+            if not selected_ids:
+                workflow.logger.warning(f"No pixels selected for union {union_pcode}")
+                self.status = "completed_empty"
+                return {
+                    'union_pcode': union_pcode,
+                    'selected_ids': [],
+                    'pixels_selected': 0,
+                    'status': 'completed_empty'
+                }
+
+            # Step 3: Update round assignments for this union's pixels
+            self.status = "updating_assignments"
+            await workflow.execute_activity(
+                update_round_assignments,
+                args=[selected_ids, round_number, 'pixels'],
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=retry_policy
+            )
+
+            # Step 4: Update cached_sampled_count for the campaign_area
+            self.status = "updating_sampled_count"
+            await workflow.execute_activity(
+                update_campaign_area_sampled_count_for_union,
+                args=[campaign_id, indicator_id, union_pcode],
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=retry_policy
+            )
+
+            self.status = "completed"
+            workflow.logger.info(f"Completed sampling for union {union_pcode}: {self.pixels_selected} pixels")
+
             return {
                 'union_pcode': union_pcode,
-                'selected_ids': [],
-                'pixels_selected': 0,
-                'status': 'completed_empty'
+                'selected_ids': selected_ids,
+                'pixels_selected': self.pixels_selected,
+                'status': 'completed'
             }
 
-        # Step 3: Update round assignments for this union's pixels
-        self.status = "updating_assignments"
-        await workflow.execute_activity(
-            update_round_assignments,
-            args=[selected_ids, round_number, 'pixels'],
-            start_to_close_timeout=timedelta(minutes=2),
-            retry_policy=retry_policy
-        )
+        except Exception as e:
+            workflow.logger.error(f"Union pixel sampling failed for {union_pcode}: {e}")
+            self.status = "failed"
 
-        # Step 4: Update cached_sampled_count for the campaign_area
-        self.status = "updating_sampled_count"
-        await workflow.execute_activity(
-            update_campaign_area_sampled_count_for_union,
-            args=[campaign_id, indicator_id, union_pcode, self.pixels_selected],
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=retry_policy
-        )
+            # Compensation: remove round assignments if any were made
+            if selected_ids:
+                try:
+                    await workflow.execute_activity(
+                        remove_round_assignments,
+                        args=[selected_ids, round_number, 'pixels'],
+                        start_to_close_timeout=timedelta(minutes=2),
+                        retry_policy=retry_policy
+                    )
+                    await workflow.execute_activity(
+                        update_campaign_area_sampled_count_for_union,
+                        args=[campaign_id, indicator_id, union_pcode],
+                        start_to_close_timeout=timedelta(seconds=30),
+                        retry_policy=retry_policy
+                    )
+                    workflow.logger.info(f"Compensation complete for union {union_pcode}")
+                except Exception as comp_error:
+                    workflow.logger.error(f"Compensation failed for union {union_pcode}: {comp_error}")
 
-        self.status = "completed"
-        workflow.logger.info(f"Completed sampling for union {union_pcode}: {self.pixels_selected} pixels")
-
-        return {
-            'union_pcode': union_pcode,
-            'selected_ids': selected_ids,
-            'pixels_selected': self.pixels_selected,
-            'status': 'completed'
-        }
+            raise
 
 
 @workflow.defn
@@ -279,9 +308,16 @@ class StratifiedClusterSamplingWorkflow:
 
             # Step 4: Create campaign_areas for selected unions
             self.status = "creating_campaign_areas"
+            # Build pcode → category mapping for storage
+            union_category_map = {}
+            for cat, pcodes in union_categories.items():
+                for pcode in pcodes:
+                    if pcode in self.selected_unions:
+                        union_category_map[pcode] = cat
+
             campaign_area_ids = await workflow.execute_activity(
                 create_campaign_areas_for_unions,
-                args=[campaign_id, self.selected_unions],
+                args=[campaign_id, self.selected_unions, union_category_map],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy
             )
@@ -347,6 +383,7 @@ class StratifiedClusterSamplingWorkflow:
                 'selected_unions': self.selected_unions,
                 'campaign_area_ids': campaign_area_ids,
                 'child_workflow_ids': child_workflow_ids,
+                'area_workflow_map': dict(zip(campaign_area_ids, child_workflow_ids)),
                 'status': 'completed'
             }
 

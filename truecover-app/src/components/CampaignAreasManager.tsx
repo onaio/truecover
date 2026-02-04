@@ -34,6 +34,8 @@ interface CampaignArea {
   district_name: string | null;
   upazila_name: string | null;
   union_name: string | null;
+  category: string | null;
+  status: string | null;
   created_at: string;
 }
 
@@ -43,6 +45,7 @@ interface CampaignAreasManagerProps {
   onRefresh?: () => void;
   buildingWorkflows?: Map<string, string>; // areaId -> workflowId
   onBuildingWorkflowComplete?: (areaId: string) => void;
+  externalSamplingWorkflows?: Map<string, string>; // areaId -> workflowId
 }
 
 type SampleTarget = 'pixels' | 'buildings';
@@ -52,7 +55,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   indicatorId,
   onRefresh,
   buildingWorkflows,
-  onBuildingWorkflowComplete
+  onBuildingWorkflowComplete,
+  externalSamplingWorkflows,
 }) => {
   const { getToken } = useAuth();
   const [areas, setAreas] = useState<CampaignArea[]>([]);
@@ -78,6 +82,36 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
       loadAreas();
     }
   }, [campaignId]);
+
+  // Derive sampling status from areas data (persists across page reloads)
+  const samplingAreas = areas.filter(a => a.status === 'sampling');
+
+  // Periodically reload areas while any area is being sampled
+  useEffect(() => {
+    if (samplingAreas.length === 0) return;
+    const interval = setInterval(() => {
+      loadAreas(true);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [samplingAreas.length]);
+
+  // Start polling for any external sampling workflows (e.g. from stratified cluster)
+  useEffect(() => {
+    if (!externalSamplingWorkflows) return;
+
+    // Reload areas since stratified cluster workflow creates new campaign areas
+    loadAreas(true);
+
+    externalSamplingWorkflows.forEach((workflowId, areaId) => {
+      if (!samplingWorkflows.has(areaId)) {
+        setSamplingWorkflows(prev => new Map(prev).set(areaId, {
+          workflowId,
+          status: 'running'
+        }));
+        pollWorkflowStatus(areaId, workflowId);
+      }
+    });
+  }, [externalSamplingWorkflows]);
 
   // Start polling for any new building workflows passed from parent
   useEffect(() => {
@@ -144,8 +178,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     poll();
   };
 
-  const loadAreas = async () => {
-    setIsLoading(true);
+  const loadAreas = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError(null);
 
     try {
@@ -158,7 +192,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
       console.error('Failed to load campaign areas:', err);
       setError(err.response?.data?.error || 'Failed to load areas');
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -352,7 +386,16 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     <>
       <TacticalCard padding="lg">
         <TacticalCollapsible
-          title="Campaign Areas"
+          title={
+            samplingAreas.length > 0 ? (
+              <span className="flex items-center gap-2">
+                Campaign Areas
+                <span className="tactical-shimmer text-xs font-normal tactical-loading-dots">
+                  Sampling {samplingAreas.length} {samplingAreas.length === 1 ? 'area' : 'areas'}<span>.</span><span>.</span><span>.</span>
+                </span>
+              </span>
+            ) : "Campaign Areas"
+          }
           defaultCollapsed={false}
           collapsedSummary={
             !isLoading
@@ -445,6 +488,16 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                       <tr key={area.id} className="group hover:bg-tactical-bg-tertiary transition-colors">
                         <td className="font-mono font-bold text-tactical-text-primary">
                           {area.name || area.admin_boundary_name || 'Unnamed Area'}
+                          {area.category && (
+                            <span className={`ml-2 text-xs font-normal ${
+                              area.category === 'high_risk' ? 'text-red-400' :
+                              area.category === 'hard_to_reach' ? 'text-yellow-400' :
+                              area.category === 'low_risk' ? 'text-green-400' :
+                              'text-tactical-text-muted'
+                            }`}>
+                              ({area.category.replace(/_/g, ' ')})
+                            </span>
+                          )}
                         </td>
                         <td className="text-tactical-text-muted">
                           {area.division_name || '—'}

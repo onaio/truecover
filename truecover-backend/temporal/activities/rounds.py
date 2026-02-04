@@ -130,7 +130,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -146,7 +145,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -163,7 +161,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -180,7 +177,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -199,7 +195,6 @@ async def fetch_coverage_for_sampling(
                         SELECT DISTINCT
                             c.id as coverage_id,
                             c.location_id,
-                            ST_AsGeoJSON(l.geometry) as geometry,
                             l.latitude, l.longitude,
                             c.exceedance_probability, c.exceedance_uncertainty,
                             c.prevalence_bci_width, c.prevalence_prediction,
@@ -215,7 +210,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             c.id as coverage_id,
                             c.location_id,
-                            ST_AsGeoJSON(l.geometry) as geometry,
                             l.latitude, l.longitude,
                             c.exceedance_probability, c.exceedance_uncertainty,
                             c.prevalence_bci_width, c.prevalence_prediction,
@@ -231,7 +225,6 @@ async def fetch_coverage_for_sampling(
                         SELECT DISTINCT
                             c.id as coverage_id,
                             c.location_id,
-                            ST_AsGeoJSON(l.geometry) as geometry,
                             l.latitude, l.longitude,
                             c.exceedance_probability, c.exceedance_uncertainty,
                             c.prevalence_bci_width, c.prevalence_prediction,
@@ -248,7 +241,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             c.id as coverage_id,
                             c.location_id,
-                            ST_AsGeoJSON(l.geometry) as geometry,
                             l.latitude, l.longitude,
                             c.exceedance_probability, c.exceedance_uncertainty,
                             c.prevalence_bci_width, c.prevalence_prediction,
@@ -269,27 +261,25 @@ async def fetch_coverage_for_sampling(
                 results.append({
                     "coverage_id": str(r[0]),
                     "identifier": r[1],  # quadkey
-                    "geometry": json.loads(r[2]) if r[2] else None,
-                    "latitude": float(r[3]) if r[3] else None,
-                    "longitude": float(r[4]) if r[4] else None,
-                    "exceedance_probability": float(r[5]) if r[5] else 0,
-                    "exceedance_uncertainty": float(r[6]) if r[6] else 0,
-                    "prevalence_bci_width": float(r[7]) if r[7] else 0,
-                    "prevalence_prediction": float(r[8]) if r[8] else 0,
+                    "latitude": float(r[2]) if r[2] else None,
+                    "longitude": float(r[3]) if r[3] else None,
+                    "exceedance_probability": float(r[4]) if r[4] else 0,
+                    "exceedance_uncertainty": float(r[5]) if r[5] else 0,
+                    "prevalence_bci_width": float(r[6]) if r[6] else 0,
+                    "prevalence_prediction": float(r[7]) if r[7] else 0,
                 })
             else:
-                properties = r[9] if isinstance(r[9], dict) else json.loads(r[9]) if r[9] else {}
+                properties = r[8] if isinstance(r[8], dict) else json.loads(r[8]) if r[8] else {}
                 results.append({
                     "coverage_id": str(r[0]),
                     "location_id": str(r[1]),
-                    "identifier": r[10],  # external_id
-                    "geometry": json.loads(r[2]) if r[2] else None,
-                    "latitude": float(r[3]) if r[3] else None,
-                    "longitude": float(r[4]) if r[4] else None,
-                    "exceedance_probability": float(r[5]) if r[5] else 0,
-                    "exceedance_uncertainty": float(r[6]) if r[6] else 0,
-                    "prevalence_bci_width": float(r[7]) if r[7] else 0,
-                    "prevalence_prediction": float(r[8]) if r[8] else 0,
+                    "identifier": r[9],  # external_id
+                    "latitude": float(r[2]) if r[2] else None,
+                    "longitude": float(r[3]) if r[3] else None,
+                    "exceedance_probability": float(r[4]) if r[4] else 0,
+                    "exceedance_uncertainty": float(r[5]) if r[5] else 0,
+                    "prevalence_bci_width": float(r[6]) if r[6] else 0,
+                    "prevalence_prediction": float(r[7]) if r[7] else 0,
                     "properties": properties,
                 })
 
@@ -336,58 +326,24 @@ async def call_adaptive_sampling(
 
     activity.logger.info(f"Fetched {len(coverage_data)} {sampling_target} for adaptive sampling")
 
-    # Build GeoJSON features
-    features = []
-    for idx, record in enumerate(coverage_data):
-        if sampling_target == 'pixels':
-            # Use centroid point for pixels
-            geometry = {
-                'type': 'Point',
-                'coordinates': [record["longitude"], record["latitude"]]
-            }
-            properties = {
-                'quadkey': record["identifier"],
-                'exceedance_probability': record["exceedance_probability"],
-                'exceedance_uncertainty': record["exceedance_uncertainty"],
-                'prevalence_bci_width': record["prevalence_bci_width"],
-                'prevalence_prediction': record["prevalence_prediction"],
-            }
-        else:
-            # Always use Point centroid for adaptive sampling (R function can't handle polygons)
-            geometry = {
-                'type': 'Point',
-                'coordinates': [record["longitude"], record["latitude"]]
-            }
-            properties = record.get("properties", {}).copy()
-            properties.update({
-                'external_id': record["identifier"],
-                'exceedance_probability': record["exceedance_probability"],
-                'exceedance_uncertainty': record["exceedance_uncertainty"],
-                'prevalence_bci_width': record["prevalence_bci_width"],
-                'prevalence_prediction': record["prevalence_prediction"],
-            })
+    # Build simple arrays for sampling service
+    coordinates = []
+    uncertainty_values = []
+    coverage_ids = []
 
-        features.append({
-            'type': 'Feature',
-            'id': idx,
-            'geometry': geometry,
-            'properties': properties
-        })
+    for record in coverage_data:
+        coordinates.append([record["longitude"], record["latitude"]])
+        uncertainty_values.append(record.get(uncertainty_field, 0))
+        coverage_ids.append(record["coverage_id"])
 
-    geojson_data = {
-        'type': 'FeatureCollection',
-        'features': features
-    }
-
-    # Call sampling service
     payload = {
-        'point_data': geojson_data,
-        'uncertainty_fieldname': uncertainty_field,
+        'coordinates': coordinates,
+        'uncertainty': uncertainty_values,
         'batch_size': batch_size
     }
 
     activity.logger.info(f"Calling adaptive sampling service at {SAMPLING_URL}")
-    activity.logger.info(f"Payload has {len(features)} features, batch_size={batch_size}, uncertainty_field={uncertainty_field}")
+    activity.logger.info(f"Payload has {len(coordinates)} points, batch_size={batch_size}, uncertainty_field={uncertainty_field}")
 
     response = requests.post(
         SAMPLING_URL,
@@ -400,55 +356,29 @@ async def call_adaptive_sampling(
 
     response.raise_for_status()
 
-    # R function may print stdout messages before/after JSON - extract just the JSON
-    response_text = response.text
-    json_start = response_text.find('{')
-    if json_start == -1:
-        raise ValueError(f"No JSON found in response: {response_text[:200]}")
+    # OpenFaaS watchdog may mix stderr into the response body (before
+    # and/or after the JSON).  Use raw_decode to extract just the first
+    # complete JSON object.
+    import json as json_mod
+    body = response.text
+    json_start = body.find('{')
+    if json_start < 0:
+        raise RuntimeError(f"No JSON in adaptive sampling response: {body[:200]}")
 
-    # Find matching closing brace by counting
-    depth = 0
-    json_end = json_start
-    for i, char in enumerate(response_text[json_start:], start=json_start):
-        if char == '{':
-            depth += 1
-        elif char == '}':
-            depth -= 1
-            if depth == 0:
-                json_end = i + 1
-                break
+    decoder = json_mod.JSONDecoder()
+    result, _ = decoder.raw_decode(body, json_start)
 
-    if json_start > 0 or json_end < len(response_text):
-        activity.logger.info(f"Extracting JSON from position {json_start} to {json_end} (total response: {len(response_text)} bytes)")
+    # Check for function-level errors
+    if isinstance(result, dict) and result.get('function_status') == 'error':
+        raise RuntimeError(f"Adaptive sampling error: {result.get('result', 'unknown')}")
 
-    response_text = response_text[json_start:json_end]
-    result = json.loads(response_text)
-
-    # Extract result if wrapped
-    if result.get('function_status') == 'success' and result.get('result'):
+    # Unwrap if wrapped by OpenFaaS
+    if isinstance(result, dict) and result.get('function_status') == 'success' and result.get('result'):
         result = result['result']
 
-    features_result = result.get('features', [])
-    activity.logger.info(f"Adaptive sampling returned {len(features_result)} features")
-
-    # Build lookup dict by identifier for efficient fallback (sampling service doesn't preserve id field)
-    identifier_to_coverage_id = {record["identifier"]: record["coverage_id"] for record in coverage_data}
-
-    # Extract only the IDs of selected items (not the full data)
-    selected_ids = []
-    for idx, feature in enumerate(features_result):
-        properties = feature.get('properties', {})
-        adaptively_selected = properties.get('adaptively_selected', 0)
-
-        if adaptively_selected == 1:
-            # Sampling service doesn't preserve the id field, so look up by identifier
-            identifier = properties.get('quadkey' if sampling_target == 'pixels' else 'external_id')
-            coverage_id = identifier_to_coverage_id.get(identifier)
-
-            if not coverage_id:
-                activity.logger.warning(f"Could not find coverage record for identifier {identifier}")
-            else:
-                selected_ids.append(coverage_id)
+    # Map selected indices back to coverage IDs
+    selected_indices = result.get('selected_indices', [])
+    selected_ids = [coverage_ids[i] for i in selected_indices]
 
     activity.logger.info(f"Selected {len(selected_ids)} {sampling_target} for sampling")
 
@@ -482,26 +412,61 @@ async def update_round_assignments(
         if not selected_ids:
             return 0
 
-        # Batch update all selected records
-        if sampling_target == 'pixels':
-            cursor.executemany("""
-                UPDATE coverage_pixel
-                SET rounds = array_append(rounds, %s),
-                    updated_at = NOW()
-                WHERE id = %s
-            """, [(round_number, coverage_id) for coverage_id in selected_ids])
-        else:
-            cursor.executemany("""
-                UPDATE coverage
-                SET rounds = array_append(rounds, %s),
-                    updated_at = NOW()
-                WHERE id = %s
-            """, [(round_number, coverage_id) for coverage_id in selected_ids])
+        # Batch update all selected records in a single query
+        table = 'coverage_pixel' if sampling_target == 'pixels' else 'coverage'
+        cursor.execute(f"""
+            UPDATE {table}
+            SET rounds = array_append(rounds, %s),
+                updated_at = NOW()
+            WHERE id = ANY(%s::uuid[])
+        """, (round_number, selected_ids))
 
         conn.commit()
         selected_count = len(selected_ids)
         activity.logger.info(f"Updated {selected_count} {sampling_target} with round {round_number}")
         return selected_count
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+
+@activity.defn
+async def remove_round_assignments(
+    selected_ids: List[str],
+    round_number: int,
+    sampling_target: str
+) -> int:
+    """
+    Remove round assignments from coverage records (compensation activity).
+
+    Args:
+        selected_ids: List of coverage IDs to remove the round from
+        round_number: Round number to remove
+        sampling_target: 'locations' or 'pixels'
+
+    Returns:
+        Number of items updated
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        if not selected_ids:
+            return 0
+
+        table = 'coverage_pixel' if sampling_target == 'pixels' else 'coverage'
+
+        cursor.execute(f"""
+            UPDATE {table}
+            SET rounds = array_remove(COALESCE(rounds, '{{}}'), %s),
+                updated_at = NOW()
+            WHERE id = ANY(%s::uuid[]) AND %s = ANY(COALESCE(rounds, '{{}}'))
+        """, (round_number, selected_ids, round_number))
+
+        conn.commit()
+        removed_count = cursor.rowcount
+        activity.logger.info(f"Removed round {round_number} from {removed_count} {sampling_target}")
+        return removed_count
     finally:
         cursor.close()
         return_db_connection(conn)

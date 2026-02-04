@@ -229,7 +229,8 @@ async def save_cluster_sampling_config(
 @activity.defn
 async def create_campaign_areas_for_unions(
     campaign_id: str,
-    union_pcodes: List[str]
+    union_pcodes: List[str],
+    union_category_map: Optional[Dict[str, str]] = None
 ) -> List[str]:
     """
     Create campaign_areas for each selected union.
@@ -237,6 +238,7 @@ async def create_campaign_areas_for_unions(
     Args:
         campaign_id: Campaign to add areas to
         union_pcodes: List of union pcodes to add as campaign areas
+        union_category_map: Optional mapping of pcode -> category name
 
     Returns:
         List of created campaign_area IDs
@@ -271,6 +273,7 @@ async def create_campaign_areas_for_unions(
             bbox_min_lat = row[4]
             bbox_max_lng = row[5]
             bbox_max_lat = row[6]
+            category = union_category_map.get(pcode) if union_category_map else None
 
             # Check if this area already exists for the campaign
             cursor.execute("""
@@ -280,6 +283,10 @@ async def create_campaign_areas_for_unions(
 
             existing = cursor.fetchone()
             if existing:
+                # Update category and set status to sampling
+                cursor.execute("""
+                    UPDATE campaign_areas SET category = %s, status = 'sampling' WHERE id = %s
+                """, (category, str(existing[0])))
                 created_ids.append(str(existing[0]))
                 continue
 
@@ -287,13 +294,15 @@ async def create_campaign_areas_for_unions(
             cursor.execute("""
                 INSERT INTO campaign_areas (
                     campaign_id, name, area_type, admin_boundary_id, geometry,
-                    bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat
+                    bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
+                    category, status
                 )
-                VALUES (%s, %s, 'admin_boundary', %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s)
+                VALUES (%s, %s, 'admin_boundary', %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s, %s, 'sampling')
                 RETURNING id
             """, (
                 campaign_id, name, admin_boundary_id, geometry_wkt,
-                bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat
+                bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
+                category
             ))
 
             area_id = str(cursor.fetchone()[0])
@@ -335,12 +344,18 @@ async def compute_pixels_for_campaign_areas(
                 DELETE FROM pixel_area WHERE campaign_area_id = %s
             """, (area_id,))
 
-            # Insert pixels that intersect this area
+            # Insert pixels whose centroid falls inside this area.
+            # Use bounding box filter (&&) first for spatial index, then
+            # refine with ST_Contains on the centroid to exclude edge pixels.
             cursor.execute("""
                 INSERT INTO pixel_area (quadkey, campaign_area_id)
                 SELECT p.quadkey, %s
                 FROM pixels p
-                JOIN campaign_areas ca ON ST_Intersects(p.geometry, ca.geometry)
+                JOIN campaign_areas ca ON p.geometry && ca.geometry
+                    AND ST_Contains(
+                        ca.geometry,
+                        ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)
+                    )
                 WHERE ca.id = %s
                 ON CONFLICT (quadkey, campaign_area_id) DO NOTHING
             """, (area_id, area_id))
@@ -415,7 +430,7 @@ async def create_coverage_pixels_for_union(
         if min_population is not None:
             pop_filter = f"AND p.population >= {int(min_population)}"
 
-        # Insert coverage_pixel records for all pixels in this union that don't already exist
+        # Insert coverage_pixel records for all pixels in this union, skipping duplicates
         cursor.execute(f"""
             INSERT INTO coverage_pixel (
                 campaign_id, indicator_id, quadkey, version,
@@ -427,14 +442,8 @@ async def create_coverage_pixels_for_union(
             FROM pixels p
             WHERE p.adm4_pcode = %s
               {pop_filter}
-              AND NOT EXISTS (
-                  SELECT 1 FROM coverage_pixel cp
-                  WHERE cp.campaign_id = %s
-                    AND cp.indicator_id = %s
-                    AND cp.quadkey = p.quadkey
-                    AND cp.version = 0
-              )
-        """, (campaign_id, indicator_id, union_pcode, campaign_id, indicator_id))
+            ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
+        """, (campaign_id, indicator_id, union_pcode))
 
         created_count = cursor.rowcount
         conn.commit()
@@ -477,7 +486,7 @@ async def create_coverage_pixels_for_campaign_area(
         if min_population is not None:
             pop_filter = f"AND p.population >= {int(min_population)}"
 
-        # Insert coverage_pixel records for all pixels in this campaign area
+        # Insert coverage_pixel records for all pixels in this campaign area, skipping duplicates
         cursor.execute(f"""
             INSERT INTO coverage_pixel (
                 campaign_id, indicator_id, quadkey, version,
@@ -490,14 +499,8 @@ async def create_coverage_pixels_for_campaign_area(
             JOIN pixels p ON pa.quadkey = p.quadkey
             WHERE pa.campaign_area_id = %s
               {pop_filter}
-              AND NOT EXISTS (
-                  SELECT 1 FROM coverage_pixel cp
-                  WHERE cp.campaign_id = %s
-                    AND cp.indicator_id = %s
-                    AND cp.quadkey = pa.quadkey
-                    AND cp.version = 0
-              )
-        """, (campaign_id, indicator_id, campaign_area_id, campaign_id, indicator_id))
+            ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
+        """, (campaign_id, indicator_id, campaign_area_id))
 
         created_count = cursor.rowcount
         conn.commit()
@@ -584,43 +587,31 @@ async def sample_pixels_for_campaign_area(
         if not records:
             return {'selected_ids': [], 'total_items': 0, 'message': 'No unsampled pixels found'}
 
-        # Build GeoJSON features
-        features = []
-        coverage_id_map = {}
+        # Build simple arrays for sampling service
+        field_to_col = {
+            'exceedance_probability': 4,
+            'exceedance_uncertainty': 5,
+            'prevalence_bci_width': 6,
+            'prevalence_prediction': 7,
+        }
+        uncertainty_col = field_to_col.get(uncertainty_field, 6)
 
-        for idx, r in enumerate(records):
-            coverage_pixel_id = str(r[0])
-            quadkey = r[1]
-            lat, lon = float(r[2]), float(r[3])
+        coordinates = []
+        uncertainty_values = []
+        coverage_ids = []
 
-            features.append({
-                'type': 'Feature',
-                'id': idx,
-                'geometry': {
-                    'type': 'Point',
-                    'coordinates': [lon, lat]
-                },
-                'properties': {
-                    'quadkey': quadkey,
-                    'exceedance_probability': float(r[4]) if r[4] else 0.5,
-                    'exceedance_uncertainty': float(r[5]) if r[5] else 0.5,
-                    'prevalence_bci_width': float(r[6]) if r[6] else 0.5,
-                    'prevalence_prediction': float(r[7]) if r[7] else 0.5,
-                }
-            })
-            coverage_id_map[quadkey] = coverage_pixel_id
+        for r in records:
+            coordinates.append([float(r[3]), float(r[2])])  # [lon, lat]
+            uncertainty_values.append(float(r[uncertainty_col]) if r[uncertainty_col] else 0.5)
+            coverage_ids.append(str(r[0]))
 
-        # Call adaptive sampling
         payload = {
-            'point_data': {
-                'type': 'FeatureCollection',
-                'features': features
-            },
-            'uncertainty_fieldname': uncertainty_field,
-            'batch_size': min(sample_count, len(features))
+            'coordinates': coordinates,
+            'uncertainty': uncertainty_values,
+            'batch_size': min(sample_count, len(coordinates))
         }
 
-        activity.logger.info(f"Calling adaptive sampling for {len(features)} pixels, selecting {sample_count}")
+        activity.logger.info(f"Calling adaptive sampling for {len(coordinates)} pixels, selecting {sample_count}")
 
         response = requests.post(
             SAMPLING_URL,
@@ -630,36 +621,15 @@ async def sample_pixels_for_campaign_area(
         )
         response.raise_for_status()
 
-        # Parse response (handle R function output)
-        response_text = response.text
-        json_start = response_text.find('{')
-        if json_start == -1:
-            return {'selected_ids': [], 'error': 'No JSON in response'}
+        result = response.json()
 
-        depth = 0
-        json_end = json_start
-        for i, char in enumerate(response_text[json_start:], start=json_start):
-            if char == '{':
-                depth += 1
-            elif char == '}':
-                depth -= 1
-                if depth == 0:
-                    json_end = i + 1
-                    break
-
-        result = json.loads(response_text[json_start:json_end])
-
-        if result.get('function_status') == 'success' and result.get('result'):
+        # Unwrap if wrapped by OpenFaaS
+        if isinstance(result, dict) and result.get('function_status') == 'success' and result.get('result'):
             result = result['result']
 
-        # Extract selected IDs
-        selected_ids = []
-        for feature in result.get('features', []):
-            props = feature.get('properties', {})
-            if props.get('adaptively_selected', 0) == 1:
-                quadkey = props.get('quadkey')
-                if quadkey and quadkey in coverage_id_map:
-                    selected_ids.append(coverage_id_map[quadkey])
+        # Map selected indices back to coverage IDs
+        selected_indices = result.get('selected_indices', [])
+        selected_ids = [coverage_ids[i] for i in selected_indices]
 
         activity.logger.info(f"Selected {len(selected_ids)} pixels from campaign_area {campaign_area_id}")
 
@@ -699,14 +669,13 @@ async def assign_pixels_to_round(
         if not selected_ids:
             return 0
 
-        # Add round number to pixels
-        for coverage_id in selected_ids:
-            cursor.execute("""
-                UPDATE coverage_pixel
-                SET rounds = array_append(COALESCE(rounds, '{}'), %s),
-                    updated_at = NOW()
-                WHERE id = %s AND NOT (%s = ANY(COALESCE(rounds, '{}')))
-            """, (round_number, coverage_id, round_number))
+        # Add round number to pixels in a single batch query
+        cursor.execute("""
+            UPDATE coverage_pixel
+            SET rounds = array_append(COALESCE(rounds, '{}'), %s),
+                updated_at = NOW()
+            WHERE id = ANY(%s::uuid[]) AND NOT (%s = ANY(COALESCE(rounds, '{}')))
+        """, (round_number, selected_ids, round_number))
 
         # Update cached_sampled_count and cached_sampled_population on campaign_area
         cursor.execute("""
@@ -744,7 +713,6 @@ async def update_campaign_area_sampled_count_for_union(
     campaign_id: str,
     indicator_id: str,
     union_pcode: str,
-    _sampled_count: int = 0  # Kept for backward compatibility, not used
 ) -> Optional[str]:
     """
     Update cached_sampled_count for the campaign area matching a union pcode.
@@ -754,7 +722,6 @@ async def update_campaign_area_sampled_count_for_union(
         campaign_id: Campaign ID
         indicator_id: Indicator ID
         union_pcode: Union pcode to find campaign_area for
-        _sampled_count: Deprecated, count is calculated from coverage_pixel
 
     Returns:
         Campaign area ID if found and updated, None otherwise
@@ -798,6 +765,7 @@ async def update_campaign_area_sampled_count_for_union(
             UPDATE campaign_areas
             SET cached_sampled_count = (SELECT cnt FROM sampled),
                 cached_sampled_population = (SELECT sampled_pop FROM sampled),
+                status = NULL,
                 updated_at = NOW()
             WHERE id = %s
             RETURNING cached_sampled_count

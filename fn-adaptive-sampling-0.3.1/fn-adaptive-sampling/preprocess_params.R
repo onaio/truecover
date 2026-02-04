@@ -1,12 +1,9 @@
-suppressPackageStartupMessages(library(sf))
-
 function(params) {
-  # if batch_size exists, must be a number > 0
+  # Validate batch_size
   if (!is.null(params[['batch_size']])) {
     if (!is.numeric(params[['batch_size']])) {
       stop('Parameter `batch_size` is not numeric')
     }
-
     if (params[['batch_size']] < 1) {
       stop('Parameter `batch_size` must be greater than zero')
     }
@@ -14,35 +11,36 @@ function(params) {
     params[['batch_size']] = 1
   }
 
-
-
-  # Individual check for each parameter
-  if (is.null(params[['point_data']])) {
-    stop('Missing required `point_data` parameter')
+  # Validate required parameters
+  if (is.null(params[['coordinates']])) {
+    stop('Missing required `coordinates` parameter')
   }
 
-  if (is.null(params[['uncertainty_fieldname']])) {
-    stop('Mising required `uncertainty_fieldname` parameter')
+  if (is.null(params[['uncertainty']])) {
+    stop('Missing required `uncertainty` parameter')
   }
 
-  point_data = st_read(as.json(params[['point_data']]), quiet=T)
-  params[['point_data']] = point_data
+  # Convert coordinates to matrix and uncertainty to numeric vector.
+  # fromJSON may return a matrix (uniform array) or a list (ragged),
+  # so handle both.
+  coords <- params[['coordinates']]
+  if (!is.matrix(coords)) {
+    coords <- do.call(rbind, coords)
+  }
+  params[['coordinates']] <- coords
+  params[['uncertainty']] <- as.numeric(unlist(params[['uncertainty']]))
 
-  # Check
-  uncertainty_fieldname = params[['uncertainty_fieldname']]
+  n_coords <- nrow(params[['coordinates']])
+  n_uncertainty <- length(params[['uncertainty']])
 
-  # Check if uncertainty field exists in the data
-  point_data_df = as.data.frame(point_data)
-  if (!(uncertainty_fieldname %in% names(point_data_df))) {
-    stop(paste0('Uncertainty field "', uncertainty_fieldname, '" not found in data. Available fields: ', paste(names(point_data_df), collapse=', ')))
+  if (n_coords != n_uncertainty) {
+    stop(paste0('coordinates (', n_coords, ') and uncertainty (', n_uncertainty, ') must have same length'))
   }
 
-  rows_we_can_sample = sum(!is.na(point_data_df[, uncertainty_fieldname]))
-  if (params[['batch_size']] > rows_we_can_sample) {
-    stop('Batch size is larger than the number of points for which uncertainty is available (not NA)')
+  rows_available <- sum(!is.na(params[['uncertainty']]))
+  if (params[['batch_size']] > rows_available) {
+    stop('Batch size is larger than the number of points with non-NA uncertainty')
   }
 
-
-  # NOTE: Not all DiSARM functions use a `main.R` file that mutates the params. This one does.
   return(params)
 }
