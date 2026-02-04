@@ -9,7 +9,7 @@ DECLARE
     metadata_field text;
 BEGIN
     target_campaign_id := (query_params->>'campaign_id')::uuid;
-    target_indicator_id := (query_params->>'indicator_id')::uuid;
+    target_indicator_id := NULLIF(query_params->>'indicator_id', '')::uuid;
     metadata_field := query_params->>'metadata_field';
 
     IF target_campaign_id IS NULL THEN

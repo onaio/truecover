@@ -253,7 +253,7 @@ def run_campaign_refactor_migration():
                 metadata_field text;
             BEGIN
                 target_campaign_id := (query_params->>'campaign_id')::uuid;
-                target_indicator_id := (query_params->>'indicator_id')::uuid;
+                target_indicator_id := NULLIF(query_params->>'indicator_id', '')::uuid;
                 metadata_field := query_params->>'metadata_field';
 
                 IF target_campaign_id IS NULL THEN
@@ -341,7 +341,7 @@ def run_campaign_refactor_migration():
             BEGIN
                 -- Extract campaign_id and indicator_id from query params
                 target_campaign_id := (query_params->>'campaign_id')::uuid;
-                target_indicator_id := (query_params->>'indicator_id')::uuid;
+                target_indicator_id := NULLIF(query_params->>'indicator_id', '')::uuid;
 
                 -- If no campaign_id provided, return empty tile
                 IF target_campaign_id IS NULL THEN
