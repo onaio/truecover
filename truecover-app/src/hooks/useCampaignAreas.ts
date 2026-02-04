@@ -29,6 +29,7 @@ export interface CampaignArea {
   district_name: string | null;
   upazila_name: string | null;
   union_name: string | null;
+  category: string | null;
   created_at: string;
 }
 

@@ -308,9 +308,16 @@ class StratifiedClusterSamplingWorkflow:
 
             # Step 4: Create campaign_areas for selected unions
             self.status = "creating_campaign_areas"
+            # Build pcode → category mapping for storage
+            union_category_map = {}
+            for cat, pcodes in union_categories.items():
+                for pcode in pcodes:
+                    if pcode in self.selected_unions:
+                        union_category_map[pcode] = cat
+
             campaign_area_ids = await workflow.execute_activity(
                 create_campaign_areas_for_unions,
-                args=[campaign_id, self.selected_unions],
+                args=[campaign_id, self.selected_unions, union_category_map],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy
             )

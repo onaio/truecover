@@ -34,6 +34,7 @@ interface CampaignArea {
   district_name: string | null;
   upazila_name: string | null;
   union_name: string | null;
+  category: string | null;
   created_at: string;
 }
 
@@ -84,6 +85,9 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   // Start polling for any external sampling workflows (e.g. from stratified cluster)
   useEffect(() => {
     if (!externalSamplingWorkflows) return;
+
+    // Reload areas since stratified cluster workflow creates new campaign areas
+    loadAreas();
 
     externalSamplingWorkflows.forEach((workflowId, areaId) => {
       if (!samplingWorkflows.has(areaId)) {
@@ -462,6 +466,11 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                       <tr key={area.id} className="group hover:bg-tactical-bg-tertiary transition-colors">
                         <td className="font-mono font-bold text-tactical-text-primary">
                           {area.name || area.admin_boundary_name || 'Unnamed Area'}
+                          {area.category && (
+                            <span className="ml-2 text-xs font-normal text-tactical-text-muted">
+                              ({area.category.replace(/_/g, ' ')})
+                            </span>
+                          )}
                         </td>
                         <td className="text-tactical-text-muted">
                           {area.division_name || '—'}

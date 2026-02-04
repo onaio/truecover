@@ -291,7 +291,8 @@ def list_campaign_areas(user, campaign_id):
                 upz.name as upazila_name,
                 uni.name as union_name,
                 COALESCE(ca.cached_sampled_count, 0) as sampled_count,
-                COALESCE(ca.cached_sampled_population, 0) as sampled_population
+                COALESCE(ca.cached_sampled_population, 0) as sampled_population,
+                ca.category
             FROM campaign_areas ca
             LEFT JOIN admin_boundaries ab ON ca.admin_boundary_id = ab.id
             -- Get parent boundary names using the pcode hierarchy
@@ -329,7 +330,8 @@ def list_campaign_areas(user, campaign_id):
                 'upazila_name': row[18],
                 'union_name': row[19],
                 'sampled_count': row[20] or 0,
-                'sampled_population': int(row[21]) if row[21] else 0
+                'sampled_population': int(row[21]) if row[21] else 0,
+                'category': row[22]
             }
             areas.append(area)
 

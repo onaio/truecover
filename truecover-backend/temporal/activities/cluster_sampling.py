@@ -229,7 +229,8 @@ async def save_cluster_sampling_config(
 @activity.defn
 async def create_campaign_areas_for_unions(
     campaign_id: str,
-    union_pcodes: List[str]
+    union_pcodes: List[str],
+    union_category_map: Optional[Dict[str, str]] = None
 ) -> List[str]:
     """
     Create campaign_areas for each selected union.
@@ -237,6 +238,7 @@ async def create_campaign_areas_for_unions(
     Args:
         campaign_id: Campaign to add areas to
         union_pcodes: List of union pcodes to add as campaign areas
+        union_category_map: Optional mapping of pcode -> category name
 
     Returns:
         List of created campaign_area IDs
@@ -271,6 +273,7 @@ async def create_campaign_areas_for_unions(
             bbox_min_lat = row[4]
             bbox_max_lng = row[5]
             bbox_max_lat = row[6]
+            category = union_category_map.get(pcode) if union_category_map else None
 
             # Check if this area already exists for the campaign
             cursor.execute("""
@@ -280,6 +283,11 @@ async def create_campaign_areas_for_unions(
 
             existing = cursor.fetchone()
             if existing:
+                # Update category on existing area if provided
+                if category:
+                    cursor.execute("""
+                        UPDATE campaign_areas SET category = %s WHERE id = %s
+                    """, (category, str(existing[0])))
                 created_ids.append(str(existing[0]))
                 continue
 
@@ -287,13 +295,15 @@ async def create_campaign_areas_for_unions(
             cursor.execute("""
                 INSERT INTO campaign_areas (
                     campaign_id, name, area_type, admin_boundary_id, geometry,
-                    bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat
+                    bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
+                    category
                 )
-                VALUES (%s, %s, 'admin_boundary', %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s)
+                VALUES (%s, %s, 'admin_boundary', %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 campaign_id, name, admin_boundary_id, geometry_wkt,
-                bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat
+                bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
+                category
             ))
 
             area_id = str(cursor.fetchone()[0])
