@@ -252,18 +252,15 @@ def run_campaign_refactor_migration():
                 target_indicator_id uuid;
                 metadata_field text;
             BEGIN
-                -- Extract campaign_id, indicator_id, and metadata_field from query params
                 target_campaign_id := (query_params->>'campaign_id')::uuid;
                 target_indicator_id := (query_params->>'indicator_id')::uuid;
                 metadata_field := query_params->>'metadata_field';
 
-                -- If no campaign_id provided, return empty tile
                 IF target_campaign_id IS NULL THEN
                     RETURN NULL;
                 END IF;
 
                 -- Generate MVT tile for pixel polygons
-                -- Join through campaign_areas and pixel_area to get pixels for this campaign
                 SELECT INTO mvt_polygons ST_AsMVT(tile, 'pixels', 4096, 'geom')
                 FROM (
                     SELECT
@@ -299,33 +296,34 @@ def run_campaign_refactor_migration():
                 ) as tile
                 WHERE geom IS NOT NULL;
 
-                -- Generate MVT tile for pixel centroids (points)
-                SELECT INTO mvt_points ST_AsMVT(tile, 'pixels_centroids', 4096, 'geom')
-                FROM (
-                    SELECT
-                        ST_AsMVTGeom(
-                            ST_Transform(ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326), 3857),
-                            ST_TileEnvelope(z, x, y),
-                            4096, 64, true
-                        ) AS geom,
-                        p.quadkey,
-                        p.level,
-                        CASE
-                            WHEN metadata_field IS NOT NULL AND pm.metadata IS NOT NULL THEN
-                                (pm.metadata->>metadata_field)::numeric
-                            ELSE NULL
-                        END AS metadata_value
-                    FROM pixels p
-                    JOIN pixel_area pa ON p.quadkey = pa.quadkey
-                    JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
-                    LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
-                    WHERE ca.campaign_id = target_campaign_id
-                      AND p.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
-                ) as tile
-                WHERE geom IS NOT NULL;
+                -- Only generate centroids when metadata circle visualization is needed
+                IF metadata_field IS NOT NULL AND metadata_field != '' THEN
+                    SELECT INTO mvt_points ST_AsMVT(tile, 'pixels_centroids', 4096, 'geom')
+                    FROM (
+                        SELECT
+                            ST_AsMVTGeom(
+                                ST_Transform(ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326), 3857),
+                                ST_TileEnvelope(z, x, y),
+                                4096, 64, true
+                            ) AS geom,
+                            p.quadkey,
+                            p.level,
+                            CASE
+                                WHEN pm.metadata IS NOT NULL THEN
+                                    (pm.metadata->>metadata_field)::numeric
+                                ELSE NULL
+                            END AS metadata_value
+                        FROM pixels p
+                        JOIN pixel_area pa ON p.quadkey = pa.quadkey
+                        JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+                        LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
+                        WHERE ca.campaign_id = target_campaign_id
+                          AND p.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
+                    ) as tile
+                    WHERE geom IS NOT NULL;
+                END IF;
 
-                -- Combine both MVT layers
-                RETURN mvt_polygons || mvt_points;
+                RETURN COALESCE(mvt_polygons, ''::bytea) || COALESCE(mvt_points, ''::bytea);
             END
             $$ LANGUAGE plpgsql STABLE STRICT PARALLEL SAFE;
         """)

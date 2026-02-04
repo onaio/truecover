@@ -283,11 +283,10 @@ async def create_campaign_areas_for_unions(
 
             existing = cursor.fetchone()
             if existing:
-                # Update category on existing area if provided
-                if category:
-                    cursor.execute("""
-                        UPDATE campaign_areas SET category = %s WHERE id = %s
-                    """, (category, str(existing[0])))
+                # Update category and set status to sampling
+                cursor.execute("""
+                    UPDATE campaign_areas SET category = %s, status = 'sampling' WHERE id = %s
+                """, (category, str(existing[0])))
                 created_ids.append(str(existing[0]))
                 continue
 
@@ -296,9 +295,9 @@ async def create_campaign_areas_for_unions(
                 INSERT INTO campaign_areas (
                     campaign_id, name, area_type, admin_boundary_id, geometry,
                     bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
-                    category
+                    category, status
                 )
-                VALUES (%s, %s, 'admin_boundary', %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s, %s)
+                VALUES (%s, %s, 'admin_boundary', %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s, %s, 'sampling')
                 RETURNING id
             """, (
                 campaign_id, name, admin_boundary_id, geometry_wkt,
@@ -345,12 +344,15 @@ async def compute_pixels_for_campaign_areas(
                 DELETE FROM pixel_area WHERE campaign_area_id = %s
             """, (area_id,))
 
-            # Insert pixels that intersect this area
+            # Insert pixels whose centroid falls inside this area
             cursor.execute("""
                 INSERT INTO pixel_area (quadkey, campaign_area_id)
                 SELECT p.quadkey, %s
                 FROM pixels p
-                JOIN campaign_areas ca ON ST_Intersects(p.geometry, ca.geometry)
+                JOIN campaign_areas ca ON ST_Contains(
+                    ca.geometry,
+                    ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)
+                )
                 WHERE ca.id = %s
                 ON CONFLICT (quadkey, campaign_area_id) DO NOTHING
             """, (area_id, area_id))
@@ -793,6 +795,7 @@ async def update_campaign_area_sampled_count_for_union(
             UPDATE campaign_areas
             SET cached_sampled_count = (SELECT cnt FROM sampled),
                 cached_sampled_population = (SELECT sampled_pop FROM sampled),
+                status = NULL,
                 updated_at = NOW()
             WHERE id = %s
             RETURNING cached_sampled_count

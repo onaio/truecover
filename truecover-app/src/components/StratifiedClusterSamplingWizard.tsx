@@ -49,7 +49,6 @@ interface StratifiedClusterSamplingWizardProps {
   indicatorId: string;
   onRoundCreated: () => void;
   onSamplingWorkflowsStarted?: (areaWorkflowMap: Record<string, string>) => void;
-  onGeneratingStarted?: () => void;
 }
 
 export const StratifiedClusterSamplingWizard: React.FC<
@@ -64,7 +63,6 @@ export const StratifiedClusterSamplingWizard: React.FC<
   indicatorId,
   onRoundCreated,
   onSamplingWorkflowsStarted,
-  onGeneratingStarted,
 }) => {
   void _projectId;
   const { getToken } = useAuth();
@@ -281,7 +279,6 @@ export const StratifiedClusterSamplingWizard: React.FC<
       setWorkflowId(wfId);
       setWorkflowStatus('running');
       setStep(3); // Move to progress view
-      onGeneratingStarted?.();
 
       // Start polling for status
       pollingRef.current = setInterval(() => {

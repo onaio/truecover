@@ -35,6 +35,7 @@ interface CampaignArea {
   upazila_name: string | null;
   union_name: string | null;
   category: string | null;
+  status: string | null;
   created_at: string;
 }
 
@@ -45,7 +46,6 @@ interface CampaignAreasManagerProps {
   buildingWorkflows?: Map<string, string>; // areaId -> workflowId
   onBuildingWorkflowComplete?: (areaId: string) => void;
   externalSamplingWorkflows?: Map<string, string>; // areaId -> workflowId
-  isGenerating?: boolean;
 }
 
 type SampleTarget = 'pixels' | 'buildings';
@@ -57,7 +57,6 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   buildingWorkflows,
   onBuildingWorkflowComplete,
   externalSamplingWorkflows,
-  isGenerating
 }) => {
   const { getToken } = useAuth();
   const [areas, setAreas] = useState<CampaignArea[]>([]);
@@ -84,14 +83,17 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
     }
   }, [campaignId]);
 
-  // Periodically reload areas while the parent workflow is generating them
+  // Derive sampling status from areas data (persists across page reloads)
+  const samplingAreas = areas.filter(a => a.status === 'sampling');
+
+  // Periodically reload areas while any area is being sampled
   useEffect(() => {
-    if (!isGenerating) return;
+    if (samplingAreas.length === 0) return;
     const interval = setInterval(() => {
       loadAreas(true);
     }, 3000);
     return () => clearInterval(interval);
-  }, [isGenerating]);
+  }, [samplingAreas.length]);
 
   // Start polling for any external sampling workflows (e.g. from stratified cluster)
   useEffect(() => {
@@ -385,18 +387,11 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
       <TacticalCard padding="lg">
         <TacticalCollapsible
           title={
-            isGenerating ? (
+            samplingAreas.length > 0 ? (
               <span className="flex items-center gap-2">
                 Campaign Areas
                 <span className="tactical-shimmer text-xs font-normal tactical-loading-dots">
-                  Generating<span>.</span><span>.</span><span>.</span>
-                </span>
-              </span>
-            ) : samplingWorkflows.size > 0 ? (
-              <span className="flex items-center gap-2">
-                Campaign Areas
-                <span className="tactical-shimmer text-xs font-normal tactical-loading-dots">
-                  Sampling {samplingWorkflows.size} {samplingWorkflows.size === 1 ? 'area' : 'areas'}<span>.</span><span>.</span><span>.</span>
+                  Sampling {samplingAreas.length} {samplingAreas.length === 1 ? 'area' : 'areas'}<span>.</span><span>.</span><span>.</span>
                 </span>
               </span>
             ) : "Campaign Areas"

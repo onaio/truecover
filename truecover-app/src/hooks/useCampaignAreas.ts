@@ -30,6 +30,7 @@ export interface CampaignArea {
   upazila_name: string | null;
   union_name: string | null;
   category: string | null;
+  status: string | null;
   created_at: string;
 }
 
