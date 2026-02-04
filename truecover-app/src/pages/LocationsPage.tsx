@@ -65,6 +65,7 @@ const LocationsPage: React.FC = () => {
   // Indicator and Round filters
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
   const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>([]);
+  const [roundFilterInitialized, setRoundFilterInitialized] = useState(false);
   const [showSampled, setShowSampled] = useState<boolean>(true);
   const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty' | 'metadata'>('none');
   const [selectedMetadataField, setSelectedMetadataField] = useState<string>('');
@@ -111,7 +112,7 @@ const LocationsPage: React.FC = () => {
     if (selectedRoundIds.length === 0) {
       return undefined;
     }
-    if (selectedRoundIds.includes('sampled')) {
+    if (selectedRoundIds.includes('all')) {
       return 'has_rounds';
     }
     if (selectedRoundIds.length === 1) {
@@ -174,6 +175,14 @@ const LocationsPage: React.FC = () => {
     }
   }, [indicators]);
 
+  // Default round filter to "All Rounds" when rounds exist
+  useEffect(() => {
+    if (!roundFilterInitialized && rounds && rounds.length > 0) {
+      setSelectedRoundIds(['all']);
+      setRoundFilterInitialized(true);
+    }
+  }, [rounds, roundFilterInitialized]);
+
   // Auto-enable pixels when they exist for the area
   useEffect(() => {
     if (pixelStats && pixelStats.count > 0) {
@@ -215,7 +224,7 @@ const LocationsPage: React.FC = () => {
     let locationsCount = 0;
     let pixelsCount = 0;
 
-    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
+    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
       // Count all records with any rounds data
       if (coverageData) {
         locationsCount = coverageData.filter(record =>
@@ -260,7 +269,7 @@ const LocationsPage: React.FC = () => {
       return;
     }
 
-    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
+    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
       // "All Rounds" selected - highlight all sampled locations/pixels
       setMapHighlightRounds([]);
     } else {
@@ -329,7 +338,7 @@ const LocationsPage: React.FC = () => {
     let locationsToVisit = 0;
     let locationsVisited = 0;
 
-    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
+    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
       locationsToVisit = coverageData.filter(record =>
         record.rounds && record.rounds.length > 0
       ).length;
@@ -454,7 +463,7 @@ const LocationsPage: React.FC = () => {
                 value={selectedRoundIds}
                 onChange={setSelectedRoundIds}
                 options={[
-                  { value: 'sampled', label: 'Sampled Only' },
+                  { value: 'all', label: 'All Rounds' },
                   ...(rounds || []).map(round => ({
                     value: round.id,
                     label: round.name || `Round ${round.round_number}`
@@ -672,7 +681,7 @@ const LocationsPage: React.FC = () => {
 
                     // Count coverage table rows with rounds data matching selected filters
                     let locationsToVisit = 0;
-                    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
+                    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
                       // Count all records with any rounds data
                       locationsToVisit = coverageData.filter(record =>
                         record.rounds && record.rounds.length > 0
@@ -711,7 +720,7 @@ const LocationsPage: React.FC = () => {
 
                     // Count coverage table rows where n_trials AND n_covered are both not 0
                     let locationsVisited = 0;
-                    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
+                    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
                       // Count all records with n_trials and n_covered both not 0
                       locationsVisited = coverageData.filter(record =>
                         record.n_trials !== 0 && record.n_covered !== 0
@@ -776,7 +785,7 @@ const LocationsPage: React.FC = () => {
                   value={selectedRoundIds}
                   onChange={setSelectedRoundIds}
                   options={[
-                    { value: 'sampled', label: 'Sampled Only' },
+                    { value: 'all', label: 'All Rounds' },
                     ...(rounds || []).map(round => ({
                       value: round.id,
                       label: round.name || `Round ${round.round_number}`
