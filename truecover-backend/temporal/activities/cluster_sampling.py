@@ -709,14 +709,13 @@ async def assign_pixels_to_round(
         if not selected_ids:
             return 0
 
-        # Add round number to pixels
-        for coverage_id in selected_ids:
-            cursor.execute("""
-                UPDATE coverage_pixel
-                SET rounds = array_append(COALESCE(rounds, '{}'), %s),
-                    updated_at = NOW()
-                WHERE id = %s AND NOT (%s = ANY(COALESCE(rounds, '{}')))
-            """, (round_number, coverage_id, round_number))
+        # Add round number to pixels in a single batch query
+        cursor.execute("""
+            UPDATE coverage_pixel
+            SET rounds = array_append(COALESCE(rounds, '{}'), %s),
+                updated_at = NOW()
+            WHERE id = ANY(%s::uuid[]) AND NOT (%s = ANY(COALESCE(rounds, '{}')))
+        """, (round_number, selected_ids, round_number))
 
         # Update cached_sampled_count and cached_sampled_population on campaign_area
         cursor.execute("""
