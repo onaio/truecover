@@ -482,21 +482,14 @@ async def update_round_assignments(
         if not selected_ids:
             return 0
 
-        # Batch update all selected records
-        if sampling_target == 'pixels':
-            cursor.executemany("""
-                UPDATE coverage_pixel
-                SET rounds = array_append(rounds, %s),
-                    updated_at = NOW()
-                WHERE id = %s
-            """, [(round_number, coverage_id) for coverage_id in selected_ids])
-        else:
-            cursor.executemany("""
-                UPDATE coverage
-                SET rounds = array_append(rounds, %s),
-                    updated_at = NOW()
-                WHERE id = %s
-            """, [(round_number, coverage_id) for coverage_id in selected_ids])
+        # Batch update all selected records in a single query
+        table = 'coverage_pixel' if sampling_target == 'pixels' else 'coverage'
+        cursor.execute(f"""
+            UPDATE {table}
+            SET rounds = array_append(rounds, %s),
+                updated_at = NOW()
+            WHERE id = ANY(%s::uuid[])
+        """, (round_number, selected_ids))
 
         conn.commit()
         selected_count = len(selected_ids)
@@ -533,12 +526,12 @@ async def remove_round_assignments(
 
         table = 'coverage_pixel' if sampling_target == 'pixels' else 'coverage'
 
-        cursor.executemany(f"""
+        cursor.execute(f"""
             UPDATE {table}
             SET rounds = array_remove(COALESCE(rounds, '{{}}'), %s),
                 updated_at = NOW()
-            WHERE id = %s AND %s = ANY(COALESCE(rounds, '{{}}'))
-        """, [(round_number, coverage_id, round_number) for coverage_id in selected_ids])
+            WHERE id = ANY(%s::uuid[]) AND %s = ANY(COALESCE(rounds, '{{}}'))
+        """, (round_number, selected_ids, round_number))
 
         conn.commit()
         removed_count = cursor.rowcount
