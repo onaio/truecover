@@ -100,14 +100,6 @@ class RoundGenerationWorkflow:
             )
 
             if not sampling_results or len(sampling_results.get('selected_ids', [])) == 0:
-                # No data found, delete round and return error
-                await workflow.execute_activity(
-                    delete_round_record,
-                    args=[round_id],
-                    start_to_close_timeout=timedelta(seconds=30),
-                    retry_policy=RetryPolicy(maximum_attempts=3)
-                )
-                # Build descriptive error message
                 error_msg = f"No {sampling_target} found for sampling"
                 if min_population and population_field:
                     error_msg += f" with {population_field} >= {min_population}"

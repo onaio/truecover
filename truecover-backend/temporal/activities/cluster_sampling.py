@@ -744,7 +744,6 @@ async def update_campaign_area_sampled_count_for_union(
     campaign_id: str,
     indicator_id: str,
     union_pcode: str,
-    _sampled_count: int = 0  # Kept for backward compatibility, not used
 ) -> Optional[str]:
     """
     Update cached_sampled_count for the campaign area matching a union pcode.
@@ -754,7 +753,6 @@ async def update_campaign_area_sampled_count_for_union(
         campaign_id: Campaign ID
         indicator_id: Indicator ID
         union_pcode: Union pcode to find campaign_area for
-        _sampled_count: Deprecated, count is calculated from coverage_pixel
 
     Returns:
         Campaign area ID if found and updated, None otherwise

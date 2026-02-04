@@ -508,6 +508,48 @@ async def update_round_assignments(
 
 
 @activity.defn
+async def remove_round_assignments(
+    selected_ids: List[str],
+    round_number: int,
+    sampling_target: str
+) -> int:
+    """
+    Remove round assignments from coverage records (compensation activity).
+
+    Args:
+        selected_ids: List of coverage IDs to remove the round from
+        round_number: Round number to remove
+        sampling_target: 'locations' or 'pixels'
+
+    Returns:
+        Number of items updated
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        if not selected_ids:
+            return 0
+
+        table = 'coverage_pixel' if sampling_target == 'pixels' else 'coverage'
+
+        cursor.executemany(f"""
+            UPDATE {table}
+            SET rounds = array_remove(COALESCE(rounds, '{{}}'), %s),
+                updated_at = NOW()
+            WHERE id = %s AND %s = ANY(COALESCE(rounds, '{{}}'))
+        """, [(round_number, coverage_id, round_number) for coverage_id in selected_ids])
+
+        conn.commit()
+        removed_count = cursor.rowcount
+        activity.logger.info(f"Removed round {round_number} from {removed_count} {sampling_target}")
+        return removed_count
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+
+@activity.defn
 async def delete_round_record(round_id: str) -> None:
     """
     Delete round record (compensation activity).
