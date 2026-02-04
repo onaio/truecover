@@ -64,7 +64,7 @@ const LocationsPage: React.FC = () => {
 
   // Indicator and Round filters
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
-  const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>(['all']);
+  const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>([]);
   const [showSampled, setShowSampled] = useState<boolean>(true);
   const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty' | 'metadata'>('none');
   const [selectedMetadataField, setSelectedMetadataField] = useState<string>('');
@@ -104,26 +104,20 @@ const LocationsPage: React.FC = () => {
   }, [selectedAreaId, campaignAreas]);
 
   // Compute roundId for coverage data query
-  // 'all' means "show only rows with ANY round assigned"
-  // specific round ID means "filter by that round"
   // empty array means "show everything" (no filter)
+  // 'sampled' means "show only rows with ANY round assigned"
+  // specific round ID means "filter by that round"
   const coverageRoundId = useMemo(() => {
     if (selectedRoundIds.length === 0) {
-      console.log('[Round Filter] Empty selection, no filter', selectedRoundIds);
       return undefined;
     }
-    if (selectedRoundIds.includes('all')) {
-      // "All Rounds" = filter to show only rows with rounds assigned
-      console.log('[Round Filter] All rounds = show only sampled rows');
-      return 'has_rounds';  // Special value to filter for non-empty rounds
+    if (selectedRoundIds.includes('sampled')) {
+      return 'has_rounds';
     }
     if (selectedRoundIds.length === 1) {
-      const roundId = String(selectedRoundIds[0]);
-      console.log('[Round Filter] Single round selected:', roundId);
-      return roundId;
+      return String(selectedRoundIds[0]);
     }
-    // Multiple specific rounds selected - for now treat as "has_rounds"
-    console.log('[Round Filter] Multiple rounds selected, showing all with rounds');
+    // Multiple specific rounds selected
     return 'has_rounds';
   }, [selectedRoundIds]);
 
@@ -221,7 +215,7 @@ const LocationsPage: React.FC = () => {
     let locationsCount = 0;
     let pixelsCount = 0;
 
-    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
       // Count all records with any rounds data
       if (coverageData) {
         locationsCount = coverageData.filter(record =>
@@ -266,7 +260,7 @@ const LocationsPage: React.FC = () => {
       return;
     }
 
-    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
       // "All Rounds" selected - highlight all sampled locations/pixels
       setMapHighlightRounds([]);
     } else {
@@ -335,7 +329,7 @@ const LocationsPage: React.FC = () => {
     let locationsToVisit = 0;
     let locationsVisited = 0;
 
-    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
       locationsToVisit = coverageData.filter(record =>
         record.rounds && record.rounds.length > 0
       ).length;
@@ -460,7 +454,7 @@ const LocationsPage: React.FC = () => {
                 value={selectedRoundIds}
                 onChange={setSelectedRoundIds}
                 options={[
-                  { value: 'all', label: 'All Rounds' },
+                  { value: 'sampled', label: 'Sampled Only' },
                   ...(rounds || []).map(round => ({
                     value: round.id,
                     label: round.name || `Round ${round.round_number}`
@@ -678,7 +672,7 @@ const LocationsPage: React.FC = () => {
 
                     // Count coverage table rows with rounds data matching selected filters
                     let locationsToVisit = 0;
-                    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+                    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
                       // Count all records with any rounds data
                       locationsToVisit = coverageData.filter(record =>
                         record.rounds && record.rounds.length > 0
@@ -717,7 +711,7 @@ const LocationsPage: React.FC = () => {
 
                     // Count coverage table rows where n_trials AND n_covered are both not 0
                     let locationsVisited = 0;
-                    if (selectedRoundIds.includes('all') || selectedRoundIds.length === 0) {
+                    if (selectedRoundIds.includes('sampled') || selectedRoundIds.length === 0) {
                       // Count all records with n_trials and n_covered both not 0
                       locationsVisited = coverageData.filter(record =>
                         record.n_trials !== 0 && record.n_covered !== 0
@@ -782,7 +776,7 @@ const LocationsPage: React.FC = () => {
                   value={selectedRoundIds}
                   onChange={setSelectedRoundIds}
                   options={[
-                    { value: 'all', label: 'All Rounds' },
+                    { value: 'sampled', label: 'Sampled Only' },
                     ...(rounds || []).map(round => ({
                       value: round.id,
                       label: round.name || `Round ${round.round_number}`
@@ -1011,11 +1005,11 @@ const LocationsPage: React.FC = () => {
               onRoundSelected={setSelectedRoundFilter}
               selectedAdminBoundary={selectedAdminBoundary}
               onClearAdminBoundary={() => setSelectedAdminBoundary(null)}
-              pixelCount={pixelStats?.count || 0}
               indicatorId={selectedIndicatorId}
               onSamplingWorkflowsStarted={(areaWorkflowMap) => {
                 setSamplingWorkflows(new Map(Object.entries(areaWorkflowMap)));
               }}
+              campaignAreas={campaignAreas || []}
             />
 
             {/* Campaign Areas Section - Primary workflow entry point */}

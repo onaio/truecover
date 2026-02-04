@@ -603,13 +603,41 @@ def compute_pixels_for_area(user, area_id):
             WHERE id = %s
         """, (area_id, area_id, area_id))
 
+        # Create coverage_pixel records for all project indicators
+        cursor.execute("""
+            SELECT i.id FROM indicators i
+            JOIN campaigns c ON i.project_id = c.project_id
+            WHERE c.id = %s
+        """, (campaign_id,))
+        indicator_ids = [row[0] for row in cursor.fetchall()]
+
+        coverage_pixel_count = 0
+        for ind_id in indicator_ids:
+            cursor.execute("""
+                INSERT INTO coverage_pixel (
+                    campaign_id, indicator_id, quadkey, version,
+                    n_trials, n_covered,
+                    exceedance_probability, exceedance_uncertainty,
+                    prevalence_prediction, prevalence_bci_width
+                )
+                SELECT %s, %s, pa.quadkey, 0, 0, 0, 0.5, 0.5, 0.5, 0.5
+                FROM pixel_area pa
+                JOIN pixels p ON pa.quadkey = p.quadkey
+                WHERE pa.campaign_area_id = %s
+                ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
+            """, (campaign_id, ind_id, area_id))
+            coverage_pixel_count += cursor.rowcount
+
+        print(f"Created {coverage_pixel_count} coverage_pixel records for area {area_id}")
+
         conn.commit()
         cursor.close()
 
         return jsonify({
             'success': True,
             'campaign_area_id': area_id,
-            'pixels_computed': inserted_count
+            'pixels_computed': inserted_count,
+            'coverage_pixels_created': coverage_pixel_count
         }), 200
 
     except Exception as e:

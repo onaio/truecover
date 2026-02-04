@@ -147,7 +147,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   value={selectedRoundIds}
                   onChange={onRoundsChange}
                   options={[
-                    { value: 'all', label: 'All Rounds' },
+                    { value: 'sampled', label: 'Sampled Only' },
                     ...rounds
                       .sort((a, b) => a.round_number - b.round_number)
                       .map((round) => ({
@@ -389,7 +389,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
         onClose={() => setIsAddVisitModalOpen(false)}
         campaignId={campaignId}
         areaName={areaName}
-        roundId={selectedRoundIds.length > 0 && selectedRoundIds[0] !== 'all' ? String(selectedRoundIds[0]) : ''}
+        roundId={selectedRoundIds.length > 0 && selectedRoundIds[0] !== 'sampled' ? String(selectedRoundIds[0]) : ''}
         projectId={projectId}
         onSuccess={onRefetchCoverage}
       />

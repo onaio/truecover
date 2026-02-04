@@ -621,7 +621,22 @@ async def sample_pixels_for_campaign_area(
         )
         response.raise_for_status()
 
-        result = response.json()
+        # R function may print stdout before/after JSON — extract just the JSON
+        response_text = response.text
+        json_start = response_text.find('{')
+        if json_start == -1:
+            raise ValueError(f"No JSON in adaptive sampling response: {response_text[:200]}")
+        depth = 0
+        json_end = json_start
+        for i, char in enumerate(response_text[json_start:], start=json_start):
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    json_end = i + 1
+                    break
+        result = json.loads(response_text[json_start:json_end])
 
         # Unwrap if wrapped by OpenFaaS
         if isinstance(result, dict) and result.get('function_status') == 'success' and result.get('result'):
