@@ -130,7 +130,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -146,7 +145,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -163,7 +161,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -180,7 +177,6 @@ async def fetch_coverage_for_sampling(
                         SELECT
                             cp.id as coverage_pixel_id,
                             cp.quadkey,
-                            ST_AsGeoJSON(p.geometry) as geometry,
                             p.latitude, p.longitude,
                             cp.exceedance_probability, cp.exceedance_uncertainty,
                             cp.prevalence_bci_width, cp.prevalence_prediction
@@ -269,13 +265,12 @@ async def fetch_coverage_for_sampling(
                 results.append({
                     "coverage_id": str(r[0]),
                     "identifier": r[1],  # quadkey
-                    "geometry": json.loads(r[2]) if r[2] else None,
-                    "latitude": float(r[3]) if r[3] else None,
-                    "longitude": float(r[4]) if r[4] else None,
-                    "exceedance_probability": float(r[5]) if r[5] else 0,
-                    "exceedance_uncertainty": float(r[6]) if r[6] else 0,
-                    "prevalence_bci_width": float(r[7]) if r[7] else 0,
-                    "prevalence_prediction": float(r[8]) if r[8] else 0,
+                    "latitude": float(r[2]) if r[2] else None,
+                    "longitude": float(r[3]) if r[3] else None,
+                    "exceedance_probability": float(r[4]) if r[4] else 0,
+                    "exceedance_uncertainty": float(r[5]) if r[5] else 0,
+                    "prevalence_bci_width": float(r[6]) if r[6] else 0,
+                    "prevalence_prediction": float(r[7]) if r[7] else 0,
                 })
             else:
                 properties = r[9] if isinstance(r[9], dict) else json.loads(r[9]) if r[9] else {}

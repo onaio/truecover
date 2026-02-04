@@ -425,7 +425,7 @@ async def create_coverage_pixels_for_union(
         if min_population is not None:
             pop_filter = f"AND p.population >= {int(min_population)}"
 
-        # Insert coverage_pixel records for all pixels in this union that don't already exist
+        # Insert coverage_pixel records for all pixels in this union, skipping duplicates
         cursor.execute(f"""
             INSERT INTO coverage_pixel (
                 campaign_id, indicator_id, quadkey, version,
@@ -437,14 +437,8 @@ async def create_coverage_pixels_for_union(
             FROM pixels p
             WHERE p.adm4_pcode = %s
               {pop_filter}
-              AND NOT EXISTS (
-                  SELECT 1 FROM coverage_pixel cp
-                  WHERE cp.campaign_id = %s
-                    AND cp.indicator_id = %s
-                    AND cp.quadkey = p.quadkey
-                    AND cp.version = 0
-              )
-        """, (campaign_id, indicator_id, union_pcode, campaign_id, indicator_id))
+            ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
+        """, (campaign_id, indicator_id, union_pcode))
 
         created_count = cursor.rowcount
         conn.commit()
@@ -487,7 +481,7 @@ async def create_coverage_pixels_for_campaign_area(
         if min_population is not None:
             pop_filter = f"AND p.population >= {int(min_population)}"
 
-        # Insert coverage_pixel records for all pixels in this campaign area
+        # Insert coverage_pixel records for all pixels in this campaign area, skipping duplicates
         cursor.execute(f"""
             INSERT INTO coverage_pixel (
                 campaign_id, indicator_id, quadkey, version,
@@ -500,14 +494,8 @@ async def create_coverage_pixels_for_campaign_area(
             JOIN pixels p ON pa.quadkey = p.quadkey
             WHERE pa.campaign_area_id = %s
               {pop_filter}
-              AND NOT EXISTS (
-                  SELECT 1 FROM coverage_pixel cp
-                  WHERE cp.campaign_id = %s
-                    AND cp.indicator_id = %s
-                    AND cp.quadkey = pa.quadkey
-                    AND cp.version = 0
-              )
-        """, (campaign_id, indicator_id, campaign_area_id, campaign_id, indicator_id))
+            ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
+        """, (campaign_id, indicator_id, campaign_area_id))
 
         created_count = cursor.rowcount
         conn.commit()
