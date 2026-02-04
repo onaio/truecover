@@ -43,6 +43,7 @@ interface CampaignAreasManagerProps {
   onRefresh?: () => void;
   buildingWorkflows?: Map<string, string>; // areaId -> workflowId
   onBuildingWorkflowComplete?: (areaId: string) => void;
+  externalSamplingWorkflows?: Map<string, string>; // areaId -> workflowId
 }
 
 type SampleTarget = 'pixels' | 'buildings';
@@ -52,7 +53,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   indicatorId,
   onRefresh,
   buildingWorkflows,
-  onBuildingWorkflowComplete
+  onBuildingWorkflowComplete,
+  externalSamplingWorkflows
 }) => {
   const { getToken } = useAuth();
   const [areas, setAreas] = useState<CampaignArea[]>([]);
@@ -78,6 +80,21 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
       loadAreas();
     }
   }, [campaignId]);
+
+  // Start polling for any external sampling workflows (e.g. from stratified cluster)
+  useEffect(() => {
+    if (!externalSamplingWorkflows) return;
+
+    externalSamplingWorkflows.forEach((workflowId, areaId) => {
+      if (!samplingWorkflows.has(areaId)) {
+        setSamplingWorkflows(prev => new Map(prev).set(areaId, {
+          workflowId,
+          status: 'running'
+        }));
+        pollWorkflowStatus(areaId, workflowId);
+      }
+    });
+  }, [externalSamplingWorkflows]);
 
   // Start polling for any new building workflows passed from parent
   useEffect(() => {

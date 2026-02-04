@@ -34,9 +34,10 @@ interface RoundsManagerProps {
   onClearAdminBoundary?: () => void;
   pixelCount?: number;
   indicatorId?: string;
+  onSamplingWorkflowsStarted?: (areaWorkflowMap: Record<string, string>) => void;
 }
 
-const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0, indicatorId }) => {
+const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0, indicatorId, onSamplingWorkflowsStarted }) => {
   const { getToken } = useAuth();
   const { data: indicators } = useIndicators(projectId);
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -330,6 +331,7 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
         startingName={selectedAdminBoundary?.name || ''}
         indicatorId={effectiveIndicatorId}
         onRoundCreated={handleRoundCreated}
+        onSamplingWorkflowsStarted={onSamplingWorkflowsStarted}
       />
     </>
   );

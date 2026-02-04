@@ -48,6 +48,7 @@ interface StratifiedClusterSamplingWizardProps {
   startingName?: string;
   indicatorId: string;
   onRoundCreated: () => void;
+  onSamplingWorkflowsStarted?: (areaWorkflowMap: Record<string, string>) => void;
 }
 
 export const StratifiedClusterSamplingWizard: React.FC<
@@ -61,6 +62,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
   startingName: initialName,
   indicatorId,
   onRoundCreated,
+  onSamplingWorkflowsStarted,
 }) => {
   void _projectId;
   const { getToken } = useAuth();
@@ -132,6 +134,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
         }
         tacticalToast.success('Stratified cluster sampling completed!');
         onRoundCreated();
+        if (data.result?.area_workflow_map) {
+          onSamplingWorkflowsStarted?.(data.result.area_workflow_map);
+        }
       } else if (data.status === 'failed') {
         setWorkflowError(data.error || 'Workflow failed');
         if (pollingRef.current) {

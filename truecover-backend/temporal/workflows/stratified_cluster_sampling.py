@@ -376,6 +376,7 @@ class StratifiedClusterSamplingWorkflow:
                 'selected_unions': self.selected_unions,
                 'campaign_area_ids': campaign_area_ids,
                 'child_workflow_ids': child_workflow_ids,
+                'area_workflow_map': dict(zip(campaign_area_ids, child_workflow_ids)),
                 'status': 'completed'
             }
 
