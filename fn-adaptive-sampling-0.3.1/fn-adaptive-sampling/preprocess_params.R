@@ -20,8 +20,14 @@ function(params) {
     stop('Missing required `uncertainty` parameter')
   }
 
-  # Convert coordinates list to matrix and uncertainty to numeric vector
-  params[['coordinates']] <- do.call(rbind, params[['coordinates']])
+  # Convert coordinates to matrix and uncertainty to numeric vector.
+  # fromJSON may return a matrix (uniform array) or a list (ragged),
+  # so handle both.
+  coords <- params[['coordinates']]
+  if (!is.matrix(coords)) {
+    coords <- do.call(rbind, coords)
+  }
+  params[['coordinates']] <- coords
   params[['uncertainty']] <- as.numeric(unlist(params[['uncertainty']]))
 
   n_coords <- nrow(params[['coordinates']])

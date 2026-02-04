@@ -356,7 +356,21 @@ async def call_adaptive_sampling(
 
     response.raise_for_status()
 
-    result = response.json()
+    # OpenFaaS watchdog may mix stderr into the response body (before
+    # and/or after the JSON).  Use raw_decode to extract just the first
+    # complete JSON object.
+    import json as json_mod
+    body = response.text
+    json_start = body.find('{')
+    if json_start < 0:
+        raise RuntimeError(f"No JSON in adaptive sampling response: {body[:200]}")
+
+    decoder = json_mod.JSONDecoder()
+    result, _ = decoder.raw_decode(body, json_start)
+
+    # Check for function-level errors
+    if isinstance(result, dict) and result.get('function_status') == 'error':
+        raise RuntimeError(f"Adaptive sampling error: {result.get('result', 'unknown')}")
 
     # Unwrap if wrapped by OpenFaaS
     if isinstance(result, dict) and result.get('function_status') == 'success' and result.get('result'):

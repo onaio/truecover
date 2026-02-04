@@ -344,15 +344,18 @@ async def compute_pixels_for_campaign_areas(
                 DELETE FROM pixel_area WHERE campaign_area_id = %s
             """, (area_id,))
 
-            # Insert pixels whose centroid falls inside this area
+            # Insert pixels whose centroid falls inside this area.
+            # Use bounding box filter (&&) first for spatial index, then
+            # refine with ST_Contains on the centroid to exclude edge pixels.
             cursor.execute("""
                 INSERT INTO pixel_area (quadkey, campaign_area_id)
                 SELECT p.quadkey, %s
                 FROM pixels p
-                JOIN campaign_areas ca ON ST_Contains(
-                    ca.geometry,
-                    ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)
-                )
+                JOIN campaign_areas ca ON p.geometry && ca.geometry
+                    AND ST_Contains(
+                        ca.geometry,
+                        ST_SetSRID(ST_MakePoint(p.longitude, p.latitude), 4326)
+                    )
                 WHERE ca.id = %s
                 ON CONFLICT (quadkey, campaign_area_id) DO NOTHING
             """, (area_id, area_id))
