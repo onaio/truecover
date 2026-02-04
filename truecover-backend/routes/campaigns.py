@@ -581,9 +581,10 @@ def compute_pixels_for_area(user, area_id):
             WITH pixel_stats AS (
                 SELECT
                     COUNT(*) as pixel_count,
-                    COALESCE(SUM(p.population), 0) as total_population
+                    COALESCE(SUM((pm.metadata->>'population')::numeric), 0) as total_population
                 FROM pixel_area pa
                 JOIN pixels p ON pa.quadkey = p.quadkey
+                LEFT JOIN pixel_metadata pm ON pa.quadkey = pm.quadkey
                 WHERE pa.campaign_area_id = %s
             ),
             location_counts AS (
@@ -698,9 +699,10 @@ def compute_all_pixels_for_campaign(user, campaign_id):
                 WITH pixel_stats AS (
                     SELECT
                         COUNT(*) as pixel_count,
-                        COALESCE(SUM(p.population), 0) as total_population
+                        COALESCE(SUM((pm.metadata->>'population')::numeric), 0) as total_population
                     FROM pixel_area pa
                     JOIN pixels p ON pa.quadkey = p.quadkey
+                    LEFT JOIN pixel_metadata pm ON pa.quadkey = pm.quadkey
                     WHERE pa.campaign_area_id = %s
                 ),
                 location_counts AS (

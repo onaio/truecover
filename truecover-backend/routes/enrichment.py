@@ -1,6 +1,8 @@
 # ABOUTME: API endpoints for pixel enrichment jobs
 # ABOUTME: Provides async job creation and status tracking for COG/STAC data enrichment
 
+import uuid as uuid_mod
+
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
 from auth.helpers import check_campaign_access
@@ -32,16 +34,25 @@ def create_enrichment_job(user, campaign_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verify data source exists
-        cursor.execute("""
-            SELECT id, default_statistic FROM data_sources WHERE id = %s
-        """, (data_source_id,))
+        # Look up data source by UUID or by name prefix
+        try:
+            uuid_mod.UUID(data_source_id)
+            cursor.execute("""
+                SELECT id, default_statistic FROM data_sources WHERE id = %s
+            """, (data_source_id,))
+        except ValueError:
+            cursor.execute("""
+                SELECT id, default_statistic FROM data_sources WHERE name LIKE %s
+                ORDER BY created_at DESC LIMIT 1
+            """, (f"{data_source_id}%",))
 
         ds_row = cursor.fetchone()
         if not ds_row:
             cursor.close()
             return jsonify({'error': 'Data source not found'}), 404
 
+        # Use the resolved UUID for FK references
+        resolved_ds_id = str(ds_row[0])
         default_statistic = ds_row[1]
         statistic = data.get('statistic', default_statistic)
 
@@ -60,7 +71,7 @@ def create_enrichment_job(user, campaign_id):
 
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"pixel-enrichment-{campaign_id}-{data_source_id}-{timestamp}"
+        workflow_id = f"pixel-enrichment-{campaign_id}-{resolved_ds_id}-{timestamp}"
 
         # Create job with workflow_id
         cursor.execute("""
@@ -77,7 +88,7 @@ def create_enrichment_job(user, campaign_id):
                       pixels_processed, pixels_total, error_message,
                       retry_count, last_attempted_at,
                       created_at, updated_at, workflow_id
-        """, (campaign_id, data_source_id, statistic, 'pending', pixels_total, workflow_id))
+        """, (campaign_id, resolved_ds_id, statistic, 'pending', pixels_total, workflow_id))
 
         row = cursor.fetchone()
         job_id = str(row[0])
