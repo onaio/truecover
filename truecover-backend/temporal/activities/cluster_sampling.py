@@ -584,43 +584,31 @@ async def sample_pixels_for_campaign_area(
         if not records:
             return {'selected_ids': [], 'total_items': 0, 'message': 'No unsampled pixels found'}
 
-        # Build GeoJSON features
-        features = []
-        coverage_id_map = {}
+        # Build simple arrays for sampling service
+        field_to_col = {
+            'exceedance_probability': 4,
+            'exceedance_uncertainty': 5,
+            'prevalence_bci_width': 6,
+            'prevalence_prediction': 7,
+        }
+        uncertainty_col = field_to_col.get(uncertainty_field, 6)
 
-        for idx, r in enumerate(records):
-            coverage_pixel_id = str(r[0])
-            quadkey = r[1]
-            lat, lon = float(r[2]), float(r[3])
+        coordinates = []
+        uncertainty_values = []
+        coverage_ids = []
 
-            features.append({
-                'type': 'Feature',
-                'id': idx,
-                'geometry': {
-                    'type': 'Point',
-                    'coordinates': [lon, lat]
-                },
-                'properties': {
-                    'quadkey': quadkey,
-                    'exceedance_probability': float(r[4]) if r[4] else 0.5,
-                    'exceedance_uncertainty': float(r[5]) if r[5] else 0.5,
-                    'prevalence_bci_width': float(r[6]) if r[6] else 0.5,
-                    'prevalence_prediction': float(r[7]) if r[7] else 0.5,
-                }
-            })
-            coverage_id_map[quadkey] = coverage_pixel_id
+        for r in records:
+            coordinates.append([float(r[3]), float(r[2])])  # [lon, lat]
+            uncertainty_values.append(float(r[uncertainty_col]) if r[uncertainty_col] else 0.5)
+            coverage_ids.append(str(r[0]))
 
-        # Call adaptive sampling
         payload = {
-            'point_data': {
-                'type': 'FeatureCollection',
-                'features': features
-            },
-            'uncertainty_fieldname': uncertainty_field,
-            'batch_size': min(sample_count, len(features))
+            'coordinates': coordinates,
+            'uncertainty': uncertainty_values,
+            'batch_size': min(sample_count, len(coordinates))
         }
 
-        activity.logger.info(f"Calling adaptive sampling for {len(features)} pixels, selecting {sample_count}")
+        activity.logger.info(f"Calling adaptive sampling for {len(coordinates)} pixels, selecting {sample_count}")
 
         response = requests.post(
             SAMPLING_URL,
@@ -630,36 +618,15 @@ async def sample_pixels_for_campaign_area(
         )
         response.raise_for_status()
 
-        # Parse response (handle R function output)
-        response_text = response.text
-        json_start = response_text.find('{')
-        if json_start == -1:
-            return {'selected_ids': [], 'error': 'No JSON in response'}
+        result = response.json()
 
-        depth = 0
-        json_end = json_start
-        for i, char in enumerate(response_text[json_start:], start=json_start):
-            if char == '{':
-                depth += 1
-            elif char == '}':
-                depth -= 1
-                if depth == 0:
-                    json_end = i + 1
-                    break
-
-        result = json.loads(response_text[json_start:json_end])
-
-        if result.get('function_status') == 'success' and result.get('result'):
+        # Unwrap if wrapped by OpenFaaS
+        if isinstance(result, dict) and result.get('function_status') == 'success' and result.get('result'):
             result = result['result']
 
-        # Extract selected IDs
-        selected_ids = []
-        for feature in result.get('features', []):
-            props = feature.get('properties', {})
-            if props.get('adaptively_selected', 0) == 1:
-                quadkey = props.get('quadkey')
-                if quadkey and quadkey in coverage_id_map:
-                    selected_ids.append(coverage_id_map[quadkey])
+        # Map selected indices back to coverage IDs
+        selected_indices = result.get('selected_indices', [])
+        selected_ids = [coverage_ids[i] for i in selected_indices]
 
         activity.logger.info(f"Selected {len(selected_ids)} pixels from campaign_area {campaign_area_id}")
 

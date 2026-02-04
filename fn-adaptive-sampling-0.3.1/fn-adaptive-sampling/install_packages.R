@@ -3,4 +3,4 @@
 
 # For some reason `geojsonio` is not yet in rocker/geospatial. 
 # Remove from below if you don't need it.
-install.packages(c('geojsonio', 'RANN'))
+install.packages('RANN')
