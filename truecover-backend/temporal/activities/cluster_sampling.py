@@ -697,8 +697,10 @@ async def assign_pixels_to_round(
                     COALESCE(SUM(p.population), 0) as sampled_pop
                 FROM coverage_pixel cp
                 JOIN pixel_area pa ON cp.quadkey = pa.quadkey
+                JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
                 JOIN pixels p ON cp.quadkey = p.quadkey
                 WHERE pa.campaign_area_id = %s
+                  AND cp.campaign_id = ca.campaign_id
                   AND cp.rounds IS NOT NULL
                   AND array_length(cp.rounds, 1) > 0
             )
@@ -1195,6 +1197,7 @@ async def sample_buildings_within_pixels(
                 JOIN pixel_area pa ON cp.quadkey = pa.quadkey
                 JOIN pixels p ON cp.quadkey = p.quadkey
                 WHERE pa.campaign_area_id = %s
+                  AND cp.campaign_id = %s
                   AND cp.rounds IS NOT NULL
                   AND array_length(cp.rounds, 1) > 0
             )
@@ -1203,7 +1206,7 @@ async def sample_buildings_within_pixels(
                 cached_sampled_population = (SELECT sampled_pop FROM sampled),
                 updated_at = NOW()
             WHERE id = %s
-        """, (campaign_area_id, campaign_area_id))
+        """, (campaign_area_id, campaign_id, campaign_area_id))
 
         # Phase 5: Sample buildings within qualified pixels
         unique_quadkeys = list(set(qualified_quadkeys))
@@ -1462,6 +1465,7 @@ async def clear_round_from_pixels(
                 JOIN pixel_area pa ON cp.quadkey = pa.quadkey
                 JOIN pixels p ON cp.quadkey = p.quadkey
                 WHERE pa.campaign_area_id = %s
+                  AND cp.campaign_id = %s
                   AND cp.rounds IS NOT NULL
                   AND array_length(cp.rounds, 1) > 0
             )
@@ -1470,7 +1474,7 @@ async def clear_round_from_pixels(
                 cached_sampled_population = (SELECT sampled_pop FROM sampled),
                 updated_at = NOW()
             WHERE id = %s
-        """, (campaign_area_id, campaign_area_id))
+        """, (campaign_area_id, campaign_id, campaign_area_id))
 
         conn.commit()
 

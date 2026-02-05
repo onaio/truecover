@@ -196,6 +196,7 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   <tr className="sticky top-0 z-10">
                     <th className="bg-tactical-bg-secondary">Coverage ID</th>
                     <th className="bg-tactical-bg-secondary">Quadkey</th>
+                    <th className="bg-tactical-bg-secondary">Sampled/Pixel</th>
                     <th className="bg-tactical-bg-secondary">Rounds</th>
                     <th className="bg-tactical-bg-secondary">Latitude</th>
                     <th className="bg-tactical-bg-secondary">Longitude</th>
@@ -208,7 +209,15 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {coverageData.map((record) => {
+                  {(() => {
+                    // Count sampled buildings per pixel (quadkey)
+                    const sampledPerPixel = new Map<string, number>();
+                    for (const r of coverageData) {
+                      if (r.rounds && r.rounds.length > 0 && r.quadkey) {
+                        sampledPerPixel.set(r.quadkey, (sampledPerPixel.get(r.quadkey) || 0) + 1);
+                      }
+                    }
+                    return coverageData.map((record) => {
                     const hasRounds = record.rounds && record.rounds.length > 0;
                     const rowTextColor = hasRounds ? 'text-tactical-accent-green' : '';
                     return (
@@ -221,6 +230,9 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                         </td>
                         <td className={rowTextColor}>
                           {record.quadkey || '-'}
+                        </td>
+                        <td className={rowTextColor}>
+                          {record.quadkey ? (sampledPerPixel.get(record.quadkey) || 0) : '-'}
                         </td>
                         <td className={`font-bold ${rowTextColor}`}>
                           {hasRounds
@@ -272,7 +284,8 @@ const PredictedCoverageSection: React.FC<PredictedCoverageSectionProps> = ({
                       </td>
                     </tr>
                     );
-                  })}
+                  });
+                  })()}
                 </tbody>
               </table>
               {isLoadingMore && (
