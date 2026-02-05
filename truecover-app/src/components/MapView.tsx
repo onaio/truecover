@@ -1059,11 +1059,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       return [
         'case',
         shouldShowLocation(),
-        0.95,
-        0.9
+        0.1,
+        0.1
       ];
     }
-    return 0;
+    return 0.1;
   };
 
   const getPolygonLineColor = () => {
