@@ -42,9 +42,9 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
   // Entity export workflow state
   const [exportWorkflowId, setExportWorkflowId] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState<{
-    total_pixels: number;
-    created_pixels: number;
-    current_quadkey: string;
+    total_entities: number;
+    created_entities: number;
+    current_label: string;
   } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [pixelGeometryType, setPixelGeometryType] = useState<'centroid' | 'boundary'>('centroid');
@@ -748,8 +748,11 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
               )}
             </div>
 
-            {/* Pixel Geometry Type Selection */}
-            <div>
+            {/* Pixel Geometry Type Selection - only shown when pixel rounds are selected */}
+            {selectedRoundIds.some(id => {
+              const round = rounds.find(r => r.id === id);
+              return round?.sampling_target === 'pixels';
+            }) && <div>
               <label className="block text-sm font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
                 Pixel Geometry Type
               </label>
@@ -787,7 +790,7 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
                   </div>
                 </label>
               </div>
-            </div>
+            </div>}
           </>
         )}
 
@@ -826,12 +829,12 @@ const ExportLocationsModal: React.FC<ExportLocationsModalProps> = ({
               <div className="flex justify-between">
                 <span className="text-tactical-text-dim">Progress:</span>
                 <span className="text-tactical-text-primary font-bold">
-                  {exportProgress.created_pixels} / {exportProgress.total_pixels} pixels
+                  {exportProgress.created_entities} / {exportProgress.total_entities} entities
                 </span>
               </div>
-              {exportProgress.current_quadkey && (
+              {exportProgress.current_label && (
                 <div className="text-xs text-tactical-text-dim">
-                  Current: {exportProgress.current_quadkey}
+                  Current: {exportProgress.current_label}
                 </div>
               )}
             </div>

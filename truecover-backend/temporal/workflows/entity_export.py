@@ -1,5 +1,5 @@
-# ABOUTME: Temporal workflow for exporting pixel coverage data to ODK entity lists
-# ABOUTME: Orchestrates fetching pixel data and creating entities via Ona API
+# ABOUTME: Temporal workflow for exporting coverage data to ODK entity lists
+# ABOUTME: Orchestrates fetching pixel/location data and creating entities via Ona API
 
 from datetime import timedelta
 from typing import Any, Dict, List
@@ -10,6 +10,7 @@ from temporalio.common import RetryPolicy
 with workflow.unsafe.imports_passed_through():
     from ..activities.entity_export import (
         fetch_pixel_coverage_activity,
+        fetch_location_coverage_activity,
         create_odk_entity_activity
     )
 
@@ -17,17 +18,17 @@ with workflow.unsafe.imports_passed_through():
 @workflow.defn
 class EntityExportWorkflow:
     """
-    Workflow for exporting pixel coverage data to ODK entity lists.
+    Workflow for exporting coverage data (pixels and locations) to ODK entity lists.
 
     Steps:
-    1. Fetch pixel coverage data filtered by selected rounds
-    2. Create ODK entity for each pixel (stops on first error)
+    1. Fetch pixel and/or location coverage data filtered by selected rounds
+    2. Create ODK entity for each item (stops on first error)
     """
 
     def __init__(self):
-        self.total_pixels = 0
-        self.created_pixels = 0
-        self.current_quadkey = ""
+        self.total_entities = 0
+        self.created_entities = 0
+        self.current_label = ""
         self.error_message = None
 
     @workflow.run
@@ -35,90 +36,96 @@ class EntityExportWorkflow:
         self,
         campaign_id: str,
         indicator_id: str,
-        round_ids: List[str],
+        pixel_round_ids: List[str],
+        location_round_ids: List[str],
         project_id: str,
         geometry_type: str = 'centroid'
     ) -> Dict[str, Any]:
-        """
-        Run entity export workflow.
+        workflow.logger.info(f"Starting entity export for campaign {campaign_id}")
 
-        Args:
-            campaign_id: Area ID
-            indicator_id: Indicator ID
-            round_ids: List of round IDs to filter by
-            project_id: Project ID for ODK credentials
+        entities = []
 
-        Returns:
-            Result summary with counts
+        # Fetch pixel coverage data if pixel rounds selected
+        if pixel_round_ids:
+            pixels = await workflow.execute_activity(
+                fetch_pixel_coverage_activity,
+                args=[campaign_id, indicator_id, pixel_round_ids],
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=RetryPolicy(maximum_attempts=3)
+            )
+            for p in pixels:
+                p['entity_type'] = 'pixel'
+            entities.extend(pixels)
+            workflow.logger.info(f"Found {len(pixels)} pixels to export")
 
-        Raises:
-            Exception if any entity creation fails
-        """
-        workflow.logger.info(f"Starting entity export for area {campaign_id}")
+        # Fetch location coverage data if location rounds selected
+        if location_round_ids:
+            locations = await workflow.execute_activity(
+                fetch_location_coverage_activity,
+                args=[campaign_id, indicator_id, location_round_ids],
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=RetryPolicy(maximum_attempts=3)
+            )
+            for loc in locations:
+                loc['entity_type'] = 'location'
+            entities.extend(locations)
+            workflow.logger.info(f"Found {len(locations)} locations to export")
 
-        # Fetch pixel coverage data
-        pixels = await workflow.execute_activity(
-            fetch_pixel_coverage_activity,
-            args=[campaign_id, indicator_id, round_ids],
-            start_to_close_timeout=timedelta(minutes=2),
-            retry_policy=RetryPolicy(maximum_attempts=3)
-        )
+        self.total_entities = len(entities)
 
-        self.total_pixels = len(pixels)
-        workflow.logger.info(f"Found {self.total_pixels} pixels to export")
-
-        if self.total_pixels == 0:
+        if self.total_entities == 0:
             return {
                 "success": True,
-                "total_pixels": 0,
-                "created_pixels": 0,
-                "message": "No pixels found for selected rounds"
+                "total_entities": 0,
+                "created_entities": 0,
+                "message": "No entities found for selected rounds"
             }
 
-        # Create ODK entity for each pixel
-        # Stop immediately on first error (no retry policy)
-        for pixel in pixels:
-            self.current_quadkey = pixel['quadkey']
-            workflow.logger.info(f"Creating entity for pixel {self.current_quadkey}")
+        # Create ODK entity for each item
+        # Stop immediately on first error
+        for entity in entities:
+            entity_type = entity['entity_type']
+            label = entity.get('external_id') if entity_type == 'location' else entity.get('quadkey')
+            self.current_label = label or ''
+            workflow.logger.info(f"Creating {entity_type} entity: {self.current_label}")
 
             try:
                 result = await workflow.execute_activity(
                     create_odk_entity_activity,
-                    args=[project_id, pixel, geometry_type],
+                    args=[project_id, entity, geometry_type, entity_type],
                     start_to_close_timeout=timedelta(seconds=30),
                     retry_policy=RetryPolicy(maximum_attempts=1)
                 )
 
-                self.created_pixels += 1
+                self.created_entities += 1
                 workflow.logger.info(
-                    f"Created entity {self.created_pixels}/{self.total_pixels}: "
-                    f"{result['quadkey']}"
+                    f"Created entity {self.created_entities}/{self.total_entities}: "
+                    f"{result['label']}"
                 )
 
             except Exception as e:
-                # Stop on first error
-                error_msg = f"Failed to create entity for pixel {self.current_quadkey}: {str(e)}"
+                error_msg = f"Failed to create {entity_type} entity {self.current_label}: {str(e)}"
                 self.error_message = error_msg
                 workflow.logger.error(error_msg)
                 raise Exception(error_msg)
 
         workflow.logger.info(
-            f"Entity export complete: {self.created_pixels} entities created"
+            f"Entity export complete: {self.created_entities} entities created"
         )
 
         return {
             "success": True,
-            "total_pixels": self.total_pixels,
-            "created_pixels": self.created_pixels,
-            "message": f"Successfully created {self.created_pixels} entities in ODK"
+            "total_entities": self.total_entities,
+            "created_entities": self.created_entities,
+            "message": f"Successfully created {self.created_entities} entities in ODK"
         }
 
     @workflow.query
     def get_progress(self) -> Dict[str, Any]:
         """Query to get current workflow progress."""
         return {
-            "total_pixels": self.total_pixels,
-            "created_pixels": self.created_pixels,
-            "current_quadkey": self.current_quadkey,
+            "total_entities": self.total_entities,
+            "created_entities": self.created_entities,
+            "current_label": self.current_label,
             "error_message": self.error_message
         }

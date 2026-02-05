@@ -962,15 +962,15 @@ export const entityExportApi = {
     workflow_id: string;
     status: string;
     progress?: {
-      total_pixels: number;
-      created_pixels: number;
-      current_quadkey: string;
+      total_entities: number;
+      created_entities: number;
+      current_label: string;
       error_message: string | null;
     };
     result?: {
       success: boolean;
-      total_pixels: number;
-      created_pixels: number;
+      total_entities: number;
+      created_entities: number;
       message: string;
     };
     error?: string;
