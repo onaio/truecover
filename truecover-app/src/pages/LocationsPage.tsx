@@ -76,6 +76,7 @@ const LocationsPage: React.FC = () => {
   const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
   const [planningMode, setPlanningMode] = useState<boolean>(false);
   const [mapMode, setMapMode] = useState<boolean>(false);
+  const [savedMapViewState, setSavedMapViewState] = useState<{ longitude: number; latitude: number; zoom: number } | null>(null);
   const [histogramDrawerOpen, setHistogramDrawerOpen] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
   const [isAddCampaignAreaModalOpen, setIsAddCampaignAreaModalOpen] = useState(false);
@@ -598,25 +599,27 @@ const LocationsPage: React.FC = () => {
                 setIsAddCampaignAreaModalOpen(true);
               }}
               selectedAreaBounds={selectedAreaBounds}
+              savedViewState={savedMapViewState}
+              onViewStateChange={setSavedMapViewState}
               className="h-full"
             />
-
-            {/* Histogram Drawer */}
-            {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty' || interpolationMode === 'metadata') && (
-              <HistogramDrawer
-                isOpen={histogramDrawerOpen}
-                onToggle={() => setHistogramDrawerOpen(!histogramDrawerOpen)}
-                histogramData={histogramData}
-                interpolationMode={interpolationMode}
-                indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
-                onBrushChange={setHistogramBrushRanges}
-                histogramTab={histogramTab}
-                onTabChange={setHistogramTab}
-                locationTotalCount={locationTotalCount}
-                pixelTotalCount={pixelTotalCount}
-              />
-            )}
           </div>
+
+          {/* Histogram Drawer */}
+          {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty' || interpolationMode === 'metadata') && (
+            <HistogramDrawer
+              isOpen={histogramDrawerOpen}
+              onToggle={() => setHistogramDrawerOpen(!histogramDrawerOpen)}
+              histogramData={histogramData}
+              interpolationMode={interpolationMode}
+              indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
+              onBrushChange={setHistogramBrushRanges}
+              histogramTab={histogramTab}
+              onTabChange={setHistogramTab}
+              locationTotalCount={locationTotalCount}
+              pixelTotalCount={pixelTotalCount}
+            />
+          )}
         </div>
       ) : (
         /* NORMAL LAYOUT */
@@ -935,6 +938,8 @@ const LocationsPage: React.FC = () => {
                   setIsAddCampaignAreaModalOpen(true);
                 }}
                 selectedAreaBounds={selectedAreaBounds}
+                savedViewState={savedMapViewState}
+                onViewStateChange={setSavedMapViewState}
               />
             </TacticalCard>
 

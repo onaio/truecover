@@ -51,6 +51,8 @@ interface MapViewProps {
   onToggleCampaignAreas?: () => void;
   onAddAdminBoundaryToCampaign?: (id: string, pcode: string, name: string, geometry?: any) => void;
   selectedAreaBounds?: [[number, number], [number, number]] | null;
+  savedViewState?: { longitude: number; latitude: number; zoom: number } | null;
+  onViewStateChange?: (viewState: { longitude: number; latitude: number; zoom: number }) => void;
   className?: string;
 }
 
@@ -88,7 +90,7 @@ const getCentroid = (geometry: any): [number, number] => {
 
 const MARTIN_URL = env.VITE_MARTIN_URL;
 
-const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, campaignAreas = [], showCampaignAreas = true, onToggleCampaignAreas, onAddAdminBoundaryToCampaign, selectedAreaBounds, className }) => {
+const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode = 'sampling', highlightRounds = [], showSampled = true, onToggleSampled, interpolationMode = 'none', selectedMetadataField = '', metadataVisualizationMode = 'fill', showPixels = false, onTogglePixels, pixelsBounds, onBoundsChange, campaignId, indicatorId, pixelVersion, pixelCount = 0, onGeneratePixels, histogramBrushRanges = null, histogramDataType = 'locations', sampledItemsCount = 0, planningMode = false, campaignAreas = [], showCampaignAreas = true, onToggleCampaignAreas, onAddAdminBoundaryToCampaign, selectedAreaBounds, savedViewState, onViewStateChange, className }) => {
   const [popupInfo, setPopupInfo] = useState<any>(null);
   const [mapStyle, setMapStyle] = useState<string>('mapbox://styles/mapbox/dark-v11');
   const [viewportBounds, setViewportBounds] = useState<[[number, number], [number, number]] | null>(null);
@@ -825,6 +827,12 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         onBoundsChange([sw.lng, sw.lat, ne.lng, ne.lat]);
       }
     }
+
+    // Report current view state to parent for persistence across remounts
+    if (onViewStateChange) {
+      const center = map.getCenter();
+      onViewStateChange({ longitude: center.lng, latitude: center.lat, zoom });
+    }
   };
 
   const handleConfirmPixelGeneration = async () => {
@@ -1201,7 +1209,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         <Map
           key={mapKey}
           mapboxAccessToken={mapboxToken}
-          initialViewState={bounds ? {
+          initialViewState={savedViewState ? {
+            longitude: savedViewState.longitude,
+            latitude: savedViewState.latitude,
+            zoom: savedViewState.zoom
+          } : bounds ? {
             bounds: bounds,
             fitBoundsOptions: { padding: 40 }
           } : {
