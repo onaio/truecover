@@ -833,6 +833,7 @@ def sample_campaign_area(user, area_id):
         resample = data.get('resample', False)
         round_id = data.get('round_id')
         sample_target = data.get('sample_target', 'pixels')  # 'pixels' or 'buildings'
+        buildings_per_pixel = data.get('buildings_per_pixel', 0)
 
         if not indicator_id:
             return jsonify({'error': 'indicator_id is required'}), 400
@@ -869,7 +870,8 @@ def sample_campaign_area(user, area_id):
                     resample,
                     round_number,
                     None,  # round_name (not needed since round exists)
-                    sample_target
+                    sample_target,
+                    buildings_per_pixel
                 ],
                 id=workflow_id,
                 task_queue="truecover-tasks"

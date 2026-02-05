@@ -15,6 +15,7 @@ with workflow.unsafe.imports_passed_through():
         sample_buildings_for_campaign_area,
         assign_buildings_to_round,
         clear_round_from_buildings,
+        sample_buildings_within_pixels,
     )
     from ..activities.rounds import create_round_record
 
@@ -55,11 +56,14 @@ class CampaignAreaSamplingWorkflow:
         resample: bool = False,
         round_number: Optional[int] = None,
         round_name: Optional[str] = None,
-        sample_target: str = 'pixels'  # 'pixels' or 'buildings'
+        sample_target: str = 'pixels',  # 'pixels' or 'buildings'
+        buildings_per_pixel: int = 0
     ) -> Dict[str, Any]:
         """Run sampling for a campaign area."""
 
         workflow.logger.info(f"Starting sampling for campaign_area {campaign_area_id}, count={sample_count}, resample={resample}, target={sample_target}")
+
+        building_result = None
 
         retry_policy = RetryPolicy(
             initial_interval=timedelta(seconds=1),
@@ -187,10 +191,25 @@ class CampaignAreaSamplingWorkflow:
                 retry_policy=retry_policy
             )
 
+            # Step 6: Sample buildings within selected pixels if requested
+            if buildings_per_pixel > 0 and selected_ids:
+                self.status = "sampling_buildings_within_pixels"
+                building_result = await workflow.execute_activity(
+                    sample_buildings_within_pixels,
+                    args=[campaign_id, indicator_id, campaign_area_id,
+                          selected_ids, buildings_per_pixel, self.round_number],
+                    start_to_close_timeout=timedelta(minutes=10),
+                    retry_policy=retry_policy
+                )
+                workflow.logger.info(
+                    f"Building sampling: {building_result.get('buildings_selected', 0)} buildings "
+                    f"across {building_result.get('pixels_with_buildings', 0)} pixels"
+                )
+
         self.status = "completed"
         workflow.logger.info(f"Completed sampling for campaign_area {campaign_area_id}: {self.pixels_sampled} pixels in round {self.round_number}")
 
-        return {
+        result = {
             'campaign_area_id': campaign_area_id,
             'round_number': self.round_number,
             'round_id': round_id,
@@ -198,3 +217,6 @@ class CampaignAreaSamplingWorkflow:
             'total_available': sampling_result.get('total_items', 0),
             'status': 'completed'
         }
+        if building_result:
+            result['buildings_selected'] = building_result.get('buildings_selected', 0)
+        return result

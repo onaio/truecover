@@ -1100,6 +1100,185 @@ async def assign_buildings_to_round(
 
 
 @activity.defn
+async def sample_buildings_within_pixels(
+    campaign_id: str,
+    indicator_id: str,
+    campaign_area_id: str,
+    sampled_pixel_ids: List[str],
+    buildings_per_pixel: int,
+    round_number: int
+) -> Dict[str, Any]:
+    """
+    For each sampled pixel, select up to N buildings using adaptive sampling
+    and assign them to the round.
+
+    Buildings share the same level-18 quadkey as pixels. For each pixel's quadkey,
+    find locations, run adaptive sampling if needed, and assign selected buildings
+    to the round via the coverage table.
+    """
+    import requests
+    import os
+
+    SAMPLING_URL = os.getenv('DOCKER_FN_SAMPLING_URL', 'http://localhost:8083')
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get quadkeys for the sampled coverage_pixel IDs
+        cursor.execute("""
+            SELECT DISTINCT quadkey FROM coverage_pixel WHERE id = ANY(%s::uuid[])
+        """, (sampled_pixel_ids,))
+        quadkeys = [row[0] for row in cursor.fetchall()]
+
+        if not quadkeys:
+            return {'buildings_selected': 0, 'pixels_with_buildings': 0}
+
+        # Find locations + their coverage uncertainty in those quadkeys
+        cursor.execute("""
+            SELECT l.id, l.quadkey, l.latitude, l.longitude,
+                   COALESCE(c.prevalence_bci_width, 0.5) as uncertainty
+            FROM locations l
+            LEFT JOIN coverage c ON c.location_id = l.id
+                AND c.campaign_id = %s AND c.indicator_id = %s
+            WHERE l.campaign_id = %s AND l.quadkey = ANY(%s)
+        """, (campaign_id, indicator_id, campaign_id, quadkeys))
+
+        rows = cursor.fetchall()
+        if not rows:
+            return {'buildings_selected': 0, 'pixels_with_buildings': 0}
+
+        # Group locations by quadkey
+        by_quadkey: Dict[str, list] = {}
+        for row in rows:
+            qk = row[1]
+            if qk not in by_quadkey:
+                by_quadkey[qk] = []
+            by_quadkey[qk].append({
+                'id': str(row[0]),
+                'lat': float(row[2]),
+                'lon': float(row[3]),
+                'uncertainty': float(row[4])
+            })
+
+        total_selected = 0
+        pixels_with_buildings = 0
+
+        for qk, buildings in by_quadkey.items():
+            if not buildings:
+                continue
+
+            pixels_with_buildings += 1
+
+            if len(buildings) <= buildings_per_pixel:
+                # All buildings selected, no sampling needed
+                selected_ids = [b['id'] for b in buildings]
+            else:
+                # Call adaptive sampling service
+                coordinates = [[b['lon'], b['lat']] for b in buildings]
+                uncertainty_values = [b['uncertainty'] for b in buildings]
+
+                payload = {
+                    'coordinates': coordinates,
+                    'uncertainty': uncertainty_values,
+                    'batch_size': buildings_per_pixel
+                }
+
+                try:
+                    response = requests.post(
+                        SAMPLING_URL,
+                        json=payload,
+                        headers={'Content-Type': 'application/json'},
+                        timeout=60
+                    )
+                    response.raise_for_status()
+
+                    response_text = response.text
+                    json_start = response_text.find('{')
+                    if json_start == -1:
+                        activity.logger.warning(f"No JSON in sampling response for quadkey {qk}")
+                        continue
+
+                    depth = 0
+                    json_end = json_start
+                    for i, char in enumerate(response_text[json_start:], start=json_start):
+                        if char == '{':
+                            depth += 1
+                        elif char == '}':
+                            depth -= 1
+                            if depth == 0:
+                                json_end = i + 1
+                                break
+
+                    result = json.loads(response_text[json_start:json_end])
+
+                    if isinstance(result, dict) and result.get('function_status') == 'success' and result.get('result'):
+                        result = result['result']
+
+                    selected_indices = result.get('selected_indices', [])
+                    selected_ids = [buildings[i]['id'] for i in selected_indices]
+                except Exception as e:
+                    activity.logger.warning(f"Sampling failed for quadkey {qk}: {e}, selecting first {buildings_per_pixel}")
+                    selected_ids = [b['id'] for b in buildings[:buildings_per_pixel]]
+
+            # Upsert selected locations into coverage table with round_number
+            for location_id in selected_ids:
+                cursor.execute("""
+                    INSERT INTO coverage (
+                        campaign_id, indicator_id, location_id, version,
+                        n_trials, n_covered, rounds,
+                        exceedance_probability, exceedance_uncertainty,
+                        prevalence_prediction, prevalence_bci_width
+                    )
+                    VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s], 0.5, 0.5, 0.5, 0.5)
+                    ON CONFLICT (campaign_id, indicator_id, location_id, version)
+                    DO UPDATE SET
+                        rounds = array_append(COALESCE(coverage.rounds, '{}'), %s),
+                        updated_at = NOW()
+                    WHERE NOT (%s = ANY(COALESCE(coverage.rounds, '{}')))
+                """, (campaign_id, indicator_id, location_id, round_number, round_number, round_number))
+
+            total_selected += len(selected_ids)
+
+        # Update cached_sampled_count on campaign_area
+        cursor.execute("""
+            WITH sampled AS (
+                SELECT COUNT(DISTINCT c.location_id) as cnt
+                FROM coverage c
+                JOIN locations l ON c.location_id = l.id
+                JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
+                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+                WHERE ca.id = %s
+                  AND c.campaign_id = %s
+                  AND c.rounds IS NOT NULL
+                  AND array_length(c.rounds, 1) > 0
+            )
+            UPDATE campaign_areas
+            SET cached_sampled_count = (SELECT cnt FROM sampled),
+                updated_at = NOW()
+            WHERE id = %s
+        """, (campaign_area_id, campaign_id, campaign_area_id))
+
+        conn.commit()
+
+        activity.logger.info(
+            f"Selected {total_selected} buildings across {pixels_with_buildings} pixels "
+            f"for campaign_area {campaign_area_id}"
+        )
+
+        return {
+            'buildings_selected': total_selected,
+            'pixels_with_buildings': pixels_with_buildings
+        }
+
+    finally:
+        if conn:
+            cursor.close()
+            return_db_connection(conn)
+
+
+@activity.defn
 async def clear_round_from_buildings(
     campaign_id: str,
     indicator_id: str,

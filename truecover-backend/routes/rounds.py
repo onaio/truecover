@@ -238,6 +238,7 @@ def create_round(user, campaign_id):
                     area_id = area['area_id']
                     sample_count = area.get('sample_count', 50)
                     sample_target = area.get('sample_target', 'pixels')
+                    buildings_per_pixel = area.get('buildings_per_pixel', 0)
                     wf_id = f"area-sampling-{area_id}-round{round_number}-{timestamp}"
 
                     await client.start_workflow(
@@ -251,6 +252,7 @@ def create_round(user, campaign_id):
                             round_number,
                             None,  # round_name
                             sample_target,
+                            buildings_per_pixel,
                         ],
                         id=wf_id,
                         task_queue="truecover-tasks"

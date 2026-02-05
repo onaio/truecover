@@ -40,8 +40,8 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Per-area selection: area_id -> sample count
-  const [selectedAreas, setSelectedAreas] = useState<Map<string, number>>(new Map());
+  // Per-area selection: area_id -> sampling config
+  const [selectedAreas, setSelectedAreas] = useState<Map<string, { sampleCount: number; buildingsPerPixel: number }>>(new Map());
 
   // Auto-select first indicator when indicators load
   useEffect(() => {
@@ -56,7 +56,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       if (next.has(areaId)) {
         next.delete(areaId);
       } else {
-        next.set(areaId, 50);
+        next.set(areaId, { sampleCount: 50, buildingsPerPixel: 5 });
       }
       return next;
     });
@@ -65,7 +65,21 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   const updateSampleCount = (areaId: string, count: number) => {
     setSelectedAreas(prev => {
       const next = new Map(prev);
-      next.set(areaId, count);
+      const current = next.get(areaId);
+      if (current) {
+        next.set(areaId, { ...current, sampleCount: count });
+      }
+      return next;
+    });
+  };
+
+  const updateBuildingsPerPixel = (areaId: string, count: number) => {
+    setSelectedAreas(prev => {
+      const next = new Map(prev);
+      const current = next.get(areaId);
+      if (current) {
+        next.set(areaId, { ...current, buildingsPerPixel: count });
+      }
       return next;
     });
   };
@@ -90,10 +104,11 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       const token = await getToken();
 
       // Build sample_areas array from checked areas
-      const sampleAreas = Array.from(selectedAreas.entries()).map(([areaId, sampleCount]) => ({
+      const sampleAreas = Array.from(selectedAreas.entries()).map(([areaId, config]) => ({
         area_id: areaId,
-        sample_count: sampleCount,
+        sample_count: config.sampleCount,
         sample_target: 'pixels',
+        buildings_per_pixel: config.buildingsPerPixel,
       }));
 
       const response = await axios.post(
@@ -250,6 +265,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
                     <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">Pixels</th>
                     <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">Population</th>
                     <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-28">Sample Count</th>
+                    <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-28">Bldgs/Pixel</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -288,8 +304,22 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
                             <input
                               type="number"
                               min={1}
-                              value={selectedAreas.get(area.id) || 50}
+                              value={selectedAreas.get(area.id)?.sampleCount || 50}
                               onChange={(e) => updateSampleCount(area.id, parseInt(e.target.value) || 1)}
+                              disabled={isSubmitting}
+                              className="w-24 px-2 py-1 text-sm font-mono text-right bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary focus:border-tactical-accent-orange focus:outline-none"
+                            />
+                          ) : (
+                            <span className="text-sm font-mono text-tactical-text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {isSelected ? (
+                            <input
+                              type="number"
+                              min={0}
+                              value={selectedAreas.get(area.id)?.buildingsPerPixel ?? 5}
+                              onChange={(e) => updateBuildingsPerPixel(area.id, parseInt(e.target.value) || 0)}
                               disabled={isSubmitting}
                               className="w-24 px-2 py-1 text-sm font-mono text-right bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary focus:border-tactical-accent-orange focus:outline-none"
                             />
