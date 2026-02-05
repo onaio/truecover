@@ -1145,7 +1145,8 @@ async def sample_buildings_within_pixels(
         """, (all_quadkeys,))
         quadkey_building_count = {row[0]: row[1] for row in cursor.fetchall()}
 
-        # Phase 3: Filter pixels — walk in priority order, keep those meeting threshold
+        # Phase 3: Filter pixels — walk in priority order, keep those meeting threshold.
+        # buildings_per_pixel of 0 means no minimum — accept all pixels.
         qualified_pixel_ids = []
         qualified_quadkeys = []
         skipped = 0
@@ -1158,7 +1159,7 @@ async def sample_buildings_within_pixels(
                 skipped += 1
                 continue
             bcount = quadkey_building_count.get(qk, 0)
-            if bcount >= buildings_per_pixel:
+            if buildings_per_pixel == 0 or bcount >= buildings_per_pixel:
                 qualified_pixel_ids.append(pixel_id)
                 qualified_quadkeys.append(qk)
             else:
@@ -1338,7 +1339,8 @@ async def sample_buildings_within_pixels(
             'pixels_assigned': len(qualified_pixel_ids),
             'pixels_skipped': skipped,
             'buildings_selected': total_selected,
-            'pixels_with_buildings': pixels_with_buildings
+            'pixels_with_buildings': pixels_with_buildings,
+            'qualified_pixel_ids': qualified_pixel_ids
         }
 
     finally:
@@ -1536,12 +1538,26 @@ async def create_replacement_pixels(
         """, (campaign_id,))
         already_sampled_quadkeys = {row[0] for row in cursor.fetchall()}
 
+        # Count buildings in primary pixels to skip those below threshold
+        primary_quadkeys = list(pixel_id_to_quadkey.values())
+        primary_building_counts = {}
+        if min_building_count > 0 and primary_quadkeys:
+            cursor.execute("""
+                SELECT quadkey, COUNT(*) FROM locations
+                WHERE quadkey = ANY(%s)
+                GROUP BY quadkey
+            """, (primary_quadkeys,))
+            primary_building_counts = {row[0]: row[1] for row in cursor.fetchall()}
+
         # Compute all neighbor quadkeys for all primary pixels
         neighbor_candidates = {}  # primary_pixel_id -> list of neighbor quadkeys
         all_neighbor_quadkeys = set()
         for pixel_id in primary_pixel_ids:
             qk = pixel_id_to_quadkey.get(pixel_id)
             if not qk:
+                continue
+            # Skip primaries that don't meet the building count threshold
+            if min_building_count > 0 and primary_building_counts.get(qk, 0) < min_building_count:
                 continue
             tile = mercantile.quadkey_to_tile(qk)
             neighbors = []

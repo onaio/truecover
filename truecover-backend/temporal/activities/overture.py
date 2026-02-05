@@ -15,6 +15,92 @@ OVERTURE_BUILDINGS_PATH = os.getenv(
 
 
 @activity.defn
+async def count_existing_locations_in_boundary(
+    boundary_wkt: str
+) -> int:
+    """Check how many locations already exist within a boundary geometry."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM locations l
+            WHERE ST_Within(
+                ST_SetSRID(ST_MakePoint(l.longitude, l.latitude), 4326),
+                ST_GeomFromText(%s, 4326)
+            )
+        """, (boundary_wkt,))
+
+        count = cursor.fetchone()[0]
+        activity.logger.info(f"Found {count} existing locations in boundary")
+        return count
+
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+
+@activity.defn
+async def populate_coverage_for_boundary(
+    campaign_id: str,
+    boundary_wkt: str
+) -> int:
+    """Create coverage records for all locations within a boundary geometry.
+
+    Finds locations spatially within the boundary and creates coverage records
+    for each indicator in the campaign's project. Skips duplicates.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Get indicators for this campaign
+        cursor.execute("""
+            SELECT id FROM indicators WHERE project_id = (
+                SELECT project_id FROM campaigns WHERE id = %s
+            )
+        """, (campaign_id,))
+        indicator_ids = [str(row[0]) for row in cursor.fetchall()]
+
+        if not indicator_ids:
+            activity.logger.warning(f"No indicators found for campaign {campaign_id}")
+            return 0
+
+        total_created = 0
+        for indicator_id in indicator_ids:
+            cursor.execute("""
+                INSERT INTO coverage (
+                    campaign_id, indicator_id, location_id, version, quadkey,
+                    n_trials, n_covered, exceedance_probability,
+                    exceedance_uncertainty, prevalence_prediction, prevalence_bci_width
+                )
+                SELECT %s, %s, l.id, 0, l.quadkey, 0, 0, 0.5, 0.5, 0.5, 0.5
+                FROM locations l
+                WHERE ST_Within(
+                    ST_SetSRID(ST_MakePoint(l.longitude, l.latitude), 4326),
+                    ST_GeomFromText(%s, 4326)
+                )
+                ON CONFLICT (campaign_id, location_id, indicator_id, version) DO NOTHING
+            """, (campaign_id, indicator_id, boundary_wkt))
+
+            total_created += cursor.rowcount
+
+        conn.commit()
+        activity.logger.info(f"Created {total_created} coverage records for {len(indicator_ids)} indicators")
+        return total_created
+
+    except Exception as e:
+        conn.rollback()
+        activity.logger.error(f"Error populating coverage: {e}")
+        raise
+
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+
+@activity.defn
 async def fetch_admin_boundary(pcode: str) -> Dict[str, Any]:
     """Fetch admin boundary bbox and geometry for the given PCODE."""
     conn = get_db_connection()

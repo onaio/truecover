@@ -685,24 +685,42 @@ def import_overture_buildings_async(user, pcode):
     check_campaign_access(user['id'], campaign_id)
 
     try:
-        # Generate workflow ID
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"overture-import-{pcode}-{campaign_id}-{timestamp}"
-
-        # Start the workflow
-        async def start_workflow():
+        # Check for already-running import for this pcode
+        async def check_and_start():
             client = await get_temporal_client()
-            handle = await client.start_workflow(
+
+            # Search for running workflows matching this pcode
+            prefix = f"overture-import-{pcode}-"
+            running = client.list_workflows(
+                f'WorkflowType = "OvertureImportWorkflow" '
+                f'AND ExecutionStatus = "Running"'
+            )
+            async for wf in running:
+                if wf.id.startswith(prefix):
+                    return None, wf.id  # Already running
+
+            # No running workflow — start one
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            workflow_id = f"overture-import-{pcode}-{campaign_id}-{timestamp}"
+            await client.start_workflow(
                 OvertureImportWorkflow.run,
                 args=[pcode, campaign_id, geometry],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )
+            return workflow_id, None
 
-        run_async(start_workflow())
+        new_id, existing_id = run_async(check_and_start())
+
+        if existing_id:
+            return jsonify({
+                'error': f'Import already running for {pcode}',
+                'workflow_id': existing_id,
+                'status': 'already_running'
+            }), 409
 
         return jsonify({
-            'workflow_id': workflow_id,
+            'workflow_id': new_id,
             'status': 'started'
         }), 202
 

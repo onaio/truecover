@@ -101,6 +101,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   const [visibleAdminLevels, setVisibleAdminLevels] = useState<number[]>([0, 1, 2, 3, 4]);
   const [hoveredAdminId, setHoveredAdminId] = useState<string | null>(null);
   const [showBuildings, setShowBuildings] = useState<boolean>(true);
+  const [showSelectedPixelsOnly, setShowSelectedPixelsOnly] = useState<boolean>(true);
   const [adminBoundariesCollapsed, setAdminBoundariesCollapsed] = useState<boolean>(true);
   const [showPixelGenerateModal, setShowPixelGenerateModal] = useState<boolean>(false);
   const [pendingAdminPixelGen, setPendingAdminPixelGen] = useState<{
@@ -127,7 +128,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
   // Update tile version when filter states change to bust cache
   React.useEffect(() => {
     setTileVersion(Date.now());
-  }, [showSampled, interpolationMode, highlightRounds, selectedMetadataField, metadataVisualizationMode, visibleAdminLevels]);
+  }, [showSampled, interpolationMode, highlightRounds, selectedMetadataField, metadataVisualizationMode, visibleAdminLevels, showSelectedPixelsOnly]);
 
   // Use locations data if in locations mode, otherwise use regular data
   const primaryData = mode === 'locations' && locations ? locations : data;
@@ -955,8 +956,11 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       return true; // Not filtering by rounds
     }
 
-    // No rounds = empty string "{}"
-    const hasAnyRounds = ['!=', ['get', 'rounds'], '{}'];
+    // rounds is NULL when no coverage record exists, or "{}" when unsampled
+    const hasAnyRounds = ['all',
+      ['has', 'rounds'],
+      ['!=', ['get', 'rounds'], '{}']
+    ];
 
     // If no specific rounds selected, show all locations with any rounds
     if (!highlightRounds || highlightRounds.length === 0) {
@@ -1320,8 +1324,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 source-layer="building"
                 minzoom={12}
                 paint={{
-                  'fill-color': '#4393c3',
-                  'fill-opacity': 0.2
+                  'fill-color': '#ffffff',
+                  'fill-opacity': 0.1
                 }}
               />
               <Layer
@@ -1330,7 +1334,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 source-layer="building"
                 minzoom={12}
                 paint={{
-                  'line-color': '#2166ac',
+                  'line-color': '#ffffff',
                   'line-width': 1
                 }}
               />
@@ -1451,7 +1455,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
             <Source
               id="pixels-source"
               type="vector"
-              tiles={[`${MARTIN_URL}/pixels_by_campaign/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
+              tiles={[`${MARTIN_URL}/pixels_by_campaign/{z}/{x}/{y}?campaign_id=${campaignId}&indicator_id=${indicatorId || ''}&metadata_field=${selectedMetadataField || ''}&sampled_only=${showSelectedPixelsOnly}&v=${pixelVersion || '0'}&t=${tileVersion}`]}
               minzoom={0}
               maxzoom={24}
             >
@@ -2314,6 +2318,17 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               />
               <span className="font-mono text-xs text-tactical-text-primary">
                 Buildings
+              </span>
+            </label>
+            <label className="flex items-center mb-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showSelectedPixelsOnly}
+                onChange={(e) => setShowSelectedPixelsOnly(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="font-mono text-xs text-tactical-text-primary">
+                Selected Pixels Only
               </span>
             </label>
           </div>
