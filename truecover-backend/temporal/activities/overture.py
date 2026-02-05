@@ -154,6 +154,7 @@ async def fetch_and_insert_overture_buildings(
     total_inserted = 0
     total_duplicates = 0
     all_new_location_ids = []
+    all_existing_location_ids = []
 
     try:
         # Query to get all buildings in one pass
@@ -200,7 +201,9 @@ async def fetch_and_insert_overture_buildings(
                     "SELECT id FROM locations WHERE external_id = %s",
                     (overture_id,)
                 )
-                if pg_cursor.fetchone():
+                existing = pg_cursor.fetchone()
+                if existing:
+                    all_existing_location_ids.append(str(existing[0]))
                     batch_duplicates += 1
                     continue
 
@@ -261,7 +264,8 @@ async def fetch_and_insert_overture_buildings(
             'total_fetched': total_fetched,
             'inserted': total_inserted,
             'duplicates': total_duplicates,
-            'new_location_ids': all_new_location_ids
+            'new_location_ids': all_new_location_ids,
+            'existing_location_ids': all_existing_location_ids
         }
 
     except Exception as e:

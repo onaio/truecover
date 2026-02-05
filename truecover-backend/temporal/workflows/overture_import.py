@@ -101,35 +101,36 @@ class OvertureImportWorkflow:
         self.total_inserted = import_result['inserted']
         self.total_duplicates = import_result['duplicates']
         all_new_location_ids = import_result['new_location_ids']
+        all_existing_location_ids = import_result.get('existing_location_ids', [])
 
         workflow.logger.info(
             f"Import complete: fetched={self.total_fetched}, "
             f"inserted={self.total_inserted}, duplicates={self.total_duplicates}"
         )
 
-        # Activity 3: Populate coverage for new locations
-        if all_new_location_ids:
+        # Activity 3: Populate coverage for all locations in this campaign
+        # Both new and existing (duplicate) buildings need coverage entries
+        all_location_ids = all_new_location_ids + all_existing_location_ids
+        if all_location_ids:
             self.status = 'populating_coverage'
-            workflow.logger.info(f"Populating coverage for {len(all_new_location_ids)} new locations")
+            workflow.logger.info(f"Populating coverage for {len(all_location_ids)} locations ({len(all_new_location_ids)} new, {len(all_existing_location_ids)} existing)")
             await workflow.execute_activity(
                 populate_coverage_for_locations,
-                args=[campaign_id, all_new_location_ids],
+                args=[campaign_id, all_location_ids],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
 
-        # Activity 4: Auto-generate pixels for new quadkeys
-        new_quadkeys = []
-        if self.total_inserted > 0:
-            self.status = 'generating_pixels'
-            workflow.logger.info("Auto-generating pixels for imported buildings")
-            pixel_result = await workflow.execute_activity(
-                generate_pixels_for_quadkeys,
-                args=[campaign_id],
-                start_to_close_timeout=timedelta(minutes=5),
-                retry_policy=RetryPolicy(maximum_attempts=3)
-            )
-            new_quadkeys = pixel_result['new_quadkeys']
+        # Activity 4: Auto-generate pixels for quadkeys
+        self.status = 'generating_pixels'
+        workflow.logger.info("Auto-generating pixels for imported buildings")
+        pixel_result = await workflow.execute_activity(
+            generate_pixels_for_quadkeys,
+            args=[campaign_id],
+            start_to_close_timeout=timedelta(minutes=5),
+            retry_policy=RetryPolicy(maximum_attempts=3)
+        )
+        new_quadkeys = pixel_result['new_quadkeys']
 
         # Activity 5: Create coverage_pixel records for new pixels
         if new_quadkeys:
@@ -143,15 +144,14 @@ class OvertureImportWorkflow:
             )
 
         # Activity 6: Update campaign area building counts
-        if self.total_inserted > 0:
-            self.status = 'updating_building_counts'
-            workflow.logger.info("Updating campaign area building counts")
-            await workflow.execute_activity(
-                update_campaign_area_building_counts,
-                args=[campaign_id],
-                start_to_close_timeout=timedelta(minutes=2),
-                retry_policy=RetryPolicy(maximum_attempts=3)
-            )
+        self.status = 'updating_building_counts'
+        workflow.logger.info("Updating campaign area building counts")
+        await workflow.execute_activity(
+            update_campaign_area_building_counts,
+            args=[campaign_id],
+            start_to_close_timeout=timedelta(minutes=2),
+            retry_policy=RetryPolicy(maximum_attempts=3)
+        )
 
         self.status = 'completed'
         return {
