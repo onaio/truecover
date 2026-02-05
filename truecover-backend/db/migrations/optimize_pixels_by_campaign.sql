@@ -77,10 +77,10 @@ BEGIN
                 WHERE ca.campaign_id = target_campaign_id
                   AND p.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
             )
-            -- Top-right corner (quadkey label)
+            -- Top-left corner (quadkey label)
             SELECT
                 ST_AsMVTGeom(
-                    ST_Transform(ST_SetSRID(ST_MakePoint(ST_XMax(pd.geometry), ST_YMax(pd.geometry)), 4326), 3857),
+                    ST_Transform(ST_SetSRID(ST_MakePoint(ST_XMin(pd.geometry), ST_YMax(pd.geometry)), 4326), 3857),
                     ST_TileEnvelope(z, x, y),
                     4096, 64, true
                 ) AS geom,

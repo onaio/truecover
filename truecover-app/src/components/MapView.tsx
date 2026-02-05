@@ -1677,7 +1677,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 />
               )}
 
-              {/* Pixel quadkey label: anchored at top-right corner point */}
+              {/* Pixel quadkey label: anchored at top-left corner point */}
               <Layer
                 id="pixels-quadkey-label"
                 type="symbol"
@@ -1687,9 +1687,9 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 layout={{
                   'text-field': ['get', 'quadkey'],
                   'text-size': 11,
-                  'text-anchor': 'top-right',
-                  'text-justify': 'right',
-                  'text-offset': [-0.3, 0.3],
+                  'text-anchor': 'top-left',
+                  'text-justify': 'left',
+                  'text-offset': [0.3, 0.3],
                   'text-allow-overlap': true,
                   'text-ignore-placement': true,
                   'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold']
