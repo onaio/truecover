@@ -250,10 +250,10 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         {campaignAreas.length > 0 && (
           <div className="border-t border-tactical-border-medium pt-4 mt-4">
             <h3 className="text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
-              Auto-Sample Areas
+              Adaptively Sample Areas
             </h3>
             <p className="text-xs font-mono text-tactical-text-dim mb-3">
-              Select areas to automatically sample when this round is created. Leave unchecked to sample manually later.
+              Select areas to adaptively sample when this round is created. Leave unchecked to sample manually later.
             </p>
 
             <div className="border border-tactical-border-medium">

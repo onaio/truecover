@@ -1104,17 +1104,19 @@ async def sample_buildings_within_pixels(
     campaign_id: str,
     indicator_id: str,
     campaign_area_id: str,
-    sampled_pixel_ids: List[str],
+    candidate_pixel_ids: List[str],
+    target_pixel_count: int,
     buildings_per_pixel: int,
     round_number: int
 ) -> Dict[str, Any]:
     """
-    For each sampled pixel, select up to N buildings using adaptive sampling
-    and assign them to the round.
+    Filter candidate pixels by minimum building count, assign qualified pixels
+    to the round, and sample buildings within them.
 
-    Buildings share the same level-18 quadkey as pixels. For each pixel's quadkey,
-    find locations, run adaptive sampling if needed, and assign selected buildings
-    to the round via the coverage table.
+    candidate_pixel_ids are ordered by priority from adaptive sampling (highest
+    uncertainty/spatial diversity first). Includes backup pixels beyond
+    target_pixel_count. We walk in priority order and keep the first
+    target_pixel_count pixels that have >= buildings_per_pixel buildings.
     """
     import requests
     import os
@@ -1126,16 +1128,92 @@ async def sample_buildings_within_pixels(
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Get quadkeys for the sampled coverage_pixel IDs
+        # Phase 1: Map pixel IDs to quadkeys, preserving candidate order
         cursor.execute("""
-            SELECT DISTINCT quadkey FROM coverage_pixel WHERE id = ANY(%s::uuid[])
-        """, (sampled_pixel_ids,))
-        quadkeys = [row[0] for row in cursor.fetchall()]
+            SELECT id, quadkey FROM coverage_pixel WHERE id = ANY(%s::uuid[])
+        """, (candidate_pixel_ids,))
+        pixel_id_to_quadkey = {str(row[0]): row[1] for row in cursor.fetchall()}
 
-        if not quadkeys:
-            return {'buildings_selected': 0, 'pixels_with_buildings': 0}
+        all_quadkeys = list(set(pixel_id_to_quadkey.values()))
+        if not all_quadkeys:
+            return {
+                'pixels_assigned': 0, 'pixels_skipped': 0,
+                'buildings_selected': 0, 'pixels_with_buildings': 0
+            }
 
-        # Find locations + their coverage uncertainty in those quadkeys
+        # Phase 2: Count buildings per quadkey
+        cursor.execute("""
+            SELECT l.quadkey, COUNT(*) as cnt
+            FROM locations l
+            WHERE l.campaign_id = %s AND l.quadkey = ANY(%s)
+            GROUP BY l.quadkey
+        """, (campaign_id, all_quadkeys))
+        quadkey_building_count = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Phase 3: Filter pixels — walk in priority order, keep those meeting threshold
+        qualified_pixel_ids = []
+        qualified_quadkeys = []
+        skipped = 0
+
+        for pixel_id in candidate_pixel_ids:
+            if len(qualified_pixel_ids) >= target_pixel_count:
+                break
+            qk = pixel_id_to_quadkey.get(pixel_id)
+            if not qk:
+                skipped += 1
+                continue
+            bcount = quadkey_building_count.get(qk, 0)
+            if bcount >= buildings_per_pixel:
+                qualified_pixel_ids.append(pixel_id)
+                qualified_quadkeys.append(qk)
+            else:
+                skipped += 1
+                activity.logger.info(
+                    f"Skipped pixel {pixel_id} (quadkey {qk}): "
+                    f"only {bcount} buildings, need {buildings_per_pixel}"
+                )
+
+        activity.logger.info(
+            f"Pixel filtering: {len(qualified_pixel_ids)} qualified, "
+            f"{skipped} skipped out of {len(candidate_pixel_ids)} candidates"
+        )
+
+        if not qualified_pixel_ids:
+            return {
+                'pixels_assigned': 0, 'pixels_skipped': skipped,
+                'buildings_selected': 0, 'pixels_with_buildings': 0
+            }
+
+        # Phase 4: Assign qualified pixels to round
+        cursor.execute("""
+            UPDATE coverage_pixel
+            SET rounds = array_append(COALESCE(rounds, '{}'), %s),
+                updated_at = NOW()
+            WHERE id = ANY(%s::uuid[]) AND NOT (%s = ANY(COALESCE(rounds, '{}')))
+        """, (round_number, qualified_pixel_ids, round_number))
+
+        # Update cached_sampled_count and cached_sampled_population
+        cursor.execute("""
+            WITH sampled AS (
+                SELECT
+                    COUNT(DISTINCT cp.quadkey) as cnt,
+                    COALESCE(SUM(p.population), 0) as sampled_pop
+                FROM coverage_pixel cp
+                JOIN pixel_area pa ON cp.quadkey = pa.quadkey
+                JOIN pixels p ON cp.quadkey = p.quadkey
+                WHERE pa.campaign_area_id = %s
+                  AND cp.rounds IS NOT NULL
+                  AND array_length(cp.rounds, 1) > 0
+            )
+            UPDATE campaign_areas
+            SET cached_sampled_count = (SELECT cnt FROM sampled),
+                cached_sampled_population = (SELECT sampled_pop FROM sampled),
+                updated_at = NOW()
+            WHERE id = %s
+        """, (campaign_area_id, campaign_area_id))
+
+        # Phase 5: Sample buildings within qualified pixels
+        unique_quadkeys = list(set(qualified_quadkeys))
         cursor.execute("""
             SELECT l.id, l.quadkey, l.latitude, l.longitude,
                    COALESCE(c.prevalence_bci_width, 0.5) as uncertainty
@@ -1143,13 +1221,9 @@ async def sample_buildings_within_pixels(
             LEFT JOIN coverage c ON c.location_id = l.id
                 AND c.campaign_id = %s AND c.indicator_id = %s
             WHERE l.campaign_id = %s AND l.quadkey = ANY(%s)
-        """, (campaign_id, indicator_id, campaign_id, quadkeys))
+        """, (campaign_id, indicator_id, campaign_id, unique_quadkeys))
 
         rows = cursor.fetchall()
-        if not rows:
-            return {'buildings_selected': 0, 'pixels_with_buildings': 0}
-
-        # Group locations by quadkey
         by_quadkey: Dict[str, list] = {}
         for row in rows:
             qk = row[1]
@@ -1172,10 +1246,8 @@ async def sample_buildings_within_pixels(
             pixels_with_buildings += 1
 
             if len(buildings) <= buildings_per_pixel:
-                # All buildings selected, no sampling needed
                 selected_ids = [b['id'] for b in buildings]
             else:
-                # Call adaptive sampling service
                 coordinates = [[b['lon'], b['lat']] for b in buildings]
                 uncertainty_values = [b['uncertainty'] for b in buildings]
 
@@ -1222,7 +1294,6 @@ async def sample_buildings_within_pixels(
                     activity.logger.warning(f"Sampling failed for quadkey {qk}: {e}, selecting first {buildings_per_pixel}")
                     selected_ids = [b['id'] for b in buildings[:buildings_per_pixel]]
 
-            # Upsert selected locations into coverage table with round_number
             for location_id in selected_ids:
                 cursor.execute("""
                     INSERT INTO coverage (
@@ -1232,7 +1303,7 @@ async def sample_buildings_within_pixels(
                         prevalence_prediction, prevalence_bci_width
                     )
                     VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s], 0.5, 0.5, 0.5, 0.5)
-                    ON CONFLICT (campaign_id, indicator_id, location_id, version)
+                    ON CONFLICT (location_id, indicator_id)
                     DO UPDATE SET
                         rounds = array_append(COALESCE(coverage.rounds, '{}'), %s),
                         updated_at = NOW()
@@ -1241,7 +1312,7 @@ async def sample_buildings_within_pixels(
 
             total_selected += len(selected_ids)
 
-        # Update cached_sampled_count on campaign_area
+        # Update cached_sampled_count on campaign_area (buildings)
         cursor.execute("""
             WITH sampled AS (
                 SELECT COUNT(DISTINCT c.location_id) as cnt
@@ -1264,10 +1335,13 @@ async def sample_buildings_within_pixels(
 
         activity.logger.info(
             f"Selected {total_selected} buildings across {pixels_with_buildings} pixels "
+            f"({len(qualified_pixel_ids)} assigned, {skipped} skipped) "
             f"for campaign_area {campaign_area_id}"
         )
 
         return {
+            'pixels_assigned': len(qualified_pixel_ids),
+            'pixels_skipped': skipped,
             'buildings_selected': total_selected,
             'pixels_with_buildings': pixels_with_buildings
         }

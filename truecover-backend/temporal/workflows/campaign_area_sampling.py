@@ -6,6 +6,8 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 from typing import Dict, Any, Optional
 
+BACKUP_PIXEL_COUNT = 30
+
 with workflow.unsafe.imports_passed_through():
     from ..activities.cluster_sampling import (
         create_coverage_pixels_for_campaign_area,
@@ -159,16 +161,17 @@ class CampaignAreaSamplingWorkflow:
             workflow.logger.info(f"Created {created} coverage_pixel records")
 
             # Step 4: Run adaptive sampling
+            # Request extra backup pixels when filtering by building count
             self.status = "sampling"
+            request_count = sample_count + BACKUP_PIXEL_COUNT if buildings_per_pixel > 0 else sample_count
             sampling_result = await workflow.execute_activity(
                 sample_pixels_for_campaign_area,
-                args=[campaign_id, indicator_id, campaign_area_id, sample_count],
+                args=[campaign_id, indicator_id, campaign_area_id, request_count],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=retry_policy
             )
 
             selected_ids = sampling_result.get('selected_ids', [])
-            self.pixels_sampled = len(selected_ids)
 
             if not selected_ids:
                 workflow.logger.warning(f"No pixels selected for campaign_area {campaign_area_id}")
@@ -182,28 +185,31 @@ class CampaignAreaSamplingWorkflow:
                     'message': sampling_result.get('message', 'No pixels available for sampling')
                 }
 
-            # Step 5: Assign pixels to round
-            self.status = "assigning_to_round"
-            await workflow.execute_activity(
-                assign_pixels_to_round,
-                args=[campaign_area_id, selected_ids, self.round_number],
-                start_to_close_timeout=timedelta(minutes=2),
-                retry_policy=retry_policy
-            )
-
-            # Step 6: Sample buildings within selected pixels if requested
-            if buildings_per_pixel > 0 and selected_ids:
-                self.status = "sampling_buildings_within_pixels"
+            if buildings_per_pixel > 0:
+                # Combined: filter by building count, assign qualified pixels, sample buildings
+                self.status = "filtering_and_sampling_buildings"
                 building_result = await workflow.execute_activity(
                     sample_buildings_within_pixels,
                     args=[campaign_id, indicator_id, campaign_area_id,
-                          selected_ids, buildings_per_pixel, self.round_number],
+                          selected_ids, sample_count, buildings_per_pixel, self.round_number],
                     start_to_close_timeout=timedelta(minutes=10),
                     retry_policy=retry_policy
                 )
+                self.pixels_sampled = building_result.get('pixels_assigned', 0)
                 workflow.logger.info(
                     f"Building sampling: {building_result.get('buildings_selected', 0)} buildings "
-                    f"across {building_result.get('pixels_with_buildings', 0)} pixels"
+                    f"across {building_result.get('pixels_with_buildings', 0)} pixels "
+                    f"({building_result.get('pixels_skipped', 0)} pixels skipped)"
+                )
+            else:
+                # No building threshold — assign all pixels directly
+                self.status = "assigning_to_round"
+                self.pixels_sampled = len(selected_ids)
+                await workflow.execute_activity(
+                    assign_pixels_to_round,
+                    args=[campaign_area_id, selected_ids, self.round_number],
+                    start_to_close_timeout=timedelta(minutes=2),
+                    retry_policy=retry_policy
                 )
 
         self.status = "completed"
@@ -219,4 +225,5 @@ class CampaignAreaSamplingWorkflow:
         }
         if building_result:
             result['buildings_selected'] = building_result.get('buildings_selected', 0)
+            result['pixels_skipped'] = building_result.get('pixels_skipped', 0)
         return result

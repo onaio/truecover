@@ -175,8 +175,7 @@ export const TacticalMultiSelect: React.FC<TacticalMultiSelectProps> = ({
                       type="checkbox"
                       checked={isOptionChecked(option.value)}
                       onChange={() => {}} // Handled by div onClick
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
+                      className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2 pointer-events-none"
                     />
                     <span className="text-base text-tactical-text-primary font-mono">
                       {option.label}

@@ -662,9 +662,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     type: 'fill',
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
-      // When both visit locations AND interpolation are active, make fill transparent
-      'fill-color': (showSampled && interpolationMode !== 'none') ? 'rgba(40, 167, 69, 0)' : '#28a745',
-      'fill-opacity': (showSampled && interpolationMode !== 'none') ? 0 : 0.95
+      'fill-color': 'rgba(40, 167, 69, 0)',
+      'fill-opacity': 0
     }
   };
 
@@ -674,7 +673,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
     filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
     paint: {
       'line-color': '#28a745',
-      'line-width': 2,
+      'line-width': 4,
       'line-opacity': 1
     }
   };
@@ -1037,7 +1036,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         'case',
         shouldShowLocation(),
         '#28a745',
-        'rgba(153, 153, 153, 0)'
+        '#ffffff'
       ];
     }
     return 'rgba(153, 153, 153, 0)';
@@ -1061,7 +1060,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         'case',
         shouldShowLocation(),
         0.95,
-        0
+        0.9
       ];
     }
     return 0;
@@ -1160,7 +1159,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         'case',
         shouldShowLocation(),
         '#28a745',
-        'rgba(255, 255, 255, 0)'
+        '#ffffff'
       ];
     }
     return 'rgba(255, 255, 255, 0)';
@@ -1197,7 +1196,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
         'case',
         shouldShowLocation(),
         1,
-        0
+        0.9
       ];
     }
     return 0.8;
@@ -1550,7 +1549,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                               0.9,
                               0
                             ]
-                        : 0.6
+                        : showSampled
+                          ? [
+                              'interpolate', ['linear'], ['zoom'],
+                              14, ['case', shouldShowLocation(), 0.6, 0.6],
+                              15, ['case', shouldShowLocation(), 0, 0.6]
+                            ]
+                          : 0.6
                 }}
               />
               <Layer
@@ -1564,7 +1569,13 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
                       ? '#ffffff'
                       : '#28a745',
-                  'line-width': 1,
+                  'line-width': showSampled
+                    ? [
+                        'interpolate', ['linear'], ['zoom'],
+                        14, ['case', shouldShowLocation(), 1, 1],
+                        15, ['case', shouldShowLocation(), 4, 1]
+                      ]
+                    : 1,
                   'line-opacity': interpolationMode === 'coverage'
                     ? [
                         'case',
@@ -1594,7 +1605,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                               0.3,
                               0
                             ]
-                        : 0.6
+                        : showSampled
+                          ? [
+                              'case',
+                              shouldShowLocation(),
+                              1,
+                              0.6
+                            ]
+                          : 0.6
                 }}
               />
 
@@ -1658,6 +1676,66 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   }}
                 />
               )}
+
+              {/* Pixel quadkey label: top-right at zoom 16+ */}
+              <Layer
+                id="pixels-quadkey-label"
+                type="symbol"
+                source-layer="pixels"
+                filter={buildPixelHistogramFilter()}
+                minzoom={16}
+                layout={{
+                  'text-field': ['get', 'quadkey'],
+                  'text-size': 11,
+                  'text-anchor': 'top-right',
+                  'text-justify': 'right',
+                  'text-offset': [-0.5, 0.5],
+                  'text-allow-overlap': true,
+                  'text-ignore-placement': true,
+                  'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold']
+                }}
+                paint={{
+                  'text-color': '#ffffff',
+                  'text-halo-color': 'rgba(0, 0, 0, 0.7)',
+                  'text-halo-width': 1
+                }}
+              />
+              {/* Pixel stats label: bottom-right at zoom 16+ */}
+              <Layer
+                id="pixels-stats-label"
+                type="symbol"
+                source-layer="pixels"
+                filter={buildPixelHistogramFilter()}
+                minzoom={16}
+                layout={{
+                  'text-field': [
+                    'concat',
+                    ['case', ['!=', ['get', 'population'], null],
+                      ['concat', 'Pop: ', ['to-string', ['round', ['get', 'population']]]],
+                      ''
+                    ],
+                    ['case', ['!=', ['get', 'building_count'], null],
+                      ['concat',
+                        ['case', ['!=', ['get', 'population'], null], '\n', ''],
+                        'Bldgs: ', ['to-string', ['get', 'building_count']]
+                      ],
+                      ''
+                    ]
+                  ],
+                  'text-size': 11,
+                  'text-anchor': 'bottom-right',
+                  'text-justify': 'right',
+                  'text-offset': [-0.5, -0.5],
+                  'text-allow-overlap': true,
+                  'text-ignore-placement': true,
+                  'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold']
+                }}
+                paint={{
+                  'text-color': '#ffffff',
+                  'text-halo-color': 'rgba(0, 0, 0, 0.7)',
+                  'text-halo-width': 1
+                }}
+              />
             </Source>
           )}
 

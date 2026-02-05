@@ -39,7 +39,9 @@ BEGIN
                 WHEN metadata_field IS NOT NULL AND pm.metadata IS NOT NULL THEN
                     (pm.metadata->>metadata_field)::numeric
                 ELSE NULL
-            END AS metadata_value
+            END AS metadata_value,
+            (pm.metadata->>'population')::numeric AS population,
+            lc.building_count
         FROM pixels p
         JOIN pixel_area pa ON p.quadkey = pa.quadkey
         JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
@@ -47,6 +49,11 @@ BEGIN
             AND cp.campaign_id = target_campaign_id
             AND (target_indicator_id IS NULL OR cp.indicator_id = target_indicator_id)
         LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*)::integer AS building_count
+            FROM locations l
+            WHERE l.quadkey = p.quadkey AND l.campaign_id = target_campaign_id
+        ) lc ON true
         WHERE ca.campaign_id = target_campaign_id
           AND p.geometry && ST_Transform(ST_TileEnvelope(z, x, y), 4326)
     ) as tile

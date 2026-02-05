@@ -19,6 +19,7 @@ interface AddCampaignAreaModalProps {
     name: string;
   } | null;
   drawnGeometry?: any;
+  existingBuildingCount?: number;
   onAreaAdded?: (result?: { areaId: string; buildingWorkflowId?: string }) => void;
 }
 
@@ -29,6 +30,7 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
   mode,
   adminBoundary,
   drawnGeometry,
+  existingBuildingCount = 0,
   onAreaAdded
 }) => {
   const { getToken } = useAuth();
@@ -177,6 +179,14 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
           </p>
         </div>
 
+        {existingBuildingCount > 0 && (
+          <div className="p-3 border border-tactical-border-medium bg-tactical-bg-secondary">
+            <span className="text-sm text-tactical-text-secondary">
+              This area already has <span className="font-bold text-tactical-text-primary">{existingBuildingCount.toLocaleString()}</span> buildings imported.
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -186,11 +196,15 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
             className="w-4 h-4"
           />
           <label htmlFor="extractBuildings" className="text-sm text-tactical-text-secondary">
-            Extract buildings from Overture Maps
+            {existingBuildingCount > 0
+              ? 'Re-extract buildings from Overture Maps'
+              : 'Extract buildings from Overture Maps'}
           </label>
         </div>
         <p className="text-xs text-tactical-text-muted -mt-2 ml-6">
-          Import building footprints from Overture Maps for this area
+          {existingBuildingCount > 0
+            ? 'This will re-import building footprints (duplicates are skipped)'
+            : 'Import building footprints from Overture Maps for this area'}
         </p>
 
         <div className="flex gap-3 justify-end pt-2">

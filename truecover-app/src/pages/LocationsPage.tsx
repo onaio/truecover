@@ -165,8 +165,8 @@ const LocationsPage: React.FC = () => {
     data: locationsResult,
   } = useInfiniteLocations(selectedCampaign?.id);
 
-  // Get total counts from first page (they're the same across all pages)
-  const locationTotalCount = locationsResult?.pages?.[0]?.total_count || locations?.total_count || locations?.locations?.length || 0;
+  // Get total counts from coverage data (round-filtered) when available, else from locations
+  const locationTotalCount = coverageDataResult?.pages?.[0]?.locationTotalCount ?? locationsResult?.pages?.[0]?.total_count ?? locations?.total_count ?? locations?.locations?.length ?? 0;
   const pixelTotalCount = coverageDataResult?.pages?.[0]?.pixelTotalCount || 0;
 
   // Set default indicator to first one when indicators load
@@ -471,6 +471,7 @@ const LocationsPage: React.FC = () => {
                   }))
                 ]}
                 placeholder="Filter by Round"
+                autoApply
               />
             </div>
 
@@ -795,6 +796,7 @@ const LocationsPage: React.FC = () => {
                     }))
                   ]}
                   placeholder="Filter by Round"
+                  autoApply
                 />
               </div>
 
@@ -1153,6 +1155,11 @@ const LocationsPage: React.FC = () => {
         mode={campaignAreaMode}
         adminBoundary={selectedAdminBoundaryForCampaign}
         drawnGeometry={drawnGeometryForCampaign}
+        existingBuildingCount={
+          campaignAreas?.find(a =>
+            a.admin_boundary_name === selectedAdminBoundaryForCampaign?.name
+          )?.building_count || 0
+        }
         onAreaAdded={(result) => {
           setCampaignAreasRefreshKey(prev => prev + 1);
           refetchPixelStats();
