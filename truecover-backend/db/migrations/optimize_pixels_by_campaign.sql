@@ -36,6 +36,7 @@ BEGIN
             cp.n_trials,
             cp.n_covered,
             cp.rounds,
+            (cp.replacement_for IS NOT NULL) AS is_replacement,
             pm.metadata,
             CASE
                 WHEN metadata_field IS NOT NULL AND pm.metadata IS NOT NULL THEN

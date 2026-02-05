@@ -18,6 +18,7 @@ with workflow.unsafe.imports_passed_through():
         assign_buildings_to_round,
         clear_round_from_buildings,
         sample_buildings_within_pixels,
+        create_replacement_pixels,
     )
     from ..activities.rounds import create_round_record
 
@@ -210,6 +211,20 @@ class CampaignAreaSamplingWorkflow:
                     args=[campaign_area_id, selected_ids, self.round_number],
                     start_to_close_timeout=timedelta(minutes=2),
                     retry_policy=retry_policy
+                )
+
+            # Create replacement pixels for sampled primaries
+            if selected_ids and self.pixels_sampled > 0:
+                self.status = "creating_replacements"
+                replacement_result = await workflow.execute_activity(
+                    create_replacement_pixels,
+                    args=[campaign_id, indicator_id, selected_ids, self.round_number,
+                          buildings_per_pixel],
+                    start_to_close_timeout=timedelta(minutes=5),
+                    retry_policy=retry_policy
+                )
+                workflow.logger.info(
+                    f"Created {replacement_result.get('replacement_count', 0)} replacement pixels"
                 )
 
         self.status = "completed"

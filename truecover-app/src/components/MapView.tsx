@@ -1521,6 +1521,8 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                         : showSampled
                           ? [
                               'case',
+                              ['==', ['get', 'is_replacement'], true],
+                              '#007bff',
                               shouldShowLocation(),
                               '#28a745',
                               '#1a1a2e'
@@ -1568,7 +1570,14 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                     ? '#ffffff'
                     : mapStyle === 'mapbox://styles/mapbox/satellite-streets-v12'
                       ? '#ffffff'
-                      : '#28a745',
+                      : showSampled
+                        ? [
+                            'case',
+                            ['==', ['get', 'is_replacement'], true],
+                            '#007bff',
+                            '#28a745'
+                          ]
+                        : '#28a745',
                   'line-width': showSampled
                     ? [
                         'interpolate', ['linear'], ['zoom'],
