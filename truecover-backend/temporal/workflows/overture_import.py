@@ -10,6 +10,8 @@ with workflow.unsafe.imports_passed_through():
     from ..activities.overture import (
         fetch_admin_boundary,
         fetch_and_insert_overture_buildings,
+        count_existing_locations_in_boundary,
+        populate_coverage_for_boundary,
         update_campaign_area_building_counts,
     )
     from ..activities.locations import (
@@ -27,8 +29,8 @@ class OvertureImportWorkflow:
 
     Steps:
     1. Fetch admin boundary bbox and geometry
-    2. Fetch and insert buildings directly (DuckDB -> PostgreSQL, no Temporal serialization)
-    3. Populate coverage records for new locations
+    2. Check for existing buildings; fetch from Overture only if none exist
+    3. Populate coverage records for locations in the boundary
     4. Auto-generate pixels for new quadkeys
     5. Create coverage_pixel records for new pixels
     """
@@ -86,40 +88,53 @@ class OvertureImportWorkflow:
 
             workflow.logger.info(f"Fetched boundary for {pcode}")
 
-        # Activity 2: Fetch and insert buildings directly (bypasses Temporal serialization)
-        self.status = 'importing_buildings'
-        workflow.logger.info("Starting building import (direct DuckDB -> PostgreSQL)")
-
-        import_result = await workflow.execute_activity(
-            fetch_and_insert_overture_buildings,
-            args=[campaign_id, bbox, boundary_wkt],
-            start_to_close_timeout=timedelta(minutes=30),
+        # Activity 2: Check for existing buildings in this boundary
+        self.status = 'checking_existing'
+        existing_count = await workflow.execute_activity(
+            count_existing_locations_in_boundary,
+            args=[boundary_wkt],
+            start_to_close_timeout=timedelta(minutes=2),
             retry_policy=RetryPolicy(maximum_attempts=3)
         )
 
-        self.total_fetched = import_result['total_fetched']
-        self.total_inserted = import_result['inserted']
-        self.total_duplicates = import_result['duplicates']
-        all_new_location_ids = import_result['new_location_ids']
-        all_existing_location_ids = import_result.get('existing_location_ids', [])
+        if existing_count > 0:
+            # Buildings already exist — skip the expensive Overture fetch
+            workflow.logger.info(
+                f"Found {existing_count} existing buildings, skipping Overture fetch"
+            )
+            self.total_fetched = 0
+            self.total_inserted = 0
+            self.total_duplicates = existing_count
+        else:
+            # No existing buildings — fetch from Overture
+            self.status = 'importing_buildings'
+            workflow.logger.info("Starting building import (direct DuckDB -> PostgreSQL)")
 
-        workflow.logger.info(
-            f"Import complete: fetched={self.total_fetched}, "
-            f"inserted={self.total_inserted}, duplicates={self.total_duplicates}"
-        )
-
-        # Activity 3: Populate coverage for all locations in this campaign
-        # Both new and existing (duplicate) buildings need coverage entries
-        all_location_ids = all_new_location_ids + all_existing_location_ids
-        if all_location_ids:
-            self.status = 'populating_coverage'
-            workflow.logger.info(f"Populating coverage for {len(all_location_ids)} locations ({len(all_new_location_ids)} new, {len(all_existing_location_ids)} existing)")
-            await workflow.execute_activity(
-                populate_coverage_for_locations,
-                args=[campaign_id, all_location_ids],
-                start_to_close_timeout=timedelta(minutes=5),
+            import_result = await workflow.execute_activity(
+                fetch_and_insert_overture_buildings,
+                args=[campaign_id, bbox, boundary_wkt],
+                start_to_close_timeout=timedelta(minutes=30),
                 retry_policy=RetryPolicy(maximum_attempts=3)
             )
+
+            self.total_fetched = import_result['total_fetched']
+            self.total_inserted = import_result['inserted']
+            self.total_duplicates = import_result['duplicates']
+
+            workflow.logger.info(
+                f"Import complete: fetched={self.total_fetched}, "
+                f"inserted={self.total_inserted}, duplicates={self.total_duplicates}"
+            )
+
+        # Activity 3: Populate coverage for all locations in this boundary
+        self.status = 'populating_coverage'
+        workflow.logger.info("Populating coverage for locations in boundary")
+        coverage_created = await workflow.execute_activity(
+            populate_coverage_for_boundary,
+            args=[campaign_id, boundary_wkt],
+            start_to_close_timeout=timedelta(minutes=10),
+            retry_policy=RetryPolicy(maximum_attempts=3)
+        )
 
         # Activity 4: Auto-generate pixels for quadkeys
         self.status = 'generating_pixels'
@@ -158,6 +173,7 @@ class OvertureImportWorkflow:
             'success': True,
             'inserted': self.total_inserted,
             'duplicates': self.total_duplicates,
+            'coverage_created': coverage_created,
             'pixels_created': len(new_quadkeys),
             'total_fetched': self.total_fetched
         }

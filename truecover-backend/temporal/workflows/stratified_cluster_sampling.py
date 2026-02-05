@@ -16,6 +16,7 @@ with workflow.unsafe.imports_passed_through():
         compute_pixels_for_campaign_areas,
         create_coverage_pixels_for_union,
         update_campaign_area_sampled_count_for_union,
+        create_replacement_pixels,
     )
     from ..activities.rounds import (
         create_round_record,
@@ -125,6 +126,18 @@ class UnionPixelSamplingWorkflow:
                 args=[campaign_id, indicator_id, union_pcode],
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=retry_policy
+            )
+
+            # Step 5: Create replacement pixels
+            self.status = "creating_replacements"
+            replacement_result = await workflow.execute_activity(
+                create_replacement_pixels,
+                args=[campaign_id, indicator_id, selected_ids, round_number, 5],
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=retry_policy
+            )
+            workflow.logger.info(
+                f"Created {replacement_result.get('replacement_count', 0)} replacement pixels for union {union_pcode}"
             )
 
             self.status = "completed"

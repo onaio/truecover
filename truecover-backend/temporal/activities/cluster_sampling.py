@@ -1145,7 +1145,8 @@ async def sample_buildings_within_pixels(
         """, (all_quadkeys,))
         quadkey_building_count = {row[0]: row[1] for row in cursor.fetchall()}
 
-        # Phase 3: Filter pixels — walk in priority order, keep those meeting threshold
+        # Phase 3: Filter pixels — walk in priority order, keep those meeting threshold.
+        # buildings_per_pixel of 0 means no minimum — accept all pixels.
         qualified_pixel_ids = []
         qualified_quadkeys = []
         skipped = 0
@@ -1158,7 +1159,7 @@ async def sample_buildings_within_pixels(
                 skipped += 1
                 continue
             bcount = quadkey_building_count.get(qk, 0)
-            if bcount >= buildings_per_pixel:
+            if buildings_per_pixel == 0 or bcount >= buildings_per_pixel:
                 qualified_pixel_ids.append(pixel_id)
                 qualified_quadkeys.append(qk)
             else:
@@ -1338,7 +1339,8 @@ async def sample_buildings_within_pixels(
             'pixels_assigned': len(qualified_pixel_ids),
             'pixels_skipped': skipped,
             'buildings_selected': total_selected,
-            'pixels_with_buildings': pixels_with_buildings
+            'pixels_with_buildings': pixels_with_buildings,
+            'qualified_pixel_ids': qualified_pixel_ids
         }
 
     finally:
@@ -1480,6 +1482,168 @@ async def clear_round_from_pixels(
 
         activity.logger.info(f"Cleared round {round_number} from {cleared_count} pixels in campaign_area {campaign_area_id}")
         return cleared_count
+
+    finally:
+        if conn:
+            cursor.close()
+            return_db_connection(conn)
+
+
+@activity.defn
+async def create_replacement_pixels(
+    campaign_id: str,
+    indicator_id: str,
+    primary_pixel_ids: List[str],
+    round_number: int,
+    min_building_count: int = 5
+) -> Dict[str, Any]:
+    """
+    For each primary sampled pixel, select a neighboring pixel as a replacement.
+
+    Picks from the 8 adjacent quadkey neighbors, filtering by minimum building
+    count and excluding already-sampled pixels. Randomly selects one qualifying
+    neighbor per primary pixel.
+
+    Args:
+        campaign_id: Campaign ID
+        indicator_id: Indicator ID
+        primary_pixel_ids: coverage_pixel IDs of primary sampled pixels
+        round_number: Round number to assign to replacement pixels
+        min_building_count: Minimum buildings required in replacement pixel
+
+    Returns:
+        Dict with replacement_count
+    """
+    import mercantile
+
+    if not primary_pixel_ids:
+        return {'replacement_count': 0}
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Map pixel IDs to quadkeys
+        cursor.execute("""
+            SELECT id, quadkey FROM coverage_pixel WHERE id = ANY(%s::uuid[])
+        """, (primary_pixel_ids,))
+        pixel_id_to_quadkey = {str(row[0]): row[1] for row in cursor.fetchall()}
+
+        # Build lookup of all quadkeys already sampled or being sampled
+        cursor.execute("""
+            SELECT quadkey FROM coverage_pixel
+            WHERE campaign_id = %s
+              AND (rounds IS NOT NULL AND array_length(rounds, 1) > 0)
+        """, (campaign_id,))
+        already_sampled_quadkeys = {row[0] for row in cursor.fetchall()}
+
+        # Count buildings in primary pixels to skip those below threshold
+        primary_quadkeys = list(pixel_id_to_quadkey.values())
+        primary_building_counts = {}
+        if min_building_count > 0 and primary_quadkeys:
+            cursor.execute("""
+                SELECT quadkey, COUNT(*) FROM locations
+                WHERE quadkey = ANY(%s)
+                GROUP BY quadkey
+            """, (primary_quadkeys,))
+            primary_building_counts = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Compute all neighbor quadkeys for all primary pixels
+        neighbor_candidates = {}  # primary_pixel_id -> list of neighbor quadkeys
+        all_neighbor_quadkeys = set()
+        for pixel_id in primary_pixel_ids:
+            qk = pixel_id_to_quadkey.get(pixel_id)
+            if not qk:
+                continue
+            # Skip primaries that don't meet the building count threshold
+            if min_building_count > 0 and primary_building_counts.get(qk, 0) < min_building_count:
+                continue
+            tile = mercantile.quadkey_to_tile(qk)
+            neighbors = []
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    if dx == 0 and dy == 0:
+                        continue
+                    try:
+                        neighbor_qk = mercantile.quadkey(mercantile.Tile(
+                            tile.x + dx, tile.y + dy, tile.z
+                        ))
+                        if neighbor_qk not in already_sampled_quadkeys:
+                            neighbors.append(neighbor_qk)
+                            all_neighbor_quadkeys.add(neighbor_qk)
+                    except Exception:
+                        continue
+            neighbor_candidates[pixel_id] = neighbors
+
+        # Count buildings in all neighbor quadkeys (skip if no minimum required)
+        neighbor_building_counts = {}
+        if min_building_count > 0 and all_neighbor_quadkeys:
+            cursor.execute("""
+                SELECT quadkey, COUNT(*) FROM locations
+                WHERE quadkey = ANY(%s)
+                GROUP BY quadkey
+            """, (list(all_neighbor_quadkeys),))
+            neighbor_building_counts = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # For each primary pixel, pick a random qualifying neighbor
+        replacement_count = 0
+        used_replacement_quadkeys = set()
+        for pixel_id in primary_pixel_ids:
+            candidates = [
+                qk for qk in neighbor_candidates.get(pixel_id, [])
+                if (min_building_count == 0 or neighbor_building_counts.get(qk, 0) >= min_building_count)
+                and qk not in used_replacement_quadkeys
+            ]
+            if not candidates:
+                activity.logger.info(f"No qualifying replacement for pixel {pixel_id}")
+                continue
+
+            replacement_qk = random.choice(candidates)
+            used_replacement_quadkeys.add(replacement_qk)
+
+            # Ensure pixel exists in pixels table
+            cursor.execute("""
+                SELECT quadkey FROM pixels WHERE quadkey = %s
+            """, (replacement_qk,))
+            if not cursor.fetchone():
+                tile = mercantile.quadkey_to_tile(replacement_qk)
+                bounds = mercantile.bounds(tile)
+                centroid_lng = (bounds.west + bounds.east) / 2
+                centroid_lat = (bounds.south + bounds.north) / 2
+                geometry_wkt = (
+                    f"POLYGON(({bounds.west} {bounds.south}, "
+                    f"{bounds.west} {bounds.north}, "
+                    f"{bounds.east} {bounds.north}, "
+                    f"{bounds.east} {bounds.south}, "
+                    f"{bounds.west} {bounds.south}))"
+                )
+                cursor.execute("""
+                    INSERT INTO pixels (quadkey, geometry, latitude, longitude, level)
+                    VALUES (%s, ST_GeomFromText(%s, 4326), %s, %s, %s)
+                    ON CONFLICT (quadkey) DO NOTHING
+                """, (replacement_qk, geometry_wkt, centroid_lat, centroid_lng, tile.z))
+
+            # Insert or update coverage_pixel for replacement
+            cursor.execute("""
+                INSERT INTO coverage_pixel (
+                    quadkey, campaign_id, indicator_id, version,
+                    n_trials, n_covered, rounds, replacement_for
+                )
+                VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s], %s)
+                ON CONFLICT (quadkey, indicator_id, campaign_id) DO UPDATE SET
+                    replacement_for = EXCLUDED.replacement_for,
+                    rounds = array_append(COALESCE(coverage_pixel.rounds, '{}'), %s),
+                    updated_at = NOW()
+                WHERE coverage_pixel.replacement_for IS NULL
+                  AND (coverage_pixel.rounds IS NULL OR array_length(coverage_pixel.rounds, 1) IS NULL)
+            """, (replacement_qk, campaign_id, indicator_id, round_number, pixel_id, round_number))
+            replacement_count += 1
+
+        conn.commit()
+        activity.logger.info(f"Created {replacement_count} replacement pixels for {len(primary_pixel_ids)} primaries")
+
+        return {'replacement_count': replacement_count}
 
     finally:
         if conn:
