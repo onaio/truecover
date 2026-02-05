@@ -72,7 +72,7 @@ async def fetch_location_coverage(campaign_id: str, indicator_id: str) -> List[D
             SELECT
                 c.id,
                 l.id as location_id,
-                l.campaign_id,
+                c.campaign_id,
                 ST_AsGeoJSON(l.geometry) as geometry,
                 c.n_trials,
                 c.n_covered,
@@ -81,7 +81,7 @@ async def fetch_location_coverage(campaign_id: str, indicator_id: str) -> List[D
             FROM coverage c
             JOIN locations l ON c.location_id = l.id
             WHERE c.indicator_id = %s
-              AND l.campaign_id = %s
+              AND c.campaign_id = %s
         """, (indicator_id, campaign_id))
 
         records = cursor.fetchall()

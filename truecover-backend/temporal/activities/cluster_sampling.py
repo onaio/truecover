@@ -374,13 +374,10 @@ async def compute_pixels_for_campaign_areas(
                     WHERE pa.campaign_area_id = %s
                 ),
                 location_counts AS (
-                    SELECT COUNT(l.id) as building_count
-                    FROM campaign_areas ca
-                    LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
-                        AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                        AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                        AND ST_Intersects(l.geometry, ca.geometry)
-                    WHERE ca.id = %s
+                    SELECT COUNT(DISTINCT l.id) as building_count
+                    FROM pixel_area pa2
+                    LEFT JOIN locations l ON l.quadkey = pa2.quadkey
+                    WHERE pa2.campaign_area_id = %s
                 )
                 UPDATE campaign_areas
                 SET cached_pixel_count = (SELECT pixel_count FROM pixel_stats),
@@ -909,23 +906,20 @@ async def sample_buildings_for_campaign_area(
 
         # Fetch buildings (locations) within this campaign area that haven't been sampled
         cursor.execute("""
-            SELECT
+            SELECT DISTINCT ON (l.id)
                 l.id as location_id,
                 l.quadkey,
                 l.latitude, l.longitude,
                 c.exceedance_probability, c.exceedance_uncertainty,
                 c.prevalence_bci_width, c.prevalence_prediction
             FROM locations l
+            JOIN pixel_area pa ON l.quadkey = pa.quadkey
             LEFT JOIN coverage c ON c.location_id = l.id
                 AND c.campaign_id = %s
                 AND c.indicator_id = %s
-            JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                AND ST_Intersects(l.geometry, ca.geometry)
-            WHERE l.campaign_id = %s
-              AND ca.id = %s
+            WHERE pa.campaign_area_id = %s
               AND (c.rounds IS NULL OR array_length(c.rounds, 1) IS NULL OR array_length(c.rounds, 1) = 0)
-        """, (campaign_id, indicator_id, campaign_id, campaign_area_id))
+        """, (campaign_id, indicator_id, campaign_area_id))
 
         records = cursor.fetchall()
 
@@ -1075,9 +1069,8 @@ async def assign_buildings_to_round(
                 SELECT COUNT(DISTINCT c.location_id) as cnt
                 FROM coverage c
                 JOIN locations l ON c.location_id = l.id
-                JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                WHERE ca.id = %s
+                JOIN pixel_area pa ON l.quadkey = pa.quadkey
+                WHERE pa.campaign_area_id = %s
                   AND c.campaign_id = %s
                   AND c.rounds IS NOT NULL
                   AND array_length(c.rounds, 1) > 0
@@ -1141,13 +1134,13 @@ async def sample_buildings_within_pixels(
                 'buildings_selected': 0, 'pixels_with_buildings': 0
             }
 
-        # Phase 2: Count buildings per quadkey
+        # Phase 2: Count buildings per quadkey (locations are global)
         cursor.execute("""
             SELECT l.quadkey, COUNT(*) as cnt
             FROM locations l
-            WHERE l.campaign_id = %s AND l.quadkey = ANY(%s)
+            WHERE l.quadkey = ANY(%s)
             GROUP BY l.quadkey
-        """, (campaign_id, all_quadkeys))
+        """, (all_quadkeys,))
         quadkey_building_count = {row[0]: row[1] for row in cursor.fetchall()}
 
         # Phase 3: Filter pixels — walk in priority order, keep those meeting threshold
@@ -1220,8 +1213,8 @@ async def sample_buildings_within_pixels(
             FROM locations l
             LEFT JOIN coverage c ON c.location_id = l.id
                 AND c.campaign_id = %s AND c.indicator_id = %s
-            WHERE l.campaign_id = %s AND l.quadkey = ANY(%s)
-        """, (campaign_id, indicator_id, campaign_id, unique_quadkeys))
+            WHERE l.quadkey = ANY(%s)
+        """, (campaign_id, indicator_id, unique_quadkeys))
 
         rows = cursor.fetchall()
         by_quadkey: Dict[str, list] = {}
@@ -1303,7 +1296,7 @@ async def sample_buildings_within_pixels(
                         prevalence_prediction, prevalence_bci_width
                     )
                     VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s], 0.5, 0.5, 0.5, 0.5)
-                    ON CONFLICT (location_id, indicator_id)
+                    ON CONFLICT (campaign_id, location_id, indicator_id, version)
                     DO UPDATE SET
                         rounds = array_append(COALESCE(coverage.rounds, '{}'), %s),
                         updated_at = NOW()
@@ -1318,9 +1311,8 @@ async def sample_buildings_within_pixels(
                 SELECT COUNT(DISTINCT c.location_id) as cnt
                 FROM coverage c
                 JOIN locations l ON c.location_id = l.id
-                JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                WHERE ca.id = %s
+                JOIN pixel_area pa ON l.quadkey = pa.quadkey
+                WHERE pa.campaign_area_id = %s
                   AND c.campaign_id = %s
                   AND c.rounds IS NOT NULL
                   AND array_length(c.rounds, 1) > 0
@@ -1382,10 +1374,9 @@ async def clear_round_from_buildings(
             SET rounds = array_remove(rounds, %s),
                 updated_at = NOW()
             FROM locations l
-            JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
+            JOIN pixel_area pa ON l.quadkey = pa.quadkey
             WHERE c.location_id = l.id
-              AND ca.id = %s
+              AND pa.campaign_area_id = %s
               AND c.campaign_id = %s
               AND c.indicator_id = %s
               AND %s = ANY(COALESCE(c.rounds, '{}'))
@@ -1399,9 +1390,8 @@ async def clear_round_from_buildings(
                 SELECT COUNT(DISTINCT c.location_id) as cnt
                 FROM coverage c
                 JOIN locations l ON c.location_id = l.id
-                JOIN campaign_areas ca ON l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                WHERE ca.id = %s
+                JOIN pixel_area pa ON l.quadkey = pa.quadkey
+                WHERE pa.campaign_area_id = %s
                   AND c.campaign_id = %s
                   AND c.rounds IS NOT NULL
                   AND array_length(c.rounds, 1) > 0

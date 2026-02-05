@@ -237,11 +237,11 @@ def predict_coverage(user):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Query ALL coverage records for this indicator and area
+        # Query ALL coverage records for this indicator and campaign
         cursor.execute("""
             SELECT
                 l.id,
-                l.campaign_id,
+                c.campaign_id,
                 ST_AsGeoJSON(l.geometry) as geometry,
                 c.n_trials,
                 c.n_covered,
@@ -250,7 +250,7 @@ def predict_coverage(user):
             FROM locations l
             JOIN coverage c ON l.id = c.location_id
             WHERE c.indicator_id = %s
-              AND l.campaign_id = %s
+              AND c.campaign_id = %s
         """, (indicator_id, campaign_id))
 
         location_data = cursor.fetchall()
@@ -1014,7 +1014,7 @@ def list_area_coverage_pixel(user, campaign_id):
             where_clause += """
                 AND EXISTS (
                     SELECT 1 FROM locations l
-                    WHERE l.quadkey = cp.quadkey AND l.campaign_id = cp.campaign_id
+                    WHERE l.quadkey = cp.quadkey
                 )
             """
 
@@ -1042,7 +1042,7 @@ def list_area_coverage_pixel(user, campaign_id):
             FROM coverage_pixel cp
             JOIN indicators i ON cp.indicator_id = i.id
             LEFT JOIN pixels p ON cp.quadkey = p.quadkey
-            LEFT JOIN pixel_location_counts plc ON cp.quadkey = plc.quadkey AND cp.campaign_id = plc.campaign_id
+            LEFT JOIN pixel_location_counts plc ON cp.quadkey = plc.quadkey
             {where_clause}
             LIMIT %s OFFSET %s
         """

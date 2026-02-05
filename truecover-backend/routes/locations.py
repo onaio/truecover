@@ -47,9 +47,9 @@ def geometry_to_wkt(geometry_dict):
         return None
 
 
-def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
+def find_duplicate(cursor, external_id, lat, lng, geometry_wkt):
     """
-    Find duplicate location using multiple strategies:
+    Find duplicate location globally using multiple strategies:
     1. Match by external_id
     2. Match by lat/lng (within tolerance)
     3. Match by geometry intersection
@@ -58,9 +58,9 @@ def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     if external_id:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE campaign_id = %s AND external_id = %s
+            WHERE external_id = %s
             LIMIT 1
-        """, (campaign_id, external_id))
+        """, (external_id,))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -69,11 +69,10 @@ def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     if lat is not None and lng is not None:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE campaign_id = %s
-            AND ABS(latitude - %s) < 0.0001
+            WHERE ABS(latitude - %s) < 0.0001
             AND ABS(longitude - %s) < 0.0001
             LIMIT 1
-        """, (campaign_id, lat, lng))
+        """, (lat, lng))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -82,10 +81,9 @@ def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     if geometry_wkt:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE campaign_id = %s
-            AND ST_Intersects(geometry, ST_GeomFromText(%s, 4326))
+            WHERE ST_Intersects(geometry, ST_GeomFromText(%s, 4326))
             LIMIT 1
-        """, (campaign_id, geometry_wkt))
+        """, (geometry_wkt,))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -108,9 +106,9 @@ def populate_coverage_for_locations(cursor, campaign_id, new_location_ids):
         return
 
     try:
-        # Get the project_id from the area
+        # Get the project_id from the campaign
         cursor.execute("""
-            SELECT project_id FROM areas WHERE id = %s
+            SELECT project_id FROM campaigns WHERE id = %s
         """, (campaign_id,))
         result = cursor.fetchone()
         if not result:
@@ -374,8 +372,8 @@ def upload_locations(user, campaign_id):
                 # Convert geometry to WKT for PostGIS
                 geometry_wkt = geometry_to_wkt(geometry) if geometry else None
 
-                # Check for duplicates
-                duplicate_id = find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt)
+                # Check for duplicates globally
+                duplicate_id = find_duplicate(cursor, external_id, lat, lng, geometry_wkt)
 
                 if duplicate_id:
                     # Update existing location - merge properties and recalculate quadkey
@@ -402,14 +400,14 @@ def upload_locations(user, campaign_id):
                     quadkey = calculate_quadkey(lat, lng)
                     cursor.execute("""
                         INSERT INTO locations (
-                            campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
+                            external_id, geometry, latitude, longitude, quadkey, properties
                         )
                         VALUES (
-                            %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s
+                            %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s
                         )
                         RETURNING id
                     """, (
-                        campaign_id, external_id, geometry_wkt, lat, lng, quadkey,
+                        external_id, geometry_wkt, lat, lng, quadkey,
                         json.dumps(properties)
                     ))
                     new_location_id = cursor.fetchone()[0]
@@ -435,18 +433,20 @@ def upload_locations(user, campaign_id):
         if inserted_count > 0:
             print(f"Auto-generating pixels for uploaded locations...")
             try:
-                # Get all unique quadkeys from locations in this area
+                # Get all unique quadkeys from locations in this campaign's areas
                 cursor.execute("""
-                    SELECT DISTINCT quadkey FROM locations
-                    WHERE campaign_id = %s AND quadkey IS NOT NULL
+                    SELECT DISTINCT l.quadkey FROM locations l
+                    JOIN pixel_area pa ON l.quadkey = pa.quadkey
+                    JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+                    WHERE ca.campaign_id = %s AND l.quadkey IS NOT NULL
                 """, (campaign_id,))
                 location_quadkeys = {row[0] for row in cursor.fetchall()}
 
                 if location_quadkeys:
-                    # Get existing pixels for this area
+                    # Get existing pixels globally
                     cursor.execute("""
-                        SELECT quadkey FROM pixels WHERE campaign_id = %s
-                    """, (campaign_id,))
+                        SELECT quadkey FROM pixels WHERE quadkey = ANY(%s)
+                    """, (list(location_quadkeys),))
                     existing_quadkeys = {row[0] for row in cursor.fetchall()}
 
                     # Find quadkeys that need pixels
@@ -469,7 +469,6 @@ def upload_locations(user, campaign_id):
                             geometry_wkt = f"POLYGON(({bounds.west} {bounds.south}, {bounds.west} {bounds.north}, {bounds.east} {bounds.north}, {bounds.east} {bounds.south}, {bounds.west} {bounds.south}))"
 
                             pixel_data.append((
-                                campaign_id,
                                 quadkey,
                                 geometry_wkt,
                                 centroid_lat,
@@ -477,11 +476,11 @@ def upload_locations(user, campaign_id):
                                 tile.z
                             ))
 
-                        # Batch insert pixels (upsert to handle any race conditions)
+                        # Batch insert pixels (global, upsert to handle any race conditions)
                         cursor.executemany("""
-                            INSERT INTO pixels (campaign_id, quadkey, geometry, latitude, longitude, level)
-                            VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
-                            ON CONFLICT ON CONSTRAINT pixels_area_quadkey_unique DO NOTHING
+                            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level)
+                            VALUES (%s, ST_GeomFromText(%s, 4326), %s, %s, %s)
+                            ON CONFLICT (quadkey) DO NOTHING
                         """, pixel_data)
 
                         print(f"Auto-generated {len(pixel_data)} pixels for uploaded locations")
@@ -542,24 +541,28 @@ def list_locations(user, campaign_id):
         limit = request.args.get('limit', type=int, default=200)
         offset = request.args.get('offset', type=int, default=0)
 
-        # Get total count first
+        # Get total count first (locations in campaign's areas via quadkey/pixel_area)
         cursor.execute("""
-            SELECT COUNT(*)
-            FROM locations
-            WHERE campaign_id = %s
+            SELECT COUNT(DISTINCT l.id)
+            FROM locations l
+            JOIN pixel_area pa ON l.quadkey = pa.quadkey
+            JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+            WHERE ca.campaign_id = %s
         """, (campaign_id,))
         total_count = cursor.fetchone()[0]
 
         # Return lightweight list without geometry - map uses vector tiles now
         cursor.execute("""
-            SELECT
-                id, external_id,
-                latitude, longitude,
-                properties, quadkey,
-                created_at, updated_at
-            FROM locations
-            WHERE campaign_id = %s
-            ORDER BY created_at DESC
+            SELECT DISTINCT ON (l.id)
+                l.id, l.external_id,
+                l.latitude, l.longitude,
+                l.properties, l.quadkey,
+                l.created_at, l.updated_at
+            FROM locations l
+            JOIN pixel_area pa ON l.quadkey = pa.quadkey
+            JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+            WHERE ca.campaign_id = %s
+            ORDER BY l.id, l.created_at DESC
             LIMIT %s OFFSET %s
         """, (campaign_id, limit, offset))
 
@@ -617,10 +620,13 @@ def update_location(user, campaign_id, location_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verify location belongs to area
+        # Verify location belongs to campaign via spatial overlap
         cursor.execute("""
-            SELECT id FROM locations
-            WHERE id = %s AND campaign_id = %s
+            SELECT l.id FROM locations l
+            JOIN pixel_area pa ON l.quadkey = pa.quadkey
+            JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+            WHERE l.id = %s AND ca.campaign_id = %s
+            LIMIT 1
         """, (location_id, campaign_id))
 
         if not cursor.fetchone():
@@ -633,11 +639,10 @@ def update_location(user, campaign_id, location_id):
             SET
                 external_id = COALESCE(%s, external_id),
                 updated_at = NOW()
-            WHERE id = %s AND campaign_id = %s
+            WHERE id = %s
         """, (
             data.get('external_id'),
-            location_id,
-            campaign_id
+            location_id
         ))
 
         conn.commit()
@@ -668,10 +673,13 @@ def delete_location(user, campaign_id, location_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verify location belongs to area
+        # Verify location belongs to campaign via spatial overlap
         cursor.execute("""
-            SELECT id FROM locations
-            WHERE id = %s AND campaign_id = %s
+            SELECT l.id FROM locations l
+            JOIN pixel_area pa ON l.quadkey = pa.quadkey
+            JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+            WHERE l.id = %s AND ca.campaign_id = %s
+            LIMIT 1
         """, (location_id, campaign_id))
 
         if not cursor.fetchone():
@@ -680,9 +688,8 @@ def delete_location(user, campaign_id, location_id):
 
         # Delete location
         cursor.execute("""
-            DELETE FROM locations
-            WHERE id = %s AND campaign_id = %s
-        """, (location_id, campaign_id))
+            DELETE FROM locations WHERE id = %s
+        """, (location_id,))
 
         conn.commit()
         cursor.close()

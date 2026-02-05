@@ -73,12 +73,11 @@ def create_visits_bulk(user):
                 actual_location_id = None
                 match_type = None
 
-                # Step 1: Check if uploaded_location_id matches existing location by ID
+                # Step 1: Check if uploaded_location_id matches existing location by ID (UUID is globally unique)
                 if uploaded_location_id:
                     cursor.execute("""
-                        SELECT id FROM locations
-                        WHERE id = %s AND campaign_id = %s
-                    """, (uploaded_location_id, campaign_id))
+                        SELECT id FROM locations WHERE id = %s
+                    """, (uploaded_location_id,))
 
                     location_result = cursor.fetchone()
                     if location_result:
@@ -86,17 +85,19 @@ def create_visits_bulk(user):
                         matched_by_id += 1
                         match_type = 'id'
 
-                # Step 2: If no ID match, try proximity match (within 50 meters)
+                # Step 2: If no ID match, try proximity match (within 50 meters) scoped to campaign areas
                 if not actual_location_id:
                     cursor.execute("""
-                        SELECT id, ST_Distance(
-                            geometry::geography,
+                        SELECT l.id, ST_Distance(
+                            l.geometry::geography,
                             ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
                         ) as distance
-                        FROM locations
-                        WHERE campaign_id = %s
+                        FROM locations l
+                        JOIN pixel_area pa ON l.quadkey = pa.quadkey
+                        JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+                        WHERE ca.campaign_id = %s
                           AND ST_DWithin(
-                              geometry::geography,
+                              l.geometry::geography,
                               ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
                               50
                           )
@@ -124,10 +125,10 @@ def create_visits_bulk(user):
                         if quadkey:
                             affected_quadkeys.add(quadkey)
                         cursor.execute("""
-                            INSERT INTO locations (campaign_id, external_id, latitude, longitude, geometry, quadkey)
-                            VALUES (%s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
+                            INSERT INTO locations (external_id, latitude, longitude, geometry, quadkey)
+                            VALUES (%s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326), %s)
                             RETURNING id
-                        """, (campaign_id, uploaded_location_id, latitude, longitude, longitude, latitude, quadkey))
+                        """, (uploaded_location_id, latitude, longitude, longitude, latitude, quadkey))
 
                         location_result = cursor.fetchone()
                         actual_location_id = str(location_result[0])

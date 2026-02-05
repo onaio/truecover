@@ -195,10 +195,10 @@ async def fetch_and_insert_overture_buildings(
                 if centroid_lat is None or centroid_lng is None:
                     continue
 
-                # Check for duplicate by external_id
+                # Check for duplicate by external_id (global — any campaign)
                 pg_cursor.execute(
-                    "SELECT id FROM locations WHERE campaign_id = %s AND external_id = %s",
-                    (campaign_id, overture_id)
+                    "SELECT id FROM locations WHERE external_id = %s",
+                    (overture_id,)
                 )
                 if pg_cursor.fetchone():
                     batch_duplicates += 1
@@ -219,7 +219,6 @@ async def fetch_and_insert_overture_buildings(
                 properties = {k: v for k, v in properties.items() if v is not None}
 
                 batch_to_insert.append((
-                    campaign_id,
                     overture_id,
                     f"SRID=4326;{geometry_wkt}",
                     centroid_lat,
@@ -234,12 +233,12 @@ async def fetch_and_insert_overture_buildings(
             if batch_to_insert:
                 result = execute_values(pg_cursor, """
                     INSERT INTO locations (
-                        campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
+                        external_id, geometry, latitude, longitude, quadkey, properties
                     )
                     VALUES %s
                     RETURNING id
                 """, batch_to_insert,
-                    template="(%s, %s, ST_GeomFromText(%s), %s, %s, %s, %s)",
+                    template="(%s, ST_GeomFromText(%s), %s, %s, %s, %s)",
                     fetch=True)
 
                 new_ids = [str(row[0]) for row in result]
@@ -295,11 +294,10 @@ async def update_campaign_area_building_counts(campaign_id: str) -> Dict[str, in
             FROM (
                 SELECT
                     ca2.id as area_id,
-                    COUNT(l.id) as building_count
+                    COUNT(DISTINCT l.id) as building_count
                 FROM campaign_areas ca2
-                LEFT JOIN admin_boundaries ab ON ab.id = ca2.admin_boundary_id
-                LEFT JOIN locations l ON l.campaign_id = ca2.campaign_id
-                    AND ST_Within(l.geometry, ab.geometry)
+                LEFT JOIN pixel_area pa ON pa.campaign_area_id = ca2.id
+                LEFT JOIN locations l ON l.quadkey = pa.quadkey
                 WHERE ca2.campaign_id = %s
                 GROUP BY ca2.id
             ) counts

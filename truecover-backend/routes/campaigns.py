@@ -588,13 +588,10 @@ def compute_pixels_for_area(user, area_id):
                 WHERE pa.campaign_area_id = %s
             ),
             location_counts AS (
-                SELECT COUNT(l.id) as building_count
-                FROM campaign_areas ca
-                LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
-                    AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                    AND ST_Intersects(l.geometry, ca.geometry)
-                WHERE ca.id = %s
+                SELECT COUNT(DISTINCT l.id) as building_count
+                FROM pixel_area pa2
+                LEFT JOIN locations l ON l.quadkey = pa2.quadkey
+                WHERE pa2.campaign_area_id = %s
             )
             UPDATE campaign_areas
             SET
@@ -706,13 +703,10 @@ def compute_all_pixels_for_campaign(user, campaign_id):
                     WHERE pa.campaign_area_id = %s
                 ),
                 location_counts AS (
-                    SELECT COUNT(l.id) as building_count
-                    FROM campaign_areas ca
-                    LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
-                        AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                        AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                        AND ST_Intersects(l.geometry, ca.geometry)
-                    WHERE ca.id = %s
+                    SELECT COUNT(DISTINCT l.id) as building_count
+                    FROM pixel_area pa2
+                    LEFT JOIN locations l ON l.quadkey = pa2.quadkey
+                    WHERE pa2.campaign_area_id = %s
                 )
                 UPDATE campaign_areas
                 SET

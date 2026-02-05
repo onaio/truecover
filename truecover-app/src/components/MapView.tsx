@@ -1677,19 +1677,19 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                 />
               )}
 
-              {/* Pixel quadkey label: top-right at zoom 16+ */}
+              {/* Pixel quadkey label: anchored at top-right corner point */}
               <Layer
                 id="pixels-quadkey-label"
                 type="symbol"
-                source-layer="pixels"
-                filter={buildPixelHistogramFilter()}
+                source-layer="pixels_labels"
+                filter={['==', ['get', 'label_type'], 'quadkey']}
                 minzoom={16}
                 layout={{
                   'text-field': ['get', 'quadkey'],
                   'text-size': 11,
                   'text-anchor': 'top-right',
                   'text-justify': 'right',
-                  'text-offset': [-0.5, 0.5],
+                  'text-offset': [-0.3, 0.3],
                   'text-allow-overlap': true,
                   'text-ignore-placement': true,
                   'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold']
@@ -1700,12 +1700,12 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   'text-halo-width': 1
                 }}
               />
-              {/* Pixel stats label: bottom-right at zoom 16+ */}
+              {/* Pixel stats label: anchored at bottom-right corner point */}
               <Layer
                 id="pixels-stats-label"
                 type="symbol"
-                source-layer="pixels"
-                filter={buildPixelHistogramFilter()}
+                source-layer="pixels_labels"
+                filter={['==', ['get', 'label_type'], 'stats']}
                 minzoom={16}
                 layout={{
                   'text-field': [
@@ -1725,7 +1725,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
                   'text-size': 11,
                   'text-anchor': 'bottom-right',
                   'text-justify': 'right',
-                  'text-offset': [-0.5, -0.5],
+                  'text-offset': [-0.3, -0.3],
                   'text-allow-overlap': true,
                   'text-ignore-placement': true,
                   'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold']
