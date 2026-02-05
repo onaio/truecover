@@ -85,7 +85,7 @@ async def fetch_pixel_coverage_activity(
                 p.adm4_pcode,
                 pc.rounds
             FROM coverage_pixel pc
-            JOIN pixels p ON p.quadkey = pc.quadkey AND p.campaign_id = pc.campaign_id
+            JOIN pixels p ON p.quadkey = pc.quadkey
             WHERE pc.campaign_id = %s
                 AND pc.indicator_id = %s
                 AND pc.rounds && %s::integer[]
