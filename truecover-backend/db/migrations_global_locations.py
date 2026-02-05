@@ -135,7 +135,7 @@ def run_global_locations_migration():
                         l.latitude,
                         l.longitude,
                         l.properties,
-                        c.rounds,
+                        c.rounds::text AS rounds,
                         c.n_trials,
                         c.n_covered,
                         c.prevalence_prediction,

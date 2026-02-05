@@ -367,7 +367,7 @@ async def populate_coverage_for_locations(campaign_id: str, new_location_ids: Li
                     ON CONFLICT (campaign_id, location_id, indicator_id, version) DO NOTHING
                 """, (
                     location_id, campaign_id, indicator_id, quadkey,
-                    1, 0, 0,  # version=1, n_trials=0, n_covered=0 for new records
+                    0, 0, 0,  # version=0, n_trials=0, n_covered=0 for new records
                     exceedance_probability, exceedance_uncertainty,
                     prevalence_bci_width, prevalence_prediction
                 ))

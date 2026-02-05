@@ -1059,7 +1059,7 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
       return [
         'case',
         shouldShowLocation(),
-        0.1,
+        0.7,
         0.1
       ];
     }
