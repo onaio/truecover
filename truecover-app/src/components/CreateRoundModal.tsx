@@ -1,9 +1,12 @@
+// ABOUTME: Modal for creating a sampling round with optional per-area auto-sampling
+// ABOUTME: Creates a round record and optionally starts CampaignAreaSamplingWorkflow per selected area
+
 import React, { useState, useEffect } from 'react';
 import { TacticalModal, TacticalInput, TacticalButton, TacticalTextarea, TacticalSelect, TacticalDatePicker, tacticalToast } from '../tactical-ui';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 import { useIndicators } from '../hooks/useIndicators';
-import { usePixelMetadataStats } from '../hooks/usePixels';
+import { CampaignArea } from '../hooks/useCampaignAreas';
 import { env } from '../config/env';
 
 const API_URL = env.VITE_API_URL;
@@ -14,8 +17,8 @@ interface CreateRoundModalProps {
   campaignId: string;
   projectId: string;
   onRoundCreated: () => void;
-  adminBoundaryPcode?: string;
-  adminBoundaryName?: string;
+  campaignAreas?: CampaignArea[];
+  onSamplingStarted?: (areaWorkflowMap: Record<string, string>) => void;
 }
 
 const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
@@ -24,42 +27,21 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   campaignId,
   projectId,
   onRoundCreated,
-  adminBoundaryPcode,
-  adminBoundaryName,
+  campaignAreas = [],
+  onSamplingStarted,
 }) => {
   const { getToken } = useAuth();
   const { data: indicators } = useIndicators(projectId);
-  const { data: metadataStats } = usePixelMetadataStats(campaignId);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedIndicatorId, setSelectedIndicatorId] = useState('');
-  const [batchSize, setBatchSize] = useState('10');
-  const [uncertaintyField, setUncertaintyField] = useState('prevalence_bci_width');
-  const [allowRevisit, setAllowRevisit] = useState(false);
-  const [samplingTarget, setSamplingTarget] = useState<'locations' | 'pixels'>('locations');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [enablePopulationFilter, setEnablePopulationFilter] = useState(false);
-  const [minPopulation, setMinPopulation] = useState('10');
-  const [populationField, setPopulationField] = useState('');
 
-  // Get numeric metadata fields that could be used for population filtering
-  const numericMetadataFields = (metadataStats?.metadata_fields || []).filter(
-    (field: any) => field.data_type === 'integer' || field.data_type === 'float'
-  );
-
-  // Auto-select population field if it exists, otherwise first numeric field
-  useEffect(() => {
-    if (numericMetadataFields.length > 0 && !populationField) {
-      // Prefer a field named "population" (case-insensitive)
-      const populationFieldMatch = numericMetadataFields.find(
-        (field: any) => field.name.toLowerCase() === 'population'
-      );
-      setPopulationField(populationFieldMatch?.name || numericMetadataFields[0].name);
-    }
-  }, [numericMetadataFields, populationField]);
+  // Per-area selection: area_id -> sampling config
+  const [selectedAreas, setSelectedAreas] = useState<Map<string, { sampleCount: number; buildingsPerPixel: number }>>(new Map());
 
   // Auto-select first indicator when indicators load
   useEffect(() => {
@@ -67,6 +49,40 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       setSelectedIndicatorId(indicators[0].id);
     }
   }, [indicators]);
+
+  const toggleArea = (areaId: string) => {
+    setSelectedAreas(prev => {
+      const next = new Map(prev);
+      if (next.has(areaId)) {
+        next.delete(areaId);
+      } else {
+        next.set(areaId, { sampleCount: 50, buildingsPerPixel: 5 });
+      }
+      return next;
+    });
+  };
+
+  const updateSampleCount = (areaId: string, count: number) => {
+    setSelectedAreas(prev => {
+      const next = new Map(prev);
+      const current = next.get(areaId);
+      if (current) {
+        next.set(areaId, { ...current, sampleCount: count });
+      }
+      return next;
+    });
+  };
+
+  const updateBuildingsPerPixel = (areaId: string, count: number) => {
+    setSelectedAreas(prev => {
+      const next = new Map(prev);
+      const current = next.get(areaId);
+      if (current) {
+        next.set(areaId, { ...current, buildingsPerPixel: count });
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,16 +98,18 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       return;
     }
 
-    const batchSizeNum = parseInt(batchSize);
-    if (isNaN(batchSizeNum) || batchSizeNum < 1) {
-      setError('Batch size must be a number greater than 0');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
       const token = await getToken();
+
+      // Build sample_areas array from checked areas
+      const sampleAreas = Array.from(selectedAreas.entries()).map(([areaId, config]) => ({
+        area_id: areaId,
+        sample_count: config.sampleCount,
+        sample_target: 'pixels',
+        buildings_per_pixel: config.buildingsPerPixel,
+      }));
 
       const response = await axios.post(
         `${API_URL}/api/campaigns/${campaignId}/rounds`,
@@ -101,17 +119,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           start_date: startDate || null,
           end_date: endDate || null,
           indicator_id: selectedIndicatorId,
-          batch_size: batchSizeNum,
-          uncertainty_field: uncertaintyField,
-          allow_revisit: allowRevisit,
-          sampling_target: samplingTarget,
-          admin_pcode: adminBoundaryPcode || null,
-          min_population: (samplingTarget === 'pixels' && enablePopulationFilter && populationField)
-            ? parseFloat(minPopulation)
-            : null,
-          population_field: (samplingTarget === 'pixels' && enablePopulationFilter && populationField)
-            ? populationField
-            : null,
+          ...(sampleAreas.length > 0 ? { sample_areas: sampleAreas } : {}),
         },
         {
           headers: {
@@ -121,9 +129,8 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         }
       );
 
-      // Temporal workflow started - close modal immediately
-      if (response.status === 202 && response.data.workflow_id) {
-        const workflowId = response.data.workflow_id;
+      if (response.status === 201) {
+        const workflowIds = response.data.workflow_ids || {};
         const roundName = name.trim();
 
         // Reset form
@@ -132,58 +139,25 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         setStartDate('');
         setEndDate('');
         setSelectedIndicatorId(indicators && indicators.length > 0 ? indicators[0].id : '');
-        setBatchSize('10');
-        setUncertaintyField('prevalence_bci_width');
-        setAllowRevisit(false);
-        setSamplingTarget('locations');
-        setEnablePopulationFilter(false);
-        setMinPopulation('10');
-        setPopulationField(numericMetadataFields.length > 0 ? numericMetadataFields[0].name : '');
+        setSelectedAreas(new Map());
 
-        // Close modal immediately
         onClose();
+        onRoundCreated();
 
-        // Show info toast that round generation started
-        tacticalToast.info(
-          'Round Generation Started',
-          `Generating round "${roundName}"...`
-        );
-
-        // Poll for completion
-        const pollInterval = setInterval(async () => {
-          try {
-            const statusResponse = await axios.get(
-              `${API_URL}/api/rounds/workflow/${workflowId}/status`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-
-            if (statusResponse.data.status === 'completed' && statusResponse.data.result) {
-              clearInterval(pollInterval);
-              const selectedCount = statusResponse.data.result.selected_count || 0;
-              tacticalToast.success(
-                'Round Generated',
-                `Created round "${roundName}" with ${selectedCount.toLocaleString()} ${samplingTarget} selected`
-              );
-              // Trigger parent refresh
-              onRoundCreated();
-            } else if (statusResponse.data.status === 'failed') {
-              clearInterval(pollInterval);
-              tacticalToast.error(
-                'Round Generation Failed',
-                statusResponse.data.error || 'Round generation failed'
-              );
-            }
-          } catch (err) {
-            console.error('Failed to check workflow status:', err);
+        if (Object.keys(workflowIds).length > 0) {
+          tacticalToast.info(
+            'Sampling Started',
+            `Created round "${roundName}" and started sampling for ${Object.keys(workflowIds).length} area(s)`
+          );
+          if (onSamplingStarted) {
+            onSamplingStarted(workflowIds);
           }
-        }, 2000);
-
-        // Clean up interval after 10 minutes (failsafe)
-        setTimeout(() => clearInterval(pollInterval), 600000);
+        } else {
+          tacticalToast.success(
+            'Round Created',
+            `Created round "${roundName}"`
+          );
+        }
       }
     } catch (err: any) {
       console.error('Error creating round:', err);
@@ -204,6 +178,18 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
     }
   };
 
+  const areaDisplayName = (area: CampaignArea) => {
+    const parts = [
+      area.name || area.admin_boundary_name || 'Unnamed Area',
+    ];
+    const hierarchy = [area.division_name, area.district_name, area.upazila_name, area.union_name]
+      .filter(Boolean);
+    if (hierarchy.length > 0) {
+      parts.push(`(${hierarchy.join(' > ')})`);
+    }
+    return parts.join(' ');
+  };
+
   return (
     <TacticalModal
       isOpen={isOpen}
@@ -213,21 +199,6 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
     >
       <form onSubmit={handleSubmit} className="flex flex-col max-h-[calc(100vh-120px)]">
         <div className="space-y-4 overflow-y-auto pr-2 flex-1">
-          {/* Admin Boundary Filter Indicator */}
-          {adminBoundaryPcode && adminBoundaryName && (
-          <div className="p-3 border border-tactical-accent-blue bg-tactical-accent-blue/10">
-            <p className="text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider mb-1">
-              Filtering to Admin Boundary
-            </p>
-            <p className="text-sm font-mono text-tactical-text-secondary">
-              {adminBoundaryName} ({adminBoundaryPcode})
-            </p>
-            <p className="text-xs font-mono text-tactical-text-muted mt-1">
-              This round will only include {samplingTarget === 'locations' ? 'locations' : 'pixels'} within this administrative boundary.
-            </p>
-          </div>
-        )}
-
         <TacticalInput
           label="Round Name"
           value={name}
@@ -241,7 +212,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           value={description}
           onChange={setDescription}
           placeholder="Describe the purpose of this data collection round..."
-          rows={3}
+          rows={2}
           disabled={isSubmitting}
         />
 
@@ -256,17 +227,6 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
             }))
           }
           placeholder="Select Indicator"
-          disabled={isSubmitting}
-        />
-
-        <TacticalSelect
-          label="Sampling Target"
-          value={samplingTarget}
-          onChange={(value) => setSamplingTarget(value as 'locations' | 'pixels')}
-          options={[
-            { value: 'locations', label: 'Locations' },
-            { value: 'pixels', label: 'Pixels' },
-          ]}
           disabled={isSubmitting}
         />
 
@@ -286,99 +246,95 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
           />
         </div>
 
-        <div className="border-t border-tactical-border-medium pt-4 mt-4">
-          <h3 className="text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-4">
-            Adaptive Sampling Parameters
-          </h3>
+        {/* Campaign Areas Selection */}
+        {campaignAreas.length > 0 && (
+          <div className="border-t border-tactical-border-medium pt-4 mt-4">
+            <h3 className="text-sm font-bold text-tactical-text-primary uppercase tracking-wider mb-2">
+              Adaptively Sample Areas
+            </h3>
+            <p className="text-xs font-mono text-tactical-text-dim mb-3">
+              Select areas to adaptively sample when this round is created. Leave unchecked to sample manually later.
+            </p>
 
-          <div className="space-y-4">
-            <TacticalSelect
-              label="Uncertainty Field"
-              value={uncertaintyField}
-              onChange={setUncertaintyField}
-              options={[
-                { value: 'prevalence_bci_width', label: 'Prevalence BCI Width' },
-              ]}
-              disabled={isSubmitting}
-            />
-
-            <TacticalInput
-              label={`Batch Size (Number of ${samplingTarget === 'locations' ? 'Locations' : 'Pixels'} to Select)`}
-              type="number"
-              value={batchSize}
-              onChange={setBatchSize}
-              placeholder="10"
-              disabled={isSubmitting}
-            />
-
-            <div className="flex items-center gap-3 mt-4">
-              <input
-                type="checkbox"
-                id="allowRevisit"
-                checked={allowRevisit}
-                onChange={(e) => setAllowRevisit(e.target.checked)}
-                disabled={isSubmitting}
-                className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
-              />
-              <label
-                htmlFor="allowRevisit"
-                className="text-sm font-mono text-tactical-text-primary cursor-pointer select-none"
-              >
-                Allow revisit to same {samplingTarget === 'locations' ? 'location' : 'pixel'}
-              </label>
+            <div className="border border-tactical-border-medium">
+              <table className="w-full">
+                <thead className="bg-tactical-bg-secondary border-b border-tactical-border-medium">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-8"></th>
+                    <th className="px-3 py-2 text-left text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">Area</th>
+                    <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">Pixels</th>
+                    <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">Population</th>
+                    <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-28">Sample Count</th>
+                    <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-28">Bldgs/Pixel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campaignAreas.map((area) => {
+                    const isSelected = selectedAreas.has(area.id);
+                    return (
+                      <tr
+                        key={area.id}
+                        className={`border-b border-tactical-border-dark transition-colors ${
+                          isSelected ? 'bg-tactical-accent-orange/5' : 'hover:bg-tactical-bg-secondary'
+                        }`}
+                      >
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleArea(area.id)}
+                            disabled={isSubmitting}
+                            className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
+                          />
+                        </td>
+                        <td
+                          className="px-3 py-2 text-sm font-mono text-tactical-text-primary cursor-pointer"
+                          onClick={() => toggleArea(area.id)}
+                        >
+                          {areaDisplayName(area)}
+                        </td>
+                        <td className="px-3 py-2 text-sm font-mono text-tactical-text-dim text-right">
+                          {area.pixel_count.toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-sm font-mono text-tactical-text-dim text-right">
+                          {area.total_population.toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {isSelected ? (
+                            <input
+                              type="number"
+                              min={1}
+                              value={selectedAreas.get(area.id)?.sampleCount || 50}
+                              onChange={(e) => updateSampleCount(area.id, parseInt(e.target.value) || 1)}
+                              disabled={isSubmitting}
+                              className="w-24 px-2 py-1 text-sm font-mono text-right bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary focus:border-tactical-accent-orange focus:outline-none"
+                            />
+                          ) : (
+                            <span className="text-sm font-mono text-tactical-text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {isSelected ? (
+                            <input
+                              type="number"
+                              min={0}
+                              value={selectedAreas.get(area.id)?.buildingsPerPixel ?? 5}
+                              onChange={(e) => updateBuildingsPerPixel(area.id, parseInt(e.target.value) || 0)}
+                              disabled={isSubmitting}
+                              className="w-24 px-2 py-1 text-sm font-mono text-right bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary focus:border-tactical-accent-orange focus:outline-none"
+                            />
+                          ) : (
+                            <span className="text-sm font-mono text-tactical-text-muted">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-
-            {/* Population Filter - Only show for pixels when metadata fields are available */}
-            {samplingTarget === 'pixels' && numericMetadataFields.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-tactical-border-dark">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="enablePopulationFilter"
-                    checked={enablePopulationFilter}
-                    onChange={(e) => setEnablePopulationFilter(e.target.checked)}
-                    disabled={isSubmitting}
-                    className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
-                  />
-                  <label
-                    htmlFor="enablePopulationFilter"
-                    className="text-sm font-mono text-tactical-text-primary cursor-pointer select-none"
-                  >
-                    Filter by minimum population
-                  </label>
-                </div>
-
-                {enablePopulationFilter && (
-                  <div className="mt-3 ml-7 space-y-3">
-                    <TacticalSelect
-                      label="Population Field"
-                      value={populationField}
-                      onChange={setPopulationField}
-                      options={numericMetadataFields.map((field: any) => ({
-                        value: field.name,
-                        label: `${field.name}${field.unit ? ` (${field.unit})` : ''}`
-                      }))}
-                      disabled={isSubmitting}
-                    />
-
-                    <TacticalInput
-                      label="Minimum Population Threshold"
-                      type="number"
-                      value={minPopulation}
-                      onChange={setMinPopulation}
-                      placeholder="10"
-                      disabled={isSubmitting}
-                    />
-
-                    <p className="text-xs font-mono text-tactical-text-dim">
-                      Only pixels with {populationField || 'population'} ≥ {minPopulation || '10'} will be included in sampling.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
-        </div>
+        )}
         </div>
 
         {error && (
@@ -405,6 +361,8 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
               <span className="tactical-loading-dots">
                 CREATING<span>.</span><span>.</span><span>.</span>
               </span>
+            ) : selectedAreas.size > 0 ? (
+              `Create Round & Sample ${selectedAreas.size} Area${selectedAreas.size > 1 ? 's' : ''}`
             ) : (
               'Create Round'
             )}

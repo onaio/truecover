@@ -64,7 +64,8 @@ const LocationsPage: React.FC = () => {
 
   // Indicator and Round filters
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string>('');
-  const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>(['all']);
+  const [selectedRoundIds, setSelectedRoundIds] = useState<(string | number)[]>([]);
+  const [roundFilterInitialized, setRoundFilterInitialized] = useState(false);
   const [showSampled, setShowSampled] = useState<boolean>(true);
   const [interpolationMode, setInterpolationMode] = useState<'none' | 'coverage' | 'uncertainty' | 'metadata'>('none');
   const [selectedMetadataField, setSelectedMetadataField] = useState<string>('');
@@ -75,6 +76,7 @@ const LocationsPage: React.FC = () => {
   const [currentMapBounds, setCurrentMapBounds] = useState<[number, number, number, number] | null>(null);
   const [planningMode, setPlanningMode] = useState<boolean>(false);
   const [mapMode, setMapMode] = useState<boolean>(false);
+  const [savedMapViewState, setSavedMapViewState] = useState<{ longitude: number; latitude: number; zoom: number } | null>(null);
   const [histogramDrawerOpen, setHistogramDrawerOpen] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
   const [isAddCampaignAreaModalOpen, setIsAddCampaignAreaModalOpen] = useState(false);
@@ -104,26 +106,20 @@ const LocationsPage: React.FC = () => {
   }, [selectedAreaId, campaignAreas]);
 
   // Compute roundId for coverage data query
-  // 'all' means "show only rows with ANY round assigned"
-  // specific round ID means "filter by that round"
   // empty array means "show everything" (no filter)
+  // 'sampled' means "show only rows with ANY round assigned"
+  // specific round ID means "filter by that round"
   const coverageRoundId = useMemo(() => {
     if (selectedRoundIds.length === 0) {
-      console.log('[Round Filter] Empty selection, no filter', selectedRoundIds);
       return undefined;
     }
     if (selectedRoundIds.includes('all')) {
-      // "All Rounds" = filter to show only rows with rounds assigned
-      console.log('[Round Filter] All rounds = show only sampled rows');
-      return 'has_rounds';  // Special value to filter for non-empty rounds
+      return 'has_rounds';
     }
     if (selectedRoundIds.length === 1) {
-      const roundId = String(selectedRoundIds[0]);
-      console.log('[Round Filter] Single round selected:', roundId);
-      return roundId;
+      return String(selectedRoundIds[0]);
     }
-    // Multiple specific rounds selected - for now treat as "has_rounds"
-    console.log('[Round Filter] Multiple rounds selected, showing all with rounds');
+    // Multiple specific rounds selected
     return 'has_rounds';
   }, [selectedRoundIds]);
 
@@ -169,8 +165,8 @@ const LocationsPage: React.FC = () => {
     data: locationsResult,
   } = useInfiniteLocations(selectedCampaign?.id);
 
-  // Get total counts from first page (they're the same across all pages)
-  const locationTotalCount = locationsResult?.pages?.[0]?.total_count || locations?.total_count || locations?.locations?.length || 0;
+  // Get total counts from coverage data (round-filtered) when available, else from locations
+  const locationTotalCount = coverageDataResult?.pages?.[0]?.locationTotalCount ?? locationsResult?.pages?.[0]?.total_count ?? locations?.total_count ?? locations?.locations?.length ?? 0;
   const pixelTotalCount = coverageDataResult?.pages?.[0]?.pixelTotalCount || 0;
 
   // Set default indicator to first one when indicators load
@@ -179,6 +175,14 @@ const LocationsPage: React.FC = () => {
       setSelectedIndicatorId(indicators[0].id);
     }
   }, [indicators]);
+
+  // Default round filter to "All Rounds" when rounds exist
+  useEffect(() => {
+    if (!roundFilterInitialized && rounds && rounds.length > 0) {
+      setSelectedRoundIds(['all']);
+      setRoundFilterInitialized(true);
+    }
+  }, [rounds, roundFilterInitialized]);
 
   // Auto-enable pixels when they exist for the area
   useEffect(() => {
@@ -467,6 +471,7 @@ const LocationsPage: React.FC = () => {
                   }))
                 ]}
                 placeholder="Filter by Round"
+                autoApply
               />
             </div>
 
@@ -595,25 +600,27 @@ const LocationsPage: React.FC = () => {
                 setIsAddCampaignAreaModalOpen(true);
               }}
               selectedAreaBounds={selectedAreaBounds}
+              savedViewState={savedMapViewState}
+              onViewStateChange={setSavedMapViewState}
               className="h-full"
             />
-
-            {/* Histogram Drawer */}
-            {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty' || interpolationMode === 'metadata') && (
-              <HistogramDrawer
-                isOpen={histogramDrawerOpen}
-                onToggle={() => setHistogramDrawerOpen(!histogramDrawerOpen)}
-                histogramData={histogramData}
-                interpolationMode={interpolationMode}
-                indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
-                onBrushChange={setHistogramBrushRanges}
-                histogramTab={histogramTab}
-                onTabChange={setHistogramTab}
-                locationTotalCount={locationTotalCount}
-                pixelTotalCount={pixelTotalCount}
-              />
-            )}
           </div>
+
+          {/* Histogram Drawer */}
+          {(interpolationMode === 'coverage' || interpolationMode === 'uncertainty' || interpolationMode === 'metadata') && (
+            <HistogramDrawer
+              isOpen={histogramDrawerOpen}
+              onToggle={() => setHistogramDrawerOpen(!histogramDrawerOpen)}
+              histogramData={histogramData}
+              interpolationMode={interpolationMode}
+              indicatorName={indicators?.find(ind => ind.id === selectedIndicatorId)?.name}
+              onBrushChange={setHistogramBrushRanges}
+              histogramTab={histogramTab}
+              onTabChange={setHistogramTab}
+              locationTotalCount={locationTotalCount}
+              pixelTotalCount={pixelTotalCount}
+            />
+          )}
         </div>
       ) : (
         /* NORMAL LAYOUT */
@@ -789,6 +796,7 @@ const LocationsPage: React.FC = () => {
                     }))
                   ]}
                   placeholder="Filter by Round"
+                  autoApply
                 />
               </div>
 
@@ -932,6 +940,8 @@ const LocationsPage: React.FC = () => {
                   setIsAddCampaignAreaModalOpen(true);
                 }}
                 selectedAreaBounds={selectedAreaBounds}
+                savedViewState={savedMapViewState}
+                onViewStateChange={setSavedMapViewState}
               />
             </TacticalCard>
 
@@ -1011,11 +1021,11 @@ const LocationsPage: React.FC = () => {
               onRoundSelected={setSelectedRoundFilter}
               selectedAdminBoundary={selectedAdminBoundary}
               onClearAdminBoundary={() => setSelectedAdminBoundary(null)}
-              pixelCount={pixelStats?.count || 0}
               indicatorId={selectedIndicatorId}
               onSamplingWorkflowsStarted={(areaWorkflowMap) => {
                 setSamplingWorkflows(new Map(Object.entries(areaWorkflowMap)));
               }}
+              campaignAreas={campaignAreas || []}
             />
 
             {/* Campaign Areas Section - Primary workflow entry point */}
@@ -1145,6 +1155,11 @@ const LocationsPage: React.FC = () => {
         mode={campaignAreaMode}
         adminBoundary={selectedAdminBoundaryForCampaign}
         drawnGeometry={drawnGeometryForCampaign}
+        existingBuildingCount={
+          campaignAreas?.find(a =>
+            a.admin_boundary_name === selectedAdminBoundaryForCampaign?.name
+          )?.building_count || 0
+        }
         onAreaAdded={(result) => {
           setCampaignAreasRefreshKey(prev => prev + 1);
           refetchPixelStats();

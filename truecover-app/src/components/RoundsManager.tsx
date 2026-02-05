@@ -6,6 +6,7 @@ import { StratifiedClusterSamplingWizard } from './StratifiedClusterSamplingWiza
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
 import { useIndicators } from '../hooks/useIndicators';
+import { CampaignArea } from '../hooks/useCampaignAreas';
 import { env } from '../config/env';
 
 const API_URL = env.VITE_API_URL;
@@ -32,12 +33,12 @@ interface RoundsManagerProps {
   onRoundSelected?: (roundNumber: number | null) => void;
   selectedAdminBoundary?: { pcode: string; name: string } | null;
   onClearAdminBoundary?: () => void;
-  pixelCount?: number;
   indicatorId?: string;
   onSamplingWorkflowsStarted?: (areaWorkflowMap: Record<string, string>) => void;
+  campaignAreas?: CampaignArea[];
 }
 
-const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, pixelCount = 0, indicatorId, onSamplingWorkflowsStarted }) => {
+const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, projectId, locations, onRoundSelected, selectedAdminBoundary, onClearAdminBoundary, indicatorId, onSamplingWorkflowsStarted, campaignAreas }) => {
   const { getToken } = useAuth();
   const { data: indicators } = useIndicators(projectId);
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -152,7 +153,6 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
                 variant="primary"
                 size="sm"
                 onClick={() => setIsCreateModalOpen(true)}
-                disabled={pixelCount === 0}
               >
                 + Create New Round
               </TacticalButton>
@@ -303,8 +303,8 @@ const RoundsManager: React.FC<RoundsManagerProps> = ({ campaignId, areaName, pro
         campaignId={campaignId}
         projectId={projectId}
         onRoundCreated={handleRoundCreated}
-        adminBoundaryPcode={selectedAdminBoundary?.pcode}
-        adminBoundaryName={selectedAdminBoundary?.name}
+        campaignAreas={campaignAreas}
+        onSamplingStarted={onSamplingWorkflowsStarted}
       />
 
       <ExportLocationsModal

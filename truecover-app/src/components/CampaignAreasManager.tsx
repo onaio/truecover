@@ -68,6 +68,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [areaToEdit, setAreaToEdit] = useState<CampaignArea | null>(null);
   const [sampleCount, setSampleCount] = useState<number>(50);
+  const [buildingsPerPixel, setBuildingsPerPixel] = useState<number>(5);
   const [selectedRoundId, setSelectedRoundId] = useState<string>('');
   const [sampleTarget, setSampleTarget] = useState<SampleTarget>('pixels');
   const [isSampling, setIsSampling] = useState(false);
@@ -296,7 +297,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
           sample_count: sampleCount,
           resample,
           round_id: selectedRoundId,
-          sample_target: sampleTarget
+          sample_target: sampleTarget,
+          ...(sampleTarget === 'pixels' && buildingsPerPixel > 0 ? { buildings_per_pixel: buildingsPerPixel } : {}),
         },
         token
       );
@@ -765,6 +767,25 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                     className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
                   />
                 </div>
+
+                {/* Buildings per Pixel (only for pixel sampling) */}
+                {sampleTarget === 'pixels' && (
+                  <div>
+                    <label className="block text-xs text-tactical-text-muted mb-1">
+                      Buildings per Pixel
+                    </label>
+                    <input
+                      type="number"
+                      value={buildingsPerPixel}
+                      onChange={(e) => setBuildingsPerPixel(Math.max(0, parseInt(e.target.value) || 0))}
+                      min={0}
+                      className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
+                    />
+                    <p className="text-xs text-tactical-text-muted mt-1">
+                      {buildingsPerPixel === 0 ? 'No building sampling' : `Up to ${buildingsPerPixel} buildings selected per sampled pixel`}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -581,19 +581,17 @@ def compute_pixels_for_area(user, area_id):
             WITH pixel_stats AS (
                 SELECT
                     COUNT(*) as pixel_count,
-                    COALESCE(SUM(p.population), 0) as total_population
+                    COALESCE(SUM((pm.metadata->>'population')::numeric), 0) as total_population
                 FROM pixel_area pa
                 JOIN pixels p ON pa.quadkey = p.quadkey
+                LEFT JOIN pixel_metadata pm ON pa.quadkey = pm.quadkey
                 WHERE pa.campaign_area_id = %s
             ),
             location_counts AS (
-                SELECT COUNT(l.id) as building_count
-                FROM campaign_areas ca
-                LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
-                    AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                    AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                    AND ST_Intersects(l.geometry, ca.geometry)
-                WHERE ca.id = %s
+                SELECT COUNT(DISTINCT l.id) as building_count
+                FROM pixel_area pa2
+                LEFT JOIN locations l ON l.quadkey = pa2.quadkey
+                WHERE pa2.campaign_area_id = %s
             )
             UPDATE campaign_areas
             SET
@@ -603,13 +601,41 @@ def compute_pixels_for_area(user, area_id):
             WHERE id = %s
         """, (area_id, area_id, area_id))
 
+        # Create coverage_pixel records for all project indicators
+        cursor.execute("""
+            SELECT i.id FROM indicators i
+            JOIN campaigns c ON i.project_id = c.project_id
+            WHERE c.id = %s
+        """, (campaign_id,))
+        indicator_ids = [row[0] for row in cursor.fetchall()]
+
+        coverage_pixel_count = 0
+        for ind_id in indicator_ids:
+            cursor.execute("""
+                INSERT INTO coverage_pixel (
+                    campaign_id, indicator_id, quadkey, version,
+                    n_trials, n_covered,
+                    exceedance_probability, exceedance_uncertainty,
+                    prevalence_prediction, prevalence_bci_width
+                )
+                SELECT %s, %s, pa.quadkey, 0, 0, 0, 0.5, 0.5, 0.5, 0.5
+                FROM pixel_area pa
+                JOIN pixels p ON pa.quadkey = p.quadkey
+                WHERE pa.campaign_area_id = %s
+                ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
+            """, (campaign_id, ind_id, area_id))
+            coverage_pixel_count += cursor.rowcount
+
+        print(f"Created {coverage_pixel_count} coverage_pixel records for area {area_id}")
+
         conn.commit()
         cursor.close()
 
         return jsonify({
             'success': True,
             'campaign_area_id': area_id,
-            'pixels_computed': inserted_count
+            'pixels_computed': inserted_count,
+            'coverage_pixels_created': coverage_pixel_count
         }), 200
 
     except Exception as e:
@@ -670,19 +696,17 @@ def compute_all_pixels_for_campaign(user, campaign_id):
                 WITH pixel_stats AS (
                     SELECT
                         COUNT(*) as pixel_count,
-                        COALESCE(SUM(p.population), 0) as total_population
+                        COALESCE(SUM((pm.metadata->>'population')::numeric), 0) as total_population
                     FROM pixel_area pa
                     JOIN pixels p ON pa.quadkey = p.quadkey
+                    LEFT JOIN pixel_metadata pm ON pa.quadkey = pm.quadkey
                     WHERE pa.campaign_area_id = %s
                 ),
                 location_counts AS (
-                    SELECT COUNT(l.id) as building_count
-                    FROM campaign_areas ca
-                    LEFT JOIN locations l ON l.campaign_id = ca.campaign_id
-                        AND l.latitude BETWEEN ca.bbox_min_lat AND ca.bbox_max_lat
-                        AND l.longitude BETWEEN ca.bbox_min_lng AND ca.bbox_max_lng
-                        AND ST_Intersects(l.geometry, ca.geometry)
-                    WHERE ca.id = %s
+                    SELECT COUNT(DISTINCT l.id) as building_count
+                    FROM pixel_area pa2
+                    LEFT JOIN locations l ON l.quadkey = pa2.quadkey
+                    WHERE pa2.campaign_area_id = %s
                 )
                 UPDATE campaign_areas
                 SET
@@ -803,6 +827,7 @@ def sample_campaign_area(user, area_id):
         resample = data.get('resample', False)
         round_id = data.get('round_id')
         sample_target = data.get('sample_target', 'pixels')  # 'pixels' or 'buildings'
+        buildings_per_pixel = data.get('buildings_per_pixel', 0)
 
         if not indicator_id:
             return jsonify({'error': 'indicator_id is required'}), 400
@@ -839,7 +864,8 @@ def sample_campaign_area(user, area_id):
                     resample,
                     round_number,
                     None,  # round_name (not needed since round exists)
-                    sample_target
+                    sample_target,
+                    buildings_per_pixel
                 ],
                 id=workflow_id,
                 task_queue="truecover-tasks"

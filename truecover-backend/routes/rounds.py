@@ -176,13 +176,13 @@ def get_round_workflow_status(user, workflow_id):
 @rounds_bp.route('/api/campaigns/<campaign_id>/rounds', methods=['POST'])
 @require_auth
 def create_round(user, campaign_id):
-    """Create a new round and run adaptive sampling using Temporal workflow"""
+    """Create a round record and optionally start per-area sampling workflows"""
     from datetime import datetime
     from temporal.client import get_temporal_client, run_async
-    from temporal.workflows.round_generation import RoundGenerationWorkflow
+    from temporal.workflows.campaign_area_sampling import CampaignAreaSamplingWorkflow
 
+    conn = None
     try:
-        # Check if user has access to this area
         if not check_campaign_access(user['id'], campaign_id):
             return jsonify({'error': 'Access denied'}), 403
 
@@ -195,13 +195,7 @@ def create_round(user, campaign_id):
         start_date = data.get('start_date')
         end_date = data.get('end_date')
         indicator_id = data.get('indicator_id')
-        batch_size = data.get('batch_size', 10)
-        uncertainty_field = data.get('uncertainty_field', 'exceedance_uncertainty')
-        allow_revisit = data.get('allow_revisit', False)
-        sampling_target = data.get('sampling_target', 'locations')
-        admin_pcode = data.get('admin_pcode')
-        min_population = data.get('min_population')
-        population_field = data.get('population_field')
+        sample_areas = data.get('sample_areas', [])
 
         if not name:
             return jsonify({'error': 'Round name is required'}), 400
@@ -209,41 +203,90 @@ def create_round(user, campaign_id):
         if not indicator_id:
             return jsonify({'error': 'Indicator ID is required'}), 400
 
-        # Generate workflow ID
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        workflow_id = f"round-generation-{campaign_id}-{timestamp}"
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-        # Start workflow
-        async def start_workflow():
-            client = await get_temporal_client()
-            handle = await client.start_workflow(
-                RoundGenerationWorkflow.run,
-                args=[
-                    campaign_id, name, description, start_date, end_date,
-                    indicator_id, batch_size, uncertainty_field,
-                    allow_revisit, sampling_target, admin_pcode,
-                    min_population, population_field
-                ],
-                id=workflow_id,
-                task_queue="truecover-tasks"
-            )
-            return handle
+        # Get next round number
+        cursor.execute("""
+            SELECT COALESCE(MAX(round_number), 0) + 1
+            FROM rounds
+            WHERE campaign_id = %s
+        """, (campaign_id,))
+        round_number = cursor.fetchone()[0]
 
-        run_async(start_workflow())
+        # Create the round
+        cursor.execute("""
+            INSERT INTO rounds (campaign_id, round_number, name, description, start_date, end_date, indicator_id, sampling_target)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, round_number, name, description, start_date, end_date, created_at, updated_at, sampling_target
+        """, (campaign_id, round_number, name, description, start_date, end_date, indicator_id, 'pixels'))
 
-        print(f"Started round generation workflow: {workflow_id}")
+        round_data = cursor.fetchone()
+        round_id = str(round_data[0])
+
+        conn.commit()
+        cursor.close()
+
+        # Start per-area sampling workflows if requested
+        workflow_ids = {}
+        if sample_areas:
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+
+            async def start_area_workflows():
+                client = await get_temporal_client()
+                for area in sample_areas:
+                    area_id = area['area_id']
+                    sample_count = area.get('sample_count', 50)
+                    sample_target = area.get('sample_target', 'pixels')
+                    buildings_per_pixel = area.get('buildings_per_pixel', 0)
+                    wf_id = f"area-sampling-{area_id}-round{round_number}-{timestamp}"
+
+                    await client.start_workflow(
+                        CampaignAreaSamplingWorkflow.run,
+                        args=[
+                            campaign_id,
+                            indicator_id,
+                            area_id,
+                            sample_count,
+                            False,  # resample
+                            round_number,
+                            None,  # round_name
+                            sample_target,
+                            buildings_per_pixel,
+                        ],
+                        id=wf_id,
+                        task_queue="truecover-tasks"
+                    )
+                    workflow_ids[area_id] = wf_id
+                    print(f"Started area sampling workflow: {wf_id}")
+
+            run_async(start_area_workflows())
 
         return jsonify({
-            'workflow_id': workflow_id,
-            'status': 'started',
-            'message': 'Round generation started. Use the workflow_id to check progress.'
-        }), 202
+            'round': {
+                'id': round_id,
+                'round_number': round_data[1],
+                'name': round_data[2],
+                'description': round_data[3],
+                'start_date': round_data[4].isoformat() if round_data[4] else None,
+                'end_date': round_data[5].isoformat() if round_data[5] else None,
+                'created_at': round_data[6].isoformat() if round_data[6] else None,
+                'updated_at': round_data[7].isoformat() if round_data[7] else None,
+                'sampling_target': round_data[8],
+            },
+            'workflow_ids': workflow_ids,
+        }), 201
 
     except Exception as e:
-        print(f"Error starting round generation workflow: {e}")
+        if conn:
+            conn.rollback()
+        print(f"Error creating round: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': 'Failed to start round generation', 'details': str(e)}), 500
+        return jsonify({'error': 'Failed to create round', 'details': str(e)}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)
 
 
 @rounds_bp.route('/api/campaigns/<campaign_id>/rounds/stratified-cluster', methods=['POST'])

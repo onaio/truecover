@@ -271,16 +271,22 @@ async def enrich_area_pixels(
         ))
         conn.commit()
 
-        # Get total pixel count
+        # Count pixels that still need enrichment (skip already-enriched)
         cursor.execute("""
-            SELECT COUNT(*) FROM pixels WHERE campaign_id = %s
-        """, (campaign_id,))
+            SELECT COUNT(DISTINCT p.quadkey)
+            FROM pixels p
+            JOIN pixel_area pa ON p.quadkey = pa.quadkey
+            JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+            LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
+            WHERE ca.campaign_id = %s
+              AND (pm.metadata IS NULL OR NOT pm.metadata ? %s)
+        """, (campaign_id, metadata_field_name))
         total_pixels = cursor.fetchone()[0]
 
-        activity.logger.info(f"Processing {total_pixels} pixels for area {campaign_id}")
+        activity.logger.info(f"Processing {total_pixels} unenriched pixels for campaign {campaign_id}")
 
         if total_pixels == 0:
-            return {"pixels_total": 0, "pixels_updated": 0}
+            return {"pixels_total": 0, "pixels_updated": 0, "skipped": True}
 
         # Process in batches using cursor-based pagination
         batch_size = 500
@@ -288,14 +294,18 @@ async def enrich_area_pixels(
         offset = 0
 
         while offset < total_pixels:
-            # Fetch batch of pixels
+            # Fetch batch of pixels that don't yet have this metadata field
             cursor.execute("""
-                SELECT quadkey, ST_AsText(geometry) as wkt_geometry
-                FROM pixels
-                WHERE campaign_id = %s
-                ORDER BY quadkey
+                SELECT DISTINCT p.quadkey, ST_AsText(p.geometry) as wkt_geometry
+                FROM pixels p
+                JOIN pixel_area pa ON p.quadkey = pa.quadkey
+                JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+                LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
+                WHERE ca.campaign_id = %s
+                  AND (pm.metadata IS NULL OR NOT pm.metadata ? %s)
+                ORDER BY p.quadkey
                 LIMIT %s OFFSET %s
-            """, (campaign_id, batch_size, offset))
+            """, (campaign_id, metadata_field_name, batch_size, offset))
 
             batch_rows = cursor.fetchall()
             if not batch_rows:
@@ -336,6 +346,25 @@ async def enrich_area_pixels(
 
             activity.logger.info(f"Batch {batch_num}: extracted stats for {len(updates)}/{len(batch_rows)} pixels")
             offset += batch_size
+
+        # Update cached_population on affected campaign areas
+        if metadata_field_name == 'population' and total_updated > 0:
+            cursor.execute("""
+                UPDATE campaign_areas ca
+                SET cached_population = sub.total_pop
+                FROM (
+                    SELECT pa.campaign_area_id,
+                           COALESCE(SUM((pm.metadata->>'population')::numeric), 0) as total_pop
+                    FROM pixel_area pa
+                    JOIN pixel_metadata pm ON pa.quadkey = pm.quadkey
+                    JOIN campaign_areas ca2 ON pa.campaign_area_id = ca2.id
+                    WHERE ca2.campaign_id = %s AND pm.metadata ? 'population'
+                    GROUP BY pa.campaign_area_id
+                ) sub
+                WHERE ca.id = sub.campaign_area_id
+            """, (campaign_id,))
+            conn.commit()
+            activity.logger.info(f"Updated cached_population for campaign areas")
 
         activity.logger.info(f"Enrichment complete: {total_updated}/{total_pixels} pixels updated")
         return {"pixels_total": total_pixels, "pixels_updated": total_updated}

@@ -23,15 +23,15 @@ OVERTURE_BUILDINGS_PATH = os.getenv(
 )
 
 
-def find_duplicate_by_external_id(cursor, campaign_id, external_id):
-    """Check if location exists by external_id only (for Overture imports)"""
+def find_duplicate_by_external_id(cursor, external_id):
+    """Check if location exists globally by external_id (for Overture imports)"""
     if not external_id:
         return None
     cursor.execute("""
         SELECT id FROM locations
-        WHERE campaign_id = %s AND external_id = %s
+        WHERE external_id = %s
         LIMIT 1
-    """, (campaign_id, external_id))
+    """, (external_id,))
     result = cursor.fetchone()
     return str(result[0]) if result else None
 
@@ -393,10 +393,10 @@ def import_overture_buildings(user, pcode):
         from routes.locations import calculate_quadkey
         import mercantile
 
-        # Get indicators for this area's project (needed for coverage creation)
+        # Get indicators for this campaign's project (needed for coverage creation)
         cursor.execute("""
             SELECT id FROM indicators WHERE project_id = (
-                SELECT project_id FROM areas WHERE id = %s
+                SELECT project_id FROM campaigns WHERE id = %s
             )
         """, (campaign_id,))
         indicators = [row[0] for row in cursor.fetchall()]
@@ -442,8 +442,8 @@ def import_overture_buildings(user, pcode):
                     if lat is None or lng is None:
                         continue
 
-                    # Check for duplicate by external_id only
-                    duplicate_id = find_duplicate_by_external_id(cursor, campaign_id, overture_id)
+                    # Check for duplicate by external_id globally
+                    duplicate_id = find_duplicate_by_external_id(cursor, overture_id)
                     if duplicate_id:
                         batch_duplicates += 1
                         continue
@@ -467,7 +467,6 @@ def import_overture_buildings(user, pcode):
 
                     # Add to batch
                     batch_to_insert.append((
-                        campaign_id,
                         overture_id,  # external_id
                         geometry_wkt,
                         lat,
@@ -495,13 +494,13 @@ def import_overture_buildings(user, pcode):
                 batch_ids = []
                 result = execute_values(cursor, """
                     INSERT INTO locations (
-                        campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
+                        external_id, geometry, latitude, longitude, quadkey, properties
                     )
                     VALUES %s
                     RETURNING id
-                """, [(campaign_id, ext_id, f"SRID=4326;{geom}", lat, lng, qk, props)
-                      for campaign_id, ext_id, geom, lat, lng, qk, props in batch_to_insert],
-                    template="(%s, %s, ST_GeomFromText(%s), %s, %s, %s, %s)",
+                """, [(ext_id, f"SRID=4326;{geom}", lat, lng, qk, props)
+                      for ext_id, geom, lat, lng, qk, props in batch_to_insert],
+                    template="(%s, ST_GeomFromText(%s), %s, %s, %s, %s)",
                     fetch=True)
 
                 # Get all returned IDs
@@ -541,7 +540,7 @@ def import_overture_buildings(user, pcode):
                     cursor.executemany("""
                         INSERT INTO coverage (location_id, campaign_id, indicator_id, version, n_trials, n_covered, quadkey)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (location_id, indicator_id, version) DO NOTHING
+                        ON CONFLICT (campaign_id, location_id, indicator_id, version) DO NOTHING
                     """, coverage_batch)
 
                     coverage_created = cursor.rowcount
@@ -587,15 +586,15 @@ def import_overture_buildings(user, pcode):
                 pixel_wkt = f'POLYGON(({bounds.west} {bounds.south},{bounds.east} {bounds.south},{bounds.east} {bounds.north},{bounds.west} {bounds.north},{bounds.west} {bounds.south}))'
 
                 pixels_to_insert.append((
-                    campaign_id, quadkey, pixel_wkt, center_lat, center_lng, 18
+                    quadkey, pixel_wkt, center_lat, center_lng, 18
                 ))
 
             # Batch insert with ON CONFLICT DO NOTHING to handle duplicates
             if pixels_to_insert:
                 cursor.executemany("""
-                    INSERT INTO pixels (campaign_id, quadkey, geometry, latitude, longitude, level)
-                    VALUES (%s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s)
-                    ON CONFLICT ON CONSTRAINT pixels_area_quadkey_unique DO NOTHING
+                    INSERT INTO pixels (quadkey, geometry, latitude, longitude, level)
+                    VALUES (%s, ST_GeomFromText(%s, 4326), %s, %s, %s)
+                    ON CONFLICT (quadkey) DO NOTHING
                 """, pixels_to_insert)
 
                 # Count how many were actually inserted
@@ -607,7 +606,7 @@ def import_overture_buildings(user, pcode):
             if pixels_created > 0:
                 cursor.execute("""
                     SELECT id FROM indicators WHERE project_id = (
-                        SELECT project_id FROM areas WHERE id = %s
+                        SELECT project_id FROM campaigns WHERE id = %s
                     )
                 """, (campaign_id,))
 
@@ -619,12 +618,12 @@ def import_overture_buildings(user, pcode):
                         INSERT INTO coverage_pixel (quadkey, indicator_id, campaign_id, version, n_trials, n_covered)
                         SELECT p.quadkey, %s, %s, 0, 0, 0
                         FROM pixels p
-                        WHERE p.campaign_id = %s
+                        WHERE p.quadkey = ANY(%s)
                         AND NOT EXISTS (
                             SELECT 1 FROM coverage_pixel cp
                             WHERE cp.quadkey = p.quadkey AND cp.indicator_id = %s AND cp.campaign_id = %s
                         )
-                    """, (indicator_id, campaign_id, campaign_id, indicator_id, campaign_id))
+                    """, (indicator_id, campaign_id, list(unique_quadkeys), indicator_id, campaign_id))
 
                 conn.commit()
                 print(f"Populated coverage_pixel for {pixels_created} new pixels")

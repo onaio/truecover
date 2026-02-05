@@ -47,9 +47,9 @@ def geometry_to_wkt(geometry_dict):
         return None
 
 
-def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
+def find_duplicate(cursor, external_id, lat, lng, geometry_wkt):
     """
-    Find duplicate location using multiple strategies:
+    Find duplicate location globally using multiple strategies:
     1. Match by external_id
     2. Match by lat/lng (within tolerance)
     3. Match by geometry intersection
@@ -58,9 +58,9 @@ def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     if external_id:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE campaign_id = %s AND external_id = %s
+            WHERE external_id = %s
             LIMIT 1
-        """, (campaign_id, external_id))
+        """, (external_id,))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -69,11 +69,10 @@ def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     if lat is not None and lng is not None:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE campaign_id = %s
-            AND ABS(latitude - %s) < 0.0001
+            WHERE ABS(latitude - %s) < 0.0001
             AND ABS(longitude - %s) < 0.0001
             LIMIT 1
-        """, (campaign_id, lat, lng))
+        """, (lat, lng))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -82,10 +81,9 @@ def find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt):
     if geometry_wkt:
         cursor.execute("""
             SELECT id FROM locations
-            WHERE campaign_id = %s
-            AND ST_Intersects(geometry, ST_GeomFromText(%s, 4326))
+            WHERE ST_Intersects(geometry, ST_GeomFromText(%s, 4326))
             LIMIT 1
-        """, (campaign_id, geometry_wkt))
+        """, (geometry_wkt,))
         result = cursor.fetchone()
         if result:
             return str(result[0])
@@ -231,8 +229,8 @@ async def process_location_batch(
                 # Convert geometry to WKT for PostGIS
                 geometry_wkt = geometry_to_wkt(geometry) if geometry else None
 
-                # Check for duplicates
-                duplicate_id = find_duplicate(cursor, campaign_id, external_id, lat, lng, geometry_wkt)
+                # Check for duplicates globally
+                duplicate_id = find_duplicate(cursor, external_id, lat, lng, geometry_wkt)
 
                 if duplicate_id:
                     # Update existing location
@@ -259,14 +257,14 @@ async def process_location_batch(
                     quadkey = calculate_quadkey(lat, lng)
                     cursor.execute("""
                         INSERT INTO locations (
-                            campaign_id, external_id, geometry, latitude, longitude, quadkey, properties
+                            external_id, geometry, latitude, longitude, quadkey, properties
                         )
                         VALUES (
-                            %s, %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s
+                            %s, ST_GeomFromText(%s, 4326), %s, %s, %s, %s
                         )
                         RETURNING id
                     """, (
-                        campaign_id, external_id, geometry_wkt, lat, lng, quadkey,
+                        external_id, geometry_wkt, lat, lng, quadkey,
                         json.dumps(properties)
                     ))
                     new_location_id = cursor.fetchone()[0]
@@ -366,10 +364,10 @@ async def populate_coverage_for_locations(campaign_id: str, new_location_ids: Li
                         prevalence_bci_width, prevalence_prediction
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (location_id, indicator_id) DO NOTHING
+                    ON CONFLICT (campaign_id, location_id, indicator_id, version) DO NOTHING
                 """, (
                     location_id, campaign_id, indicator_id, quadkey,
-                    1, 0, 0,  # version=1, n_trials=0, n_covered=0 for new records
+                    0, 0, 0,  # version=0, n_trials=0, n_covered=0 for new records
                     exceedance_probability, exceedance_uncertainty,
                     prevalence_bci_width, prevalence_prediction
                 ))
@@ -401,10 +399,12 @@ async def generate_pixels_for_quadkeys(campaign_id: str) -> Dict[str, Any]:
     new_quadkeys = []
 
     try:
-        # Get all unique quadkeys from locations in this area
+        # Get all unique quadkeys from locations in this campaign's areas
         cursor.execute("""
-            SELECT DISTINCT quadkey FROM locations
-            WHERE campaign_id = %s AND quadkey IS NOT NULL
+            SELECT DISTINCT l.quadkey FROM locations l
+            JOIN pixel_area pa ON l.quadkey = pa.quadkey
+            JOIN campaign_areas ca ON pa.campaign_area_id = ca.id
+            WHERE ca.campaign_id = %s AND l.quadkey IS NOT NULL
         """, (campaign_id,))
         location_quadkeys = {row[0] for row in cursor.fetchall()}
 
