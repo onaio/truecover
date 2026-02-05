@@ -34,6 +34,9 @@ def run_global_locations_migration():
             ALTER TABLE coverage DROP CONSTRAINT IF EXISTS coverage_location_id_indicator_id_version_key;
         """)
         cursor.execute("""
+            ALTER TABLE coverage DROP CONSTRAINT IF EXISTS coverage_location_id_indicator_id_key;
+        """)
+        cursor.execute("""
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -58,8 +61,15 @@ def run_global_locations_migration():
         """)
         print("  - Created global unique index on external_id")
 
-        # Step 3: Drop campaign_id from locations
-        print("\n[Step 3] Dropping campaign_id from locations...")
+        # Step 3: Drop old materialized view (depends on campaign_id column)
+        print("\n[Step 3] Dropping old pixel_location_counts materialized view...")
+        cursor.execute("""
+            DROP MATERIALIZED VIEW IF EXISTS pixel_location_counts CASCADE;
+        """)
+        print("  - Dropped pixel_location_counts")
+
+        # Step 4: Drop campaign_id from locations
+        print("\n[Step 4] Dropping campaign_id from locations...")
         cursor.execute("""
             ALTER TABLE locations DROP CONSTRAINT IF EXISTS locations_campaign_id_fkey;
         """)
@@ -71,11 +81,8 @@ def run_global_locations_migration():
         """)
         print("  - Dropped campaign_id column from locations")
 
-        # Step 4: Recreate pixel_location_counts materialized view
-        print("\n[Step 4] Recreating pixel_location_counts materialized view...")
-        cursor.execute("""
-            DROP MATERIALIZED VIEW IF EXISTS pixel_location_counts CASCADE;
-        """)
+        # Step 5: Recreate pixel_location_counts materialized view (global)
+        print("\n[Step 5] Recreating pixel_location_counts materialized view...")
         cursor.execute("""
             CREATE MATERIALIZED VIEW pixel_location_counts AS
             SELECT quadkey, COUNT(*) as location_count
@@ -91,8 +98,8 @@ def run_global_locations_migration():
         cursor.execute("REFRESH MATERIALIZED VIEW pixel_location_counts")
         print("  - Refreshed materialized view")
 
-        # Step 5: Recreate locations_by_campaign tile function
-        print("\n[Step 5] Recreating locations_by_campaign tile function...")
+        # Step 6: Recreate locations_by_campaign tile function
+        print("\n[Step 6] Recreating locations_by_campaign tile function...")
         cursor.execute("DROP FUNCTION IF EXISTS locations_by_campaign(integer, integer, integer, json) CASCADE;")
         cursor.execute("""
             CREATE OR REPLACE FUNCTION locations_by_campaign(z integer, x integer, y integer, query_params json)
