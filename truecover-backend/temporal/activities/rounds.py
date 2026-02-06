@@ -116,12 +116,8 @@ async def fetch_coverage_for_sampling(
             pop_filter = ""
             pop_params = []
 
-            if min_population is not None and population_field:
-                import re
-                if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', population_field):
-                    raise ValueError(f"Invalid population field name: {population_field}")
-                pop_join = "LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey"
-                pop_filter = f"AND (pm.metadata->>'{population_field}')::float >= %s"
+            if min_population is not None:
+                pop_filter = "AND p.population >= %s"
                 pop_params = [min_population]
 
             if allow_revisit:

@@ -341,6 +341,17 @@ async def enrich_area_pixels(
                         metadata = pixel_metadata.metadata || EXCLUDED.metadata,
                         updated_at = NOW()
                 """, updates)
+
+                # Also write to pixels.population column for population data
+                if metadata_field_name == 'population':
+                    pop_updates = [
+                        (json.loads(metadata_json)[metadata_field_name], quadkey)
+                        for quadkey, metadata_json in updates
+                    ]
+                    cursor.executemany("""
+                        UPDATE pixels SET population = %s WHERE quadkey = %s
+                    """, pop_updates)
+
                 conn.commit()
                 total_updated += len(updates)
 
@@ -354,11 +365,11 @@ async def enrich_area_pixels(
                 SET cached_population = sub.total_pop
                 FROM (
                     SELECT pa.campaign_area_id,
-                           COALESCE(SUM((pm.metadata->>'population')::numeric), 0) as total_pop
+                           COALESCE(SUM(p.population), 0) as total_pop
                     FROM pixel_area pa
-                    JOIN pixel_metadata pm ON pa.quadkey = pm.quadkey
+                    JOIN pixels p ON pa.quadkey = p.quadkey
                     JOIN campaign_areas ca2 ON pa.campaign_area_id = ca2.id
-                    WHERE ca2.campaign_id = %s AND pm.metadata ? 'population'
+                    WHERE ca2.campaign_id = %s
                     GROUP BY pa.campaign_area_id
                 ) sub
                 WHERE ca.id = sub.campaign_area_id
