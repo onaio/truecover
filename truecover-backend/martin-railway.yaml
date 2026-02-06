@@ -5,6 +5,7 @@ cache_size_mb: 512
 preferred_encoding: gzip
 
 postgres:
+  connection_string: ${DATABASE_URL}
   auto_publish: true
 
   functions:
