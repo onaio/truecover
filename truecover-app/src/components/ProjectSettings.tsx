@@ -63,6 +63,11 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({
       setError(null);
       setOnaProjects([]);
       setOnaEntityLists([]);
+
+      // Auto-load entity lists when project is configured but no entity list is set
+      if (project.ona_project_id && !project.ona_entity_list_id) {
+        loadEntityListsForProject(project.ona_project_id);
+      }
     }
   }, [project, isOpen]);
 

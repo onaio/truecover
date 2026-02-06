@@ -1,9 +1,10 @@
-# ABOUTME: Routes for exporting pixel coverage data to ODK entity lists
+# ABOUTME: Routes for exporting coverage data (pixels and locations) to ODK entity lists
 # ABOUTME: Handles starting and monitoring Temporal workflows for entity creation
 
 from flask import Blueprint, jsonify, request
 from auth.middleware import require_auth
 from auth.helpers import check_campaign_access
+from db.connection import get_db_connection, return_db_connection
 
 entity_export_bp = Blueprint('entity_export', __name__)
 
@@ -39,6 +40,29 @@ def start_entity_export_workflow(user, campaign_id):
         if not project_id:
             return jsonify({'error': 'project_id is required'}), 400
 
+        # Split rounds by sampling_target
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            placeholders = ','.join(['%s'] * len(round_ids))
+            cursor.execute(f"""
+                SELECT id, COALESCE(sampling_target, 'locations') as sampling_target
+                FROM rounds
+                WHERE id IN ({placeholders})
+            """, tuple(round_ids))
+
+            pixel_round_ids = []
+            location_round_ids = []
+            for row in cursor.fetchall():
+                rid, target = str(row[0]), row[1]
+                if target == 'pixels':
+                    pixel_round_ids.append(rid)
+                else:
+                    location_round_ids.append(rid)
+        finally:
+            cursor.close()
+            return_db_connection(conn)
+
         # Generate workflow ID
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         workflow_id = f"entity-export-{campaign_id}-{timestamp}"
@@ -48,7 +72,7 @@ def start_entity_export_workflow(user, campaign_id):
             client = await get_temporal_client()
             handle = await client.start_workflow(
                 EntityExportWorkflow.run,
-                args=[campaign_id, indicator_id, round_ids, project_id, geometry_type],
+                args=[campaign_id, indicator_id, pixel_round_ids, location_round_ids, project_id, geometry_type],
                 id=workflow_id,
                 task_queue="truecover-tasks"
             )

@@ -71,7 +71,7 @@ BEGIN
                 SELECT
                     p.quadkey,
                     p.geometry,
-                    (pm.metadata->>'population')::numeric AS population,
+                    p.population,
                     lc.building_count
                 FROM pixels p
                 JOIN pixel_area pa ON p.quadkey = pa.quadkey
@@ -79,7 +79,6 @@ BEGIN
                 LEFT JOIN coverage_pixel cp ON p.quadkey = cp.quadkey
                     AND cp.campaign_id = target_campaign_id
                     AND (target_indicator_id IS NULL OR cp.indicator_id = target_indicator_id)
-                LEFT JOIN pixel_metadata pm ON p.quadkey = pm.quadkey
                 LEFT JOIN LATERAL (
                     SELECT COUNT(*)::integer AS building_count
                     FROM locations l

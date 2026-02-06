@@ -1,5 +1,5 @@
-# ABOUTME: Temporal activities for exporting pixel coverage data to ODK entity lists
-# ABOUTME: Handles fetching pixel data and creating entities via Ona API
+# ABOUTME: Temporal activities for exporting coverage data to ODK entity lists
+# ABOUTME: Handles fetching pixel and location data and creating entities via Ona API
 
 from temporalio import activity
 from typing import List, Dict, Any
@@ -85,7 +85,7 @@ async def fetch_pixel_coverage_activity(
                 p.adm4_pcode,
                 pc.rounds
             FROM coverage_pixel pc
-            JOIN pixels p ON p.quadkey = pc.quadkey AND p.campaign_id = pc.campaign_id
+            JOIN pixels p ON p.quadkey = pc.quadkey
             WHERE pc.campaign_id = %s
                 AND pc.indicator_id = %s
                 AND pc.rounds && %s::integer[]
@@ -112,18 +112,83 @@ async def fetch_pixel_coverage_activity(
 
 
 @activity.defn
+async def fetch_location_coverage_activity(
+    campaign_id: str,
+    indicator_id: str,
+    round_ids: List[str]
+) -> List[Dict[str, Any]]:
+    """
+    Fetch location coverage data filtered by selected rounds.
+
+    Returns list of location coverage records with location details.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Get round numbers from round IDs
+        placeholders = ','.join(['%s'] * len(round_ids))
+        cursor.execute(f"""
+            SELECT round_number
+            FROM rounds
+            WHERE id IN ({placeholders})
+        """, tuple(round_ids))
+
+        round_numbers = [row[0] for row in cursor.fetchall()]
+
+        if not round_numbers:
+            return []
+
+        cursor.execute("""
+            SELECT DISTINCT
+                c.id,
+                l.external_id,
+                l.latitude,
+                l.longitude,
+                l.quadkey,
+                c.rounds
+            FROM coverage c
+            JOIN locations l ON l.id = c.location_id
+            WHERE c.campaign_id = %s
+                AND c.indicator_id = %s
+                AND c.rounds && %s::integer[]
+            ORDER BY l.external_id
+        """, (campaign_id, indicator_id, round_numbers))
+
+        locations = []
+        for row in cursor.fetchall():
+            cov_id, external_id, latitude, longitude, quadkey, rounds = row
+            locations.append({
+                'id': str(cov_id),
+                'external_id': external_id or '',
+                'latitude': float(latitude) if latitude else None,
+                'longitude': float(longitude) if longitude else None,
+                'quadkey': quadkey or '',
+                'rounds': rounds or []
+            })
+
+        return locations
+
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+
+@activity.defn
 async def create_odk_entity_activity(
     project_id: str,
-    pixel_data: Dict[str, Any],
-    geometry_type: str = 'centroid'
+    entity_data: Dict[str, Any],
+    geometry_type: str = 'centroid',
+    entity_type: str = 'pixel'
 ) -> Dict[str, Any]:
     """
     Create a single ODK entity via Ona API.
 
     Args:
         project_id: Project ID to get ODK credentials
-        pixel_data: Pixel data dict with id, quadkey, lat, lng, adm4_pcode
+        entity_data: Entity data dict (pixel or location fields)
         geometry_type: 'centroid' or 'boundary' - how to represent pixel geometry
+        entity_type: 'pixel' or 'location'
 
     Returns:
         Dict with success status and created entity info
@@ -154,21 +219,27 @@ async def create_odk_entity_activity(
         # Remove trailing slash from host_url
         host_url = host_url.rstrip('/')
 
-        # Format geometry based on project setting
-        if geometry_type == 'boundary':
-            # Use pixel boundary (geoshape polygon)
-            geometry = get_pixel_boundary_coords(pixel_data['quadkey'])
+        if entity_type == 'location':
+            # Locations always use point geometry
+            label = entity_data['external_id']
+            geometry = f"{entity_data['latitude']} {entity_data['longitude']} 0 0"
+            details = entity_data['quadkey']
         else:
-            # Use pixel centroid (geopoint)
-            geometry = f"{pixel_data['latitude']} {pixel_data['longitude']} 0 0"
+            # Pixels use configurable geometry
+            label = entity_data['quadkey']
+            if geometry_type == 'boundary':
+                geometry = get_pixel_boundary_coords(entity_data['quadkey'])
+            else:
+                geometry = f"{entity_data['latitude']} {entity_data['longitude']} 0 0"
+            details = entity_data['adm4_pcode']
 
         # Build entity payload
         entity_payload = {
-            'label': pixel_data['quadkey'],
+            'label': label,
             'data': {
                 'geometry': geometry,
                 'status': 'not_visited',
-                'details': pixel_data['adm4_pcode']
+                'details': details
             }
         }
 
@@ -199,7 +270,7 @@ async def create_odk_entity_activity(
 
         return {
             'success': True,
-            'quadkey': pixel_data['quadkey'],
+            'label': label,
             'entity_uuid': entity_result.get('uuid')
         }
 
