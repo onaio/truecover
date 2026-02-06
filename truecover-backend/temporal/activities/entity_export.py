@@ -83,7 +83,8 @@ async def fetch_pixel_coverage_activity(
                 p.latitude,
                 p.longitude,
                 p.adm4_pcode,
-                pc.rounds
+                pc.rounds,
+                (pc.replacement_for IS NOT NULL) AS is_replacement
             FROM coverage_pixel pc
             JOIN pixels p ON p.quadkey = pc.quadkey
             WHERE pc.campaign_id = %s
@@ -94,14 +95,15 @@ async def fetch_pixel_coverage_activity(
 
         pixels = []
         for row in cursor.fetchall():
-            pixel_id, quadkey, latitude, longitude, adm4_pcode, rounds = row
+            pixel_id, quadkey, latitude, longitude, adm4_pcode, rounds, is_replacement = row
             pixels.append({
                 'id': str(pixel_id),
                 'quadkey': quadkey,
                 'latitude': float(latitude) if latitude else None,
                 'longitude': float(longitude) if longitude else None,
                 'adm4_pcode': adm4_pcode or '',
-                'rounds': rounds or []
+                'rounds': rounds or [],
+                'is_replacement': is_replacement
             })
 
         return pixels
@@ -233,14 +235,23 @@ async def create_odk_entity_activity(
                 geometry = f"{entity_data['latitude']} {entity_data['longitude']} 0 0"
             details = entity_data['adm4_pcode']
 
+        # Determine sample category for pixels (primary vs replacement)
+        sample_category = None
+        if entity_type == 'pixel':
+            sample_category = 'replacement' if entity_data.get('is_replacement') else 'primary'
+
         # Build entity payload
+        entity_data_payload = {
+            'geometry': geometry,
+            'status': 'not_visited',
+            'details': details
+        }
+        if sample_category:
+            entity_data_payload['sample_category'] = sample_category
+
         entity_payload = {
             'label': label,
-            'data': {
-                'geometry': geometry,
-                'status': 'not_visited',
-                'details': details
-            }
+            'data': entity_data_payload
         }
 
         # Make POST request to Ona API
