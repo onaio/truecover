@@ -36,11 +36,15 @@ app = Flask(__name__)
 Compress(app)
 
 # Configure CORS - allow requests from React app
-CORS(app, origins=[
-    'http://localhost:3000',  # React dev server
-    'http://localhost:3001',  # Alternative port
-    'http://localhost:3050',  # Current React app port
-], supports_credentials=True)
+cors_origins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3050',
+]
+extra_origins = os.environ.get('CORS_ORIGINS', '')
+if extra_origins:
+    cors_origins.extend(o.strip() for o in extra_origins.split(',') if o.strip())
+CORS(app, origins=cors_origins, supports_credentials=True)
 
 # Register blueprints
 app.register_blueprint(user_bp)
