@@ -1,0 +1,10 @@
+# ABOUTME: Docker build for Martin tile server on Railway.
+# ABOUTME: Copies config and serves tiles from PostGIS and /pmtiles volume.
+
+FROM ghcr.io/maplibre/martin:latest
+
+COPY martin-railway.yaml /config/config.yaml
+
+EXPOSE 3000
+
+CMD ["--config", "/config/config.yaml"]

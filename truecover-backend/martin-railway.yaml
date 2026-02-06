@@ -1,0 +1,27 @@
+# ABOUTME: Martin configuration for Railway deployment.
+# ABOUTME: Uses DATABASE_URL env var and /pmtiles volume for tile sources.
+
+cache_size_mb: 512
+preferred_encoding: gzip
+
+postgres:
+  auto_publish: true
+
+  functions:
+    pixels_by_campaign:
+      schema: public
+      function: pixels_by_campaign
+      minzoom: 0
+      maxzoom: 24
+
+    locations_by_campaign:
+      schema: public
+      function: locations_by_campaign
+      minzoom: 0
+      maxzoom: 24
+
+pmtiles:
+  paths: /pmtiles/
+  sources:
+    buildings:
+      path: http://overturemaps-tiles-us-west-2-beta.s3.us-west-2.amazonaws.com/2025-10-22/buildings.pmtiles
