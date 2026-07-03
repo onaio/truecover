@@ -180,3 +180,66 @@ class TestImportRuralDistrict:
 
         assert result['wards_created'] == 0
         assert result['blocks_created'] == 0
+
+
+def _cc_ward(ccname, zonename, wardname, x_offset):
+    return {
+        'DIVNAME': 'Dhaka', 'DISTNAME': 'Dhaka', 'CCNAME': ccname,
+        'ZONENAME': zonename, 'WARDNAME': wardname,
+        'zone_uid': f'zone-{zonename}', 'ward_uid': f'ward-{wardname}',
+        'ward_geoc': f'test-{ccname}-{zonename}-{wardname}',
+        'geometry': Polygon([
+            (90.40 + x_offset, 23.75), (90.41 + x_offset, 23.75),
+            (90.41 + x_offset, 23.76), (90.40 + x_offset, 23.76),
+        ])
+    }
+
+
+@pytest.fixture
+def synthetic_dncc_gdf():
+    rows = [
+        _cc_ward('Dhaka North City Corporation (DNCC)', 'Zone 06', 'Ward 52', 0.00),
+        _cc_ward('Dhaka North City Corporation (DNCC)', 'Zone 06', 'Ward 53', 0.01),
+        _cc_ward('Dhaka North City Corporation (DNCC)', 'Zone 08', 'Ward 44', 0.02),
+    ]
+    return gpd.GeoDataFrame(rows, crs='EPSG:4326')
+
+
+class TestImportCityCorporation:
+    def test_creates_city_corporation_zones_and_wards(self, db_conn, synthetic_dncc_gdf, monkeypatch):
+        from db.import_boundary_shapefiles import import_city_corporation
+        monkeypatch.setattr('db.import_boundary_shapefiles.gpd.read_file', lambda path: synthetic_dncc_gdf)
+
+        result = import_city_corporation('fake/path/DNCC.shp', db_conn)
+
+        assert result['city_corporations_created'] == 1
+        assert result['zones_created'] == 2
+        assert result['wards_created'] == 3
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            SELECT id FROM admin_boundaries
+            WHERE boundary_type = 'city_corporation' AND name = 'Dhaka North City Corporation (DNCC)'
+        """)
+        cc_id = cursor.fetchone()[0]
+
+        cursor.execute("SELECT name FROM admin_boundaries WHERE parent_id = %s ORDER BY name", (cc_id,))
+        zones = [r[0] for r in cursor.fetchall()]
+        assert zones == ['Zone 06', 'Zone 08']
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM admin_boundaries
+            WHERE boundary_type = 'ward' AND parent_id IN (
+                SELECT id FROM admin_boundaries WHERE parent_id = %s
+            )
+        """, (cc_id,))
+        assert cursor.fetchone()[0] == 3
+
+    def test_idempotent_on_rerun(self, db_conn, synthetic_dncc_gdf, monkeypatch):
+        from db.import_boundary_shapefiles import import_city_corporation
+        monkeypatch.setattr('db.import_boundary_shapefiles.gpd.read_file', lambda path: synthetic_dncc_gdf)
+
+        import_city_corporation('fake/path/DNCC.shp', db_conn)
+        result = import_city_corporation('fake/path/DNCC.shp', db_conn)
+
+        assert result == {'city_corporations_created': 0, 'zones_created': 0, 'wards_created': 0}

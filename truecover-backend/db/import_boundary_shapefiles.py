@@ -92,3 +92,44 @@ def import_rural_district(shp_path: str, conn) -> Dict[str, Any]:
         'unmatched_unions': unmatched_unions,
         'low_overlap_wards': low_overlap_wards,
     }
+
+
+def import_city_corporation(shp_path: str, conn) -> Dict[str, int]:
+    gdf = gpd.read_file(shp_path)
+    cursor = conn.cursor()
+
+    ccname = gdf.iloc[0]['CCNAME']
+    distname = gdf.iloc[0]['DISTNAME']
+    district_id = find_district_id(cursor, distname)
+    if district_id is None:
+        return {'city_corporations_created': 0, 'zones_created': 0, 'wards_created': 0}
+
+    cc_geometry_wkt = gdf.geometry.union_all().wkt
+    cc_id, cc_created = _upsert_boundary(
+        cursor, ccname, 3, district_id, 'city_corporation', cc_geometry_wkt
+    )
+
+    zones_created = 0
+    wards_created = 0
+
+    for zonename, zone_rows in gdf.groupby('ZONENAME'):
+        zone_geometry_wkt = zone_rows.geometry.union_all().wkt
+        zone_id, zone_was_created = _upsert_boundary(
+            cursor, zonename, 4, cc_id, 'zone', zone_geometry_wkt
+        )
+        if zone_was_created:
+            zones_created += 1
+
+        for _, ward_row in zone_rows.iterrows():
+            _, ward_was_created = _upsert_boundary(
+                cursor, ward_row['WARDNAME'], 5, zone_id, 'ward',
+                ward_row.geometry.wkt, source_code=ward_row['ward_geoc']
+            )
+            if ward_was_created:
+                wards_created += 1
+
+    return {
+        'city_corporations_created': 1 if cc_created else 0,
+        'zones_created': zones_created,
+        'wards_created': wards_created,
+    }
