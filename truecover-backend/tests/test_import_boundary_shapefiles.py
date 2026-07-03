@@ -182,9 +182,9 @@ class TestImportRuralDistrict:
         assert result['blocks_created'] == 0
 
 
-def _cc_ward(ccname, zonename, wardname, x_offset):
+def _cc_ward(distname, ccname, zonename, wardname, x_offset):
     return {
-        'DIVNAME': 'Dhaka', 'DISTNAME': 'Dhaka', 'CCNAME': ccname,
+        'DIVNAME': 'Test Division', 'DISTNAME': distname, 'CCNAME': ccname,
         'ZONENAME': zonename, 'WARDNAME': wardname,
         'zone_uid': f'zone-{zonename}', 'ward_uid': f'ward-{wardname}',
         'ward_geoc': f'test-{ccname}-{zonename}-{wardname}',
@@ -196,17 +196,31 @@ def _cc_ward(ccname, zonename, wardname, x_offset):
 
 
 @pytest.fixture
-def synthetic_dncc_gdf():
+def district_fixture(db_conn):
+    """A fresh, uniquely-named test district so city corporation imports never depend on
+    (or collide with) real district rows already present in the shared dev database.
+    """
+    cursor = db_conn.cursor()
+    name = f'Test District {uuid.uuid4().hex[:8]}'
+    cursor.execute("""
+        INSERT INTO admin_boundaries (name, iso3, level, geometry)
+        VALUES (%s, 'BD', 2, ST_GeomFromText('POLYGON((90 23, 91 23, 91 24, 90 24, 90 23))', 4326))
+    """, (name,))
+    return name
+
+
+@pytest.fixture
+def synthetic_dncc_gdf(district_fixture):
     rows = [
-        _cc_ward('Dhaka North City Corporation (DNCC)', 'Zone 06', 'Ward 52', 0.00),
-        _cc_ward('Dhaka North City Corporation (DNCC)', 'Zone 06', 'Ward 53', 0.01),
-        _cc_ward('Dhaka North City Corporation (DNCC)', 'Zone 08', 'Ward 44', 0.02),
+        _cc_ward(district_fixture, 'Test City Corporation', 'Zone 06', 'Ward 52', 0.00),
+        _cc_ward(district_fixture, 'Test City Corporation', 'Zone 06', 'Ward 53', 0.01),
+        _cc_ward(district_fixture, 'Test City Corporation', 'Zone 08', 'Ward 44', 0.02),
     ]
     return gpd.GeoDataFrame(rows, crs='EPSG:4326')
 
 
 class TestImportCityCorporation:
-    def test_creates_city_corporation_zones_and_wards(self, db_conn, synthetic_dncc_gdf, monkeypatch):
+    def test_creates_city_corporation_zones_and_wards(self, db_conn, district_fixture, synthetic_dncc_gdf, monkeypatch):
         from db.import_boundary_shapefiles import import_city_corporation
         monkeypatch.setattr('db.import_boundary_shapefiles.gpd.read_file', lambda path: synthetic_dncc_gdf)
 
@@ -219,8 +233,9 @@ class TestImportCityCorporation:
         cursor = db_conn.cursor()
         cursor.execute("""
             SELECT id FROM admin_boundaries
-            WHERE boundary_type = 'city_corporation' AND name = 'Dhaka North City Corporation (DNCC)'
-        """)
+            WHERE boundary_type = 'city_corporation' AND name = 'Test City Corporation'
+              AND parent_id = (SELECT id FROM admin_boundaries WHERE level = 2 AND name = %s)
+        """, (district_fixture,))
         cc_id = cursor.fetchone()[0]
 
         cursor.execute("SELECT name FROM admin_boundaries WHERE parent_id = %s ORDER BY name", (cc_id,))
@@ -235,7 +250,7 @@ class TestImportCityCorporation:
         """, (cc_id,))
         assert cursor.fetchone()[0] == 3
 
-    def test_idempotent_on_rerun(self, db_conn, synthetic_dncc_gdf, monkeypatch):
+    def test_idempotent_on_rerun(self, db_conn, district_fixture, synthetic_dncc_gdf, monkeypatch):
         from db.import_boundary_shapefiles import import_city_corporation
         monkeypatch.setattr('db.import_boundary_shapefiles.gpd.read_file', lambda path: synthetic_dncc_gdf)
 
