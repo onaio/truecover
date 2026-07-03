@@ -27,7 +27,11 @@ class TestBoundaryHierarchySchema:
 
     def test_existing_rows_have_null_parent_id(self, db_conn):
         cursor = db_conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM admin_boundaries WHERE level <= 4 AND parent_id IS NOT NULL")
+        cursor.execute("""
+            SELECT COUNT(*) FROM admin_boundaries
+            WHERE boundary_type IN ('country', 'division', 'district', 'upazila', 'union')
+              AND parent_id IS NOT NULL
+        """)
         assert cursor.fetchone()[0] == 0
 
     def test_parent_id_references_admin_boundaries(self, db_conn):
