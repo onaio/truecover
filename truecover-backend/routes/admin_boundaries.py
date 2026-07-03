@@ -13,6 +13,7 @@ import json
 import duckdb
 import time
 import os
+import uuid
 from datetime import datetime
 
 admin_boundaries_bp = Blueprint('admin_boundaries', __name__)
@@ -105,26 +106,31 @@ def get_admin_boundary_children(user, identifier):
             return jsonify({'error': f'Admin boundary not found for: {identifier}'}), 404
 
         parent_id = str(parent[0])
+        try:
+            uuid.UUID(identifier)
+            is_uuid_identifier = True
+        except ValueError:
+            is_uuid_identifier = False
+
         cursor.execute("""
-            SELECT id, name, level, boundary_type,
+            SELECT id, name, level,
                    adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
             FROM admin_boundaries WHERE parent_id = %s ORDER BY name
         """, (parent_id,))
         parent_id_children = cursor.fetchall()
 
-        if parent_id_children:
-            result = [{
-                'id': str(row[0]),
-                'name': row[1],
-                'level': row[2],
-                'pcode': next((row[4 + i] for i in range(5) if row[4 + i]), None),
-                'parent_pcode': identifier if not identifier.count('-') == 4 else None,
-                'population': 0
-            } for row in parent_id_children]
-            cursor.close()
-            return jsonify({'children': result}), 200
+        result = [{
+            'id': str(row[0]),
+            'name': row[1],
+            'level': row[2],
+            'pcode': next((row[3 + i] for i in range(5) if row[3 + i]), None),
+            'parent_pcode': None if is_uuid_identifier else identifier,
+            'population': 0
+        } for row in parent_id_children]
 
-        # Fall back to the existing pcode/level+1 lookup for boundaries that predate this feature
+        # Also run the pcode/level+1 lookup, since a boundary can have both
+        # parent_id-linked children (e.g. a city corporation) and pcode-derived
+        # children (e.g. upazilas) at the same time - they're siblings, not alternatives.
         cursor.execute("""
             SELECT level, adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
             FROM admin_boundaries WHERE id = %s
@@ -133,44 +139,42 @@ def get_admin_boundary_children(user, identifier):
         parent_level = parent_row[0]
         child_level = parent_level + 1
 
-        if child_level > 4:
-            return jsonify({'children': [], 'message': 'No child level exists'}), 200
+        if child_level <= 4:
+            pcode = parent_row[1 + parent_level]
+            parent_col = f'adm{parent_level}_pcode'
+            child_col = f'adm{child_level}_pcode'
 
-        pcode = next((parent_row[1 + i] for i in range(5) if parent_row[1 + i]), None)
-        parent_col = f'adm{parent_level}_pcode'
-        child_col = f'adm{child_level}_pcode'
+            if child_level >= 3:
+                cursor.execute(f"""
+                    SELECT
+                        ab.id, ab.name, ab.level, ab.{child_col} as pcode,
+                        ab.{parent_col} as parent_pcode,
+                        COALESCE(SUM(p.population), 0) as population
+                    FROM admin_boundaries ab
+                    LEFT JOIN pixels p ON p.{child_col} = ab.{child_col}
+                    WHERE ab.level = %s AND ab.{parent_col} = %s
+                    GROUP BY ab.id, ab.name, ab.level, ab.{child_col}, ab.{parent_col}
+                    ORDER BY ab.name
+                """, (child_level, pcode))
+            else:
+                cursor.execute(f"""
+                    SELECT DISTINCT
+                        ab.id, ab.name, ab.level, ab.{child_col} as pcode,
+                        ab.{parent_col} as parent_pcode, 0 as population
+                    FROM admin_boundaries ab
+                    WHERE ab.level = %s AND ab.{parent_col} = %s
+                    ORDER BY ab.name
+                """, (child_level, pcode))
 
-        if child_level >= 3:
-            cursor.execute(f"""
-                SELECT
-                    ab.id, ab.name, ab.level, ab.{child_col} as pcode,
-                    ab.{parent_col} as parent_pcode,
-                    COALESCE(SUM(p.population), 0) as population
-                FROM admin_boundaries ab
-                LEFT JOIN pixels p ON p.{child_col} = ab.{child_col}
-                WHERE ab.level = %s AND ab.{parent_col} = %s
-                GROUP BY ab.id, ab.name, ab.level, ab.{child_col}, ab.{parent_col}
-                ORDER BY ab.name
-            """, (child_level, pcode))
-        else:
-            cursor.execute(f"""
-                SELECT DISTINCT
-                    ab.id, ab.name, ab.level, ab.{child_col} as pcode,
-                    ab.{parent_col} as parent_pcode, 0 as population
-                FROM admin_boundaries ab
-                WHERE ab.level = %s AND ab.{parent_col} = %s
-                ORDER BY ab.name
-            """, (child_level, pcode))
-
-        children = cursor.fetchall()
-        result = [{
-            'id': str(row[0]),
-            'name': row[1],
-            'level': row[2],
-            'pcode': row[3],
-            'parent_pcode': row[4],
-            'population': int(row[5]) if row[5] else 0
-        } for row in children]
+            children = cursor.fetchall()
+            result.extend([{
+                'id': str(row[0]),
+                'name': row[1],
+                'level': row[2],
+                'pcode': row[3],
+                'parent_pcode': row[4],
+                'population': int(row[5]) if row[5] else 0
+            } for row in children])
 
         cursor.close()
         return jsonify({'children': result}), 200
