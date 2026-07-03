@@ -109,9 +109,12 @@ No existing column, index, or row is altered or removed. `level` and
 ## Ingestion
 
 New script: `truecover-backend/db/import_boundary_shapefiles.py`, sibling to
-the existing geoparquet-based `db/import_admin_boundaries.py`. Uses `pyshp`
-(pure Python, no GDAL system dependency) since no shapefile ingestion path
-exists in the repo today — the only current path is geoparquet.
+the existing geoparquet-based `db/import_admin_boundaries.py`. Uses
+`geopandas.read_file()` — already a project dependency (used by the
+existing geoparquet importer) and reads `.shp` natively, so no new
+dependency is needed. Verified against the actual files: both
+`Districts/*.shp` and `City corporations/*.shp` are already in EPSG:4326,
+matching `admin_boundaries.geometry`'s SRID — no reprojection needed.
 
 **Rural districts** (`Districts/<Name>/*.shp`): only Ward and Block are new.
 1. Resolve the existing Union row (`level=4`) by matching
@@ -179,11 +182,36 @@ operation, not a recurring job.
 
 ## Frontend
 
-Wherever the campaign-area picker currently drills
-division→district→upazila→union, add city corporation as a sibling option
-under district, and let drilling continue down through zone→ward (urban) or
-ward→block (rural). This is UI wiring against the now-generalized children
-endpoint — no new picker paradigm needed.
+There are two distinct existing entry points for adding a campaign area from
+an admin boundary, and they are **not** equally easy to extend:
+
+1. **Map-click flow** (`MapView.tsx`, `planningMode`): clicking a boundary
+   polygon on the map reads `ADM{level}_PCODE`/`ADM{level}_EN` properties
+   from five separate, hardcoded Martin tile sources (`bgd_adm0` ...
+   `bgd_adm4`, one per level). These are **static pre-generated PMTiles
+   files** registered in Martin's config (verified: no `bgd_adm0..4` tables
+   exist in the live Postgres schema) — a separate, file-based pipeline
+   (`convert_to_pmtiles.sh` + S3, per Railway deployment notes) unrelated to
+   the `admin_boundaries` Postgres table this spec extends. Extending this
+   flow to cover city corporations/wards/blocks would mean generating new
+   PMTiles files and adding matching Martin config entries — real
+   infrastructure work, **out of scope for this spec**.
+2. **Drill-down picker** (`useAdminBoundaryChildren`/`useDistricts`/
+   `useDivisions` in `useAdminBoundaries.ts`, currently only consumed by
+   `StratifiedClusterSamplingWizard.tsx`): queries the live
+   `admin_boundaries` table via `/api/admin-boundaries/<pcode>/children` —
+   this is the path that becomes city-corporation-aware once that route
+   gets its `parent_id` branch.
+
+Since `AddCampaignAreaModal.tsx` has no drill-down UI of its own today (it
+only accepts a pre-selected `{pcode, name}` passed in from the map-click
+flow), picking a city corporation "from the top" requires a **new**
+drill-down component (division → district → then either
+upazila → union → ward → block, or city corporation → zone → ward) built
+on the now-generalized children endpoint, wired into
+`AddCampaignAreaModal.tsx` as an alternative to the map-click path. This is
+new UI, not a generalization of existing UI — flagged here since the
+original draft of this section understated it.
 
 ## Stratified Cluster Sampling generalization
 
