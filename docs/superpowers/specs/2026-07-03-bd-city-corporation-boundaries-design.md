@@ -56,11 +56,12 @@ city corporations, a new sibling branch needs to attach under district).
   their zones/wards, and rural wards/blocks — i.e. campaign area *selection*,
   via the existing `area_type: 'admin_boundary'` flow in
   `routes/campaigns.py`.
-- **Out of scope:** generalizing the Stratified Cluster Sampling workflow
-  (`temporal/activities/cluster_sampling.py`, `cluster_sampling_config`,
-  vocabulary hardcoded to `upazila_count`/`unions_per_upazila`) to understand
-  city corporation zones/wards. It keeps working exactly as it does today,
-  rural-only, blind to the new branch.
+- **In scope:** generalizing the Stratified Cluster Sampling workflow so it
+  can start from a City Corporation and run the same two-stage random
+  selection one branch over — N Zones, then M Wards per zone, then K pixels
+  per ward — mirroring today's District → N Upazilas → M Unions per upazila
+  → K pixels per union. The top-level wizard gets a choice of which branch
+  to start from; see "Stratified Cluster Sampling generalization" below.
 - **Out of scope:** `data/new/District.json` (64 simple district-outline
   polygons with DHIS2 codes) — unrelated to this feature, existing level-2
   district data is left as-is.
@@ -184,18 +185,99 @@ under district, and let drilling continue down through zone→ward (urban) or
 ward→block (rural). This is UI wiring against the now-generalized children
 endpoint — no new picker paradigm needed.
 
+## Stratified Cluster Sampling generalization
+
+Investigated `temporal/activities/cluster_sampling.py`,
+`cluster_sampling_config`, `temporal/workflows/stratified_cluster_sampling.py`,
+`routes/rounds.py`, and `StratifiedClusterSamplingWizard.tsx` in detail.
+Finding: about half of the pipeline is already level-agnostic and needs zero
+changes; the other half is hardcoded to the rural pcode/vocabulary and needs
+generalizing. Because this hardcoded half is the *same* `child_level =
+parent_level + 1`, capped-at-4 pattern already being fixed in
+`get_admin_boundary_children` above, and because new boundary rows (ward,
+zone, city_corporation, block) have no meaningful pcode, the fix is to make
+**`admin_boundaries.id` the canonical selector throughout this workflow**,
+with the existing pcode columns kept as-is for rows that have them (rural
+rows keep working exactly as before) rather than as the thing new code reads.
+
+**Already generic, reused unchanged:** `select_clusters` (weighted random
+pick — operates on whatever ids/pcodes and categories it's given),
+`compute_pixels_for_campaign_areas`, `create_coverage_pixels_for_campaign_area`
+(id/`campaign_area_id`-keyed, already exists as a sibling to the
+union-specific version), `sample_pixels_for_campaign_area`,
+`assign_pixels_to_round`, `update_campaign_area_sampled_counts`
+(campaign_area_id-keyed sibling of the union-specific version),
+building-sampling activities, `create_replacement_pixels`.
+
+**Needs generalizing:**
+- `select_clusters`'s population-weighting path currently looks up
+  population by matching `adm1_pcode`/`adm2_pcode`/`adm3_pcode`/`adm4_pcode`
+  against the `pixels` table. For a zone/ward/city_corporation row (no
+  pcode), this silently matches nothing and falls back to population=1
+  (i.e. quietly un-weights that candidate instead of erroring) — a real
+  correctness gap, not just a missing feature. Fix: when the boundary has no
+  pcode, look up its population via `admin_boundary_pixels`/`pixel_area`
+  (quadkey join to `pixels.population`) instead of pcode matching.
+- `get_children_for_pcodes` → rewrite to accept boundary ids, mirroring the
+  `parent_id`-based branch being added to `get_admin_boundary_children`: if
+  the parent row has `parent_id`-linked children, return those directly
+  (works at any depth, any `boundary_type`); otherwise fall back to the
+  existing pcode/`level+1` logic unchanged, so rural upazila→union lookups
+  behave exactly as they do today.
+- `create_campaign_areas_for_unions` → replace with a lookup by
+  `admin_boundaries.id` instead of `adm4_pcode` matching (a ward is just as
+  valid a campaign-area source as a union once looked up by id).
+- `create_coverage_pixels_for_union` and
+  `update_campaign_area_sampled_count_for_union` → **drop these**, don't
+  reimplement them for the zone/ward branch. Per the investigation, their
+  campaign-area-id-keyed siblings (`create_coverage_pixels_for_campaign_area`,
+  `update_campaign_area_sampled_counts`) already do the same job generically
+  and are already called elsewhere — the union-specific pair exists only
+  because the stratified workflow was written before the generic ones. Once
+  the workflow calls the generic pair, this also removes the current
+  duplication, not just adds city-corporation support.
+- `cluster_sampling_config` — rename `upazila_count`→`stage1_count`,
+  `unions_per_upazila`→`stage2_count`, `pixels_per_union`→`pixels_per_stage2`
+  (the old names describe rural vocabulary specifically, which is no longer
+  accurate once the same columns hold zone/ward counts); replace
+  `starting_pcode TEXT` with `starting_boundary_id UUID NOT NULL REFERENCES
+  admin_boundaries(id)` (every boundary row has an id regardless of whether
+  it has a pcode, so this covers both branches uniformly and is a strict
+  simplification over pcode matching); `categories JSONB` now holds boundary
+  ids instead of pcodes. This is an internal API/table with a single
+  frontend consumer (the wizard) — no backward-compatibility shim, both
+  sides change together in the same PR.
+- `StratifiedClusterSamplingWorkflow`/`UnionPixelSamplingWorkflow` (rename
+  the latter to something branch-agnostic, e.g. `AreaPixelSamplingWorkflow`,
+  keyed by `campaign_area_id` not `union_pcode`) — same rename/generalization
+  applied through the workflow's parameters and the child-workflow calls.
+- `POST /api/campaigns/<id>/rounds/stratified-cluster` (`routes/rounds.py`):
+  body field renames to match the config table (`starting_boundary_id`,
+  `stage1_count`, `stage2_count`, `pixels_per_stage2`), updated together with
+  the workflow signature.
+- **`StratifiedClusterSamplingWizard.tsx`:**
+  - Step 0 gets a top-level choice: "Rural (District → Upazila → Union)" vs
+    "City Corporation (Zone → Ward)". Rural keeps the existing
+    Division → District drill; city corporation shows a flat picker (only 9
+    exist nationally — no need to drill through division/district first).
+  - Step 1 (drag-drop categorization) is unchanged structurally — it already
+    fetches "children of the starting boundary" via
+    `useAdminBoundaryChildren`, which becomes id-based/generic once the
+    children endpoint is generalized.
+  - Step 2 labels ("Upazilas to Select" / "Unions per Upazila" / "Pixels per
+    Union") become branch-dependent strings (e.g. "Zones to Select" / "Wards
+    per Zone" / "Pixels per Ward") pulled from a small vocabulary lookup
+    keyed by which branch was chosen in Step 0, rather than duplicating the
+    whole step for each branch.
+  - Step 3 progress labels follow the same branch-dependent vocabulary,
+    reading the now-generic `stage1`/`stage2` fields from the workflow's
+    progress query instead of `selected_upazilas`/`selected_unions`.
+  - The hardcoded 3-way categorization (`high_risk`/`low_risk`/
+    `hard_to_reach`) is unaffected — it's independent of which branch is
+    selected and Matt hasn't asked to change it.
+
 ## Explicitly out of scope
 
-- Generalizing Stratified Cluster Sampling to understand city corporation
-  zones/wards. `'simple'` round generation (`rounds.sampling_method`)
-  already works over any campaign area regardless of admin level, since it
-  only consumes the `pixel_area` mapping — this covers city corporation
-  campaigns without any changes. Only the two-stage `'stratified_cluster'`
-  workflow (hardcoded to `upazila_count`/`unions_per_upazila` vocabulary)
-  is rural-only for now. If stratified sampling is later needed for city
-  corporation campaigns (e.g. a zone-count/wards-per-zone analog), that's a
-  follow-up design, not part of this pass — flagged here so it isn't
-  forgotten.
 - Touching `District.json` or the existing level-2 district polygons.
 - Backfilling `parent_id` on existing levels 0-4 rows (optional nice-to-have,
   not required for this feature — can be done later without risk since it's
