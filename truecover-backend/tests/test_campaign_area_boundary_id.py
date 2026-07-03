@@ -5,7 +5,7 @@ import uuid
 import flask
 import pytest
 from db.connection import get_db_connection, return_db_connection
-from routes.campaigns import add_campaign_area
+from routes.campaigns import add_campaign_area, list_campaign_areas
 
 
 @pytest.fixture
@@ -162,3 +162,147 @@ class TestAddCampaignAreaResolvesBoundaryByIdOrPcode:
 
         cursor.execute("SELECT admin_boundary_id FROM campaign_areas WHERE id = %s", (body['id'],))
         assert str(cursor.fetchone()[0]) == str(district_id)
+
+
+class TestAncestorNamesForBoundaryWithParentId:
+    def test_recursive_ancestor_lookup_returns_full_chain(self, db_conn):
+        cursor = db_conn.cursor()
+        cursor.execute("SELECT id, name FROM admin_boundaries WHERE level = 2 LIMIT 1")
+        district_id, district_name = cursor.fetchone()
+
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, parent_id, boundary_type)
+            VALUES ('Test CC', 'BD', 3, %s, 'city_corporation') RETURNING id
+        """, (str(district_id),))
+        cc_id = cursor.fetchone()[0]
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, parent_id, boundary_type)
+            VALUES ('Test Zone', 'BD', 4, %s, 'zone') RETURNING id
+        """, (str(cc_id),))
+        zone_id = cursor.fetchone()[0]
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, parent_id, boundary_type)
+            VALUES ('Test Ward', 'BD', 5, %s, 'ward') RETURNING id
+        """, (str(zone_id),))
+        ward_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            WITH RECURSIVE ancestors AS (
+                SELECT id, name, boundary_type, parent_id, 0 as depth FROM admin_boundaries WHERE id = %s
+                UNION ALL
+                SELECT ab.id, ab.name, ab.boundary_type, ab.parent_id, a.depth + 1
+                FROM admin_boundaries ab JOIN ancestors a ON ab.id = a.parent_id
+            )
+            SELECT boundary_type, name FROM ancestors ORDER BY depth
+        """, (str(ward_id),))
+        chain = cursor.fetchall()
+
+        # The recursive walk doesn't stop at city_corporation - it continues up
+        # through the pre-existing district row that the test city corporation
+        # was attached to, since that district still has a real row in
+        # admin_boundaries (with a NULL parent_id, which is where the
+        # recursion actually terminates).
+        assert chain == [
+            ('ward', 'Test Ward'),
+            ('zone', 'Test Zone'),
+            ('city_corporation', 'Test CC'),
+            ('district', district_name),
+        ]
+
+
+@pytest.fixture
+def city_zone_ward_chain(db_conn):
+    """A real city_corporation -> zone -> ward chain of admin_boundaries rows
+    linked via parent_id, for exercising the ancestor-name recursive CTE.
+    Deleting the city corporation row cascades (ON DELETE CASCADE on
+    parent_id) down through the zone and ward rows."""
+    cursor = db_conn.cursor()
+    cursor.execute("SELECT id FROM admin_boundaries WHERE level = 2 LIMIT 1")
+    district_id = cursor.fetchone()[0]
+    cursor.execute("""
+        INSERT INTO admin_boundaries (name, iso3, level, parent_id, boundary_type)
+        VALUES ('Test CC Route', 'BD', 3, %s, 'city_corporation') RETURNING id
+    """, (str(district_id),))
+    cc_id = cursor.fetchone()[0]
+    cursor.execute("""
+        INSERT INTO admin_boundaries (name, iso3, level, parent_id, boundary_type)
+        VALUES ('Test Zone Route', 'BD', 4, %s, 'zone') RETURNING id
+    """, (str(cc_id),))
+    zone_id = cursor.fetchone()[0]
+    cursor.execute("""
+        INSERT INTO admin_boundaries (name, iso3, level, parent_id, boundary_type)
+        VALUES ('Test Ward Route', 'BD', 5, %s, 'ward') RETURNING id
+    """, (str(zone_id),))
+    ward_id = cursor.fetchone()[0]
+
+    yield str(ward_id)
+
+    cursor.execute("DELETE FROM admin_boundaries WHERE id = %s", (str(cc_id),))
+    db_conn.commit()
+
+
+class TestListCampaignAreasAncestorNames:
+    """Exercises the list_campaign_areas route directly (not just its SQL in
+    isolation), following the pattern established in
+    TestAddCampaignAreaResolvesBoundaryByIdOrPcode."""
+
+    def test_route_returns_ancestor_names_for_boundary_with_parent_id(
+        self, db_conn, committed_campaign, city_zone_ward_chain, monkeypatch
+    ):
+        monkeypatch.setattr('routes.campaigns.get_db_connection', lambda: db_conn)
+        monkeypatch.setattr('routes.campaigns.return_db_connection', lambda conn: None)
+        monkeypatch.setattr('routes.campaigns.check_campaign_access', lambda user_id, campaign_id: True)
+
+        ward_id = city_zone_ward_chain
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO campaign_areas (campaign_id, name, area_type, admin_boundary_id)
+            VALUES (%s, %s, 'admin_boundary', %s)
+        """, (committed_campaign, 'Test Ward Area', ward_id))
+
+        app = flask.Flask(__name__)
+        with app.test_request_context():
+            response, status = list_campaign_areas.__wrapped__({'id': 'test-user'}, committed_campaign)
+
+        assert status == 200
+        areas = response.get_json()['areas']
+        assert len(areas) == 1
+        area = areas[0]
+        assert area['city_corporation_name'] == 'Test CC Route'
+        assert area['zone_name'] == 'Test Zone Route'
+        assert area['ward_name'] == 'Test Ward Route'
+        assert area['block_name'] is None
+        assert area['division_name'] is None
+        assert area['district_name'] is None
+        assert area['upazila_name'] is None
+        assert area['union_name'] is None
+
+    def test_route_returns_legacy_names_unchanged_for_pcode_boundary(
+        self, db_conn, committed_campaign, monkeypatch
+    ):
+        monkeypatch.setattr('routes.campaigns.get_db_connection', lambda: db_conn)
+        monkeypatch.setattr('routes.campaigns.return_db_connection', lambda conn: None)
+        monkeypatch.setattr('routes.campaigns.check_campaign_access', lambda user_id, campaign_id: True)
+
+        cursor = db_conn.cursor()
+        cursor.execute("SELECT id FROM admin_boundaries WHERE level = 2 AND adm2_pcode IS NOT NULL LIMIT 1")
+        district_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO campaign_areas (campaign_id, name, area_type, admin_boundary_id)
+            VALUES (%s, %s, 'admin_boundary', %s)
+        """, (committed_campaign, 'Test District Area', str(district_id)))
+
+        app = flask.Flask(__name__)
+        with app.test_request_context():
+            response, status = list_campaign_areas.__wrapped__({'id': 'test-user'}, committed_campaign)
+
+        assert status == 200
+        areas = response.get_json()['areas']
+        assert len(areas) == 1
+        area = areas[0]
+        assert area['district_name'] is not None
+        assert area['city_corporation_name'] is None
+        assert area['zone_name'] is None
+        assert area['ward_name'] is None
+        assert area['block_name'] is None
