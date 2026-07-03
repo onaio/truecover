@@ -360,12 +360,13 @@ def add_campaign_area(user, campaign_id):
         data = request.get_json()
 
         area_type = data.get('area_type', 'admin_boundary')
-        admin_boundary_pcode = data.get('pcode')  # Use pcode from frontend
+        admin_boundary_pcode = data.get('pcode')
+        admin_boundary_id_param = data.get('admin_boundary_id')
         geometry = data.get('geometry')
         name = data.get('name')
 
-        if area_type == 'admin_boundary' and not admin_boundary_pcode:
-            return jsonify({'error': 'pcode is required for admin_boundary type'}), 400
+        if area_type == 'admin_boundary' and not admin_boundary_pcode and not admin_boundary_id_param:
+            return jsonify({'error': 'pcode or admin_boundary_id is required for admin_boundary type'}), 400
         if area_type == 'drawn' and not geometry:
             return jsonify({'error': 'geometry is required for drawn type'}), 400
 
@@ -380,27 +381,40 @@ def add_campaign_area(user, campaign_id):
         cached_population = 0
 
         if area_type == 'admin_boundary':
-            # Get geometry, name, id, and pre-computed stats from admin_boundaries table by pcode
-            cursor.execute("""
-                SELECT ab.id, ab.name, ST_AsText(ab.geometry),
-                       ST_XMin(ab.geometry), ST_YMin(ab.geometry),
-                       ST_XMax(ab.geometry), ST_YMax(ab.geometry),
-                       COALESCE(abs.pixel_count, 0),
-                       COALESCE(abs.population, 0)
-                FROM admin_boundaries ab
-                LEFT JOIN admin_boundary_stats abs ON abs.admin_boundary_id = ab.id
-                WHERE ab.adm0_pcode = %s
-                   OR ab.adm1_pcode = %s
-                   OR ab.adm2_pcode = %s
-                   OR ab.adm3_pcode = %s
-                   OR ab.adm4_pcode = %s
-                LIMIT 1
-            """, (admin_boundary_pcode, admin_boundary_pcode, admin_boundary_pcode,
-                  admin_boundary_pcode, admin_boundary_pcode))
+            # Get geometry, name, id, and pre-computed stats from admin_boundaries table by id or pcode
+            if admin_boundary_id_param:
+                cursor.execute("""
+                    SELECT ab.id, ab.name, ST_AsText(ab.geometry),
+                           ST_XMin(ab.geometry), ST_YMin(ab.geometry),
+                           ST_XMax(ab.geometry), ST_YMax(ab.geometry),
+                           COALESCE(abs.pixel_count, 0),
+                           COALESCE(abs.population, 0)
+                    FROM admin_boundaries ab
+                    LEFT JOIN admin_boundary_stats abs ON abs.admin_boundary_id = ab.id
+                    WHERE ab.id = %s
+                """, (admin_boundary_id_param,))
+            else:
+                cursor.execute("""
+                    SELECT ab.id, ab.name, ST_AsText(ab.geometry),
+                           ST_XMin(ab.geometry), ST_YMin(ab.geometry),
+                           ST_XMax(ab.geometry), ST_YMax(ab.geometry),
+                           COALESCE(abs.pixel_count, 0),
+                           COALESCE(abs.population, 0)
+                    FROM admin_boundaries ab
+                    LEFT JOIN admin_boundary_stats abs ON abs.admin_boundary_id = ab.id
+                    WHERE ab.adm0_pcode = %s
+                       OR ab.adm1_pcode = %s
+                       OR ab.adm2_pcode = %s
+                       OR ab.adm3_pcode = %s
+                       OR ab.adm4_pcode = %s
+                    LIMIT 1
+                """, (admin_boundary_pcode, admin_boundary_pcode, admin_boundary_pcode,
+                      admin_boundary_pcode, admin_boundary_pcode))
             ab_data = cursor.fetchone()
             if not ab_data:
                 cursor.close()
-                return jsonify({'error': f'Admin boundary not found for pcode: {admin_boundary_pcode}'}), 404
+                identifier = admin_boundary_id_param or admin_boundary_pcode
+                return jsonify({'error': f'Admin boundary not found for: {identifier}'}), 404
             admin_boundary_id = str(ab_data[0])
             if not name:
                 name = ab_data[1]
