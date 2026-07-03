@@ -9,13 +9,13 @@ from db.connection import get_db_connection, return_db_connection
 from db.import_boundary_shapefiles import import_rural_district
 
 
-def _block(uniname, wardname, ward_c, block_c, geometry):
+def _block(uniname, wardname, ward_c, block_c, geometry, thaname='Test Upazila'):
     return {
-        'DIVNAME': 'Test Division', 'DISTNAME': 'Test District', 'THANAME': 'Test Upazila',
+        'DIVNAME': 'Test Division', 'DISTNAME': 'Test District', 'THANAME': thaname,
         'UNINAME': uniname, 'WARDNAME': wardname,
         'uni_uid': f'uid-{uniname}', 'ward_c': ward_c, 'block_c': block_c,
         'org_name': f'{wardname} EPI Center',
-        'block_geoc': f'test-{uniname}-{ward_c}-{block_c}',
+        'block_geoc': f'test-{thaname}-{uniname}-{ward_c}-{block_c}',
         'geometry': geometry,
     }
 
@@ -51,6 +51,28 @@ def union_fixture(db_conn):
         INSERT INTO admin_boundaries (name, iso3, level, geometry, adm2_pcode, adm3_pcode, adm4_pcode)
         VALUES ('Test Union', 'BD', 4, ST_GeomFromText('POLYGON((0 0, 0.05 0, 0.05 0.05, 0 0.05, 0 0))', 4326),
                 'BDTEST', 'BDTEST01', 'BDTEST0101')
+        RETURNING id
+    """)
+    return str(cursor.fetchone()[0])
+
+
+@pytest.fixture
+def second_union_fixture(db_conn, union_fixture):
+    """A second upazila under the same district, with a union sharing `union_fixture`'s union name.
+
+    Union names are only guaranteed unique within an upazila, not district-wide, so a district
+    shapefile can legitimately contain two different upazilas that each have a "Test Union".
+    """
+    cursor = db_conn.cursor()
+    cursor.execute("""
+        INSERT INTO admin_boundaries (name, iso3, level, geometry, adm2_pcode, adm3_pcode)
+        VALUES ('Test Upazila Two', 'BD', 3, ST_GeomFromText('POLYGON((10 10, 11 10, 11 11, 10 11, 10 10))', 4326),
+                'BDTEST', 'BDTEST02')
+    """)
+    cursor.execute("""
+        INSERT INTO admin_boundaries (name, iso3, level, geometry, adm2_pcode, adm3_pcode, adm4_pcode)
+        VALUES ('Test Union', 'BD', 4, ST_GeomFromText('POLYGON((10 10, 10.05 10, 10.05 10.05, 10 10.05, 10 10))', 4326),
+                'BDTEST', 'BDTEST02', 'BDTEST0201')
         RETURNING id
     """)
     return str(cursor.fetchone()[0])
@@ -108,6 +130,47 @@ class TestImportRuralDistrict:
         assert result['low_overlap_wards'] == ['Ward 9']
         # Still inserted - name match is the best evidence available, this is advisory only
         assert result['wards_created'] == 1
+
+    def test_groups_by_upazila_and_union_when_union_name_repeats_across_upazilas(
+        self, db_conn, union_fixture, second_union_fixture, monkeypatch
+    ):
+        # Two different upazilas ('Test Upazila' and 'Test Upazila Two') both have a "Test Union" -
+        # grouping by UNINAME alone would merge these into a single group and could attach one
+        # upazila's blocks under the other upazila's matched union row.
+        mixed_gdf = gpd.GeoDataFrame([
+            _block('Test Union', 'Ward 1', 'W1', 'KHA1', _square(0.001, 0.001), thaname='Test Upazila'),
+            _block('Test Union', 'Ward 1', 'W1', 'KHA1', _square(10.001, 10.001), thaname='Test Upazila Two'),
+        ], crs='EPSG:4326')
+        monkeypatch.setattr('db.import_boundary_shapefiles.gpd.read_file', lambda path: mixed_gdf)
+
+        result = import_rural_district('fake/path/Test.shp', db_conn)
+
+        assert result['wards_created'] == 2
+        assert result['unmatched_unions'] == []
+        # Each ward's geometry falls squarely inside its own upazila's union - if the blocks were
+        # merged under the wrong union, this would flag a low-overlap mismatch instead.
+        assert result['low_overlap_wards'] == []
+
+        cursor = db_conn.cursor()
+        cursor.execute("SELECT id FROM admin_boundaries WHERE parent_id = %s AND name = 'Ward 1'", (union_fixture,))
+        ward_under_first_union = cursor.fetchone()
+        assert ward_under_first_union is not None
+
+        cursor.execute(
+            "SELECT id FROM admin_boundaries WHERE parent_id = %s AND name = 'Ward 1'", (second_union_fixture,)
+        )
+        ward_under_second_union = cursor.fetchone()
+        assert ward_under_second_union is not None
+
+        cursor.execute("""
+            SELECT source_code FROM admin_boundaries WHERE boundary_type = 'block' AND parent_id = %s
+        """, (ward_under_first_union[0],))
+        assert cursor.fetchone()[0] == 'test-Test Upazila-Test Union-W1-KHA1'
+
+        cursor.execute("""
+            SELECT source_code FROM admin_boundaries WHERE boundary_type = 'block' AND parent_id = %s
+        """, (ward_under_second_union[0],))
+        assert cursor.fetchone()[0] == 'test-Test Upazila Two-Test Union-W1-KHA1'
 
     def test_idempotent_on_rerun(self, db_conn, union_fixture, synthetic_district_gdf, monkeypatch):
         monkeypatch.setattr('db.import_boundary_shapefiles.gpd.read_file', lambda path: synthetic_district_gdf)

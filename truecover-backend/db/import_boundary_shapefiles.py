@@ -52,16 +52,16 @@ def import_rural_district(shp_path: str, conn) -> Dict[str, Any]:
     low_overlap_wards = []
     union_id_cache = {}
 
-    for uniname, union_rows in gdf.groupby('UNINAME'):
-        if uniname not in union_id_cache:
+    for (thaname, uniname), union_rows in gdf.groupby(['THANAME', 'UNINAME']):
+        cache_key = (thaname, uniname)
+        if cache_key not in union_id_cache:
             distname = union_rows.iloc[0]['DISTNAME']
-            thaname = union_rows.iloc[0]['THANAME']
             district_id = find_district_id(cursor, distname)
             upazila_id = find_upazila_id(cursor, district_id, thaname) if district_id else None
             union_id = find_union_id(cursor, upazila_id, uniname) if upazila_id else None
-            union_id_cache[uniname] = union_id
+            union_id_cache[cache_key] = union_id
 
-        union_id = union_id_cache[uniname]
+        union_id = union_id_cache[cache_key]
         if union_id is None:
             unmatched_unions.append(uniname)
             continue
