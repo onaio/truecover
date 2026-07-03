@@ -2,6 +2,10 @@
 # ABOUTME: Leaf rows (no boundary_type children) get a spatial join; ancestors get a bottom-up union
 
 def populate_pixels_for_leaf_boundaries(conn, boundary_ids: list = None) -> int:
+    """
+    Populates admin_boundary_pixels for leaf boundaries via spatial join.
+    Does not commit — the caller owns the transaction boundary.
+    """
     cursor = conn.cursor()
     query = """
         SELECT ab.id FROM admin_boundaries ab
@@ -32,6 +36,10 @@ def populate_pixels_for_leaf_boundaries(conn, boundary_ids: list = None) -> int:
 
 
 def roll_up_pixels_to_ancestors(conn, boundary_ids: list = None) -> int:
+    """
+    Rolls up pixels from leaf boundaries to ancestor boundaries.
+    Does not commit — the caller owns the transaction boundary.
+    """
     cursor = conn.cursor()
     query = """
         SELECT id FROM admin_boundaries
