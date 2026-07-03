@@ -243,3 +243,32 @@ class TestImportCityCorporation:
         result = import_city_corporation('fake/path/DNCC.shp', db_conn)
 
         assert result == {'city_corporations_created': 0, 'zones_created': 0, 'wards_created': 0}
+
+
+class TestRunImport:
+    def test_walks_districts_and_city_corporations_directories(self, db_conn, tmp_path, monkeypatch):
+        from db.import_boundary_shapefiles import run_import
+        import shutil
+
+        districts_dir = tmp_path / "Districts" / "Dhaka"
+        districts_dir.mkdir(parents=True)
+        (districts_dir / "Dhaka.shp").touch()
+
+        cc_dir = tmp_path / "City corporations" / "Test CC"
+        cc_dir.mkdir(parents=True)
+        (cc_dir / "Test CC.shp").touch()
+
+        calls = []
+        monkeypatch.setattr(
+            'db.import_boundary_shapefiles.import_rural_district',
+            lambda path, conn: calls.append(('rural', path)) or {'wards_created': 0, 'blocks_created': 0, 'unmatched_unions': [], 'low_overlap_wards': []}
+        )
+        monkeypatch.setattr(
+            'db.import_boundary_shapefiles.import_city_corporation',
+            lambda path, conn: calls.append(('urban', path)) or {'city_corporations_created': 0, 'zones_created': 0, 'wards_created': 0}
+        )
+
+        run_import(str(tmp_path), db_conn)
+
+        assert ('rural', str(districts_dir / "Dhaka.shp")) in calls
+        assert ('urban', str(cc_dir / "Test CC.shp")) in calls

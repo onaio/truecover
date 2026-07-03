@@ -1,9 +1,13 @@
 # ABOUTME: Imports Bangladesh district (block-level) and city corporation (ward-level) shapefiles
 # ABOUTME: Attaches new ward/block/city_corporation/zone rows under existing admin_boundaries rows
 
+import os
+import sys
+from pathlib import Path
 import geopandas as gpd
 from typing import Dict, Any
 from db.boundary_name_matching import find_district_id, find_upazila_id, find_union_id
+from db.connection import get_db_connection, return_db_connection
 
 
 def _upsert_boundary(cursor, name, level, parent_id, boundary_type, geometry_wkt, source_code=None):
@@ -133,3 +137,33 @@ def import_city_corporation(shp_path: str, conn) -> Dict[str, int]:
         'zones_created': zones_created,
         'wards_created': wards_created,
     }
+
+
+def run_import(data_dir: str, conn) -> None:
+    districts_root = Path(data_dir) / "Districts"
+    for shp_path in sorted(districts_root.glob("*/*.shp")):
+        result = import_rural_district(str(shp_path), conn)
+        conn.commit()
+        print(f"{shp_path.stem}: {result['wards_created']} wards, {result['blocks_created']} blocks created")
+        if result['unmatched_unions']:
+            print(f"  Unmatched unions (skipped, needs manual review): {result['unmatched_unions']}")
+        if result['low_overlap_wards']:
+            print(f"  Low geometry overlap with matched union (inserted anyway, needs manual review): {result['low_overlap_wards']}")
+
+    cc_root = Path(data_dir) / "City corporations"
+    for shp_path in sorted(cc_root.glob("*/*.shp")):
+        result = import_city_corporation(str(shp_path), conn)
+        conn.commit()
+        print(f"{shp_path.stem}: {result['zones_created']} zones, {result['wards_created']} wards created")
+
+
+if __name__ == "__main__":
+    default_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "data", "new")
+    data_dir = sys.argv[1] if len(sys.argv) > 1 else default_dir
+
+    conn = get_db_connection()
+    try:
+        print(f"Importing boundary shapefiles from: {data_dir}")
+        run_import(data_dir, conn)
+    finally:
+        return_db_connection(conn)
