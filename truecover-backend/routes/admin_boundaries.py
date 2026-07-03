@@ -138,6 +138,7 @@ def get_admin_boundary_children(user, identifier):
         parent_row = cursor.fetchone()
         parent_level = parent_row[0]
         child_level = parent_level + 1
+        message = None
 
         if child_level <= 4:
             pcode = parent_row[1 + parent_level]
@@ -175,9 +176,14 @@ def get_admin_boundary_children(user, identifier):
                 'parent_pcode': row[4],
                 'population': int(row[5]) if row[5] else 0
             } for row in children])
+        elif not result:
+            message = 'No child level exists'
 
         cursor.close()
-        return jsonify({'children': result}), 200
+        response_body = {'children': result}
+        if message:
+            response_body['message'] = message
+        return jsonify(response_body), 200
 
     except Exception as e:
         print(f"Error fetching admin boundary children: {e}")
