@@ -333,6 +333,7 @@ export const campaignAreasApi = {
       round_id?: string;
       sample_target?: 'pixels' | 'buildings';
       buildings_per_pixel?: number;
+      generate_replacements?: boolean;
     },
     token: string
   ): Promise<{ workflow_id: string; area_id: string; status: string; message: string }> {

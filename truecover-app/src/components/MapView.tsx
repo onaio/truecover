@@ -2480,6 +2480,23 @@ const MapView: React.FC<MapViewProps> = ({ data, selectedData, locations, mode =
               )}
             </>
           )}
+
+          {showPixels && campaignId && (
+            <div className="mt-3 pt-3 border-t border-tactical-border-medium">
+              <div className="flex items-center mb-2">
+                <div className="w-3 h-3 mr-2" style={{ backgroundColor: '#28a745' }}></div>
+                <span className="font-mono text-xs text-tactical-text-muted">
+                  Primary pixel
+                </span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 mr-2" style={{ backgroundColor: '#007bff' }}></div>
+                <span className="font-mono text-xs text-tactical-text-muted">
+                  Replacement pixel
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bounding Box Display */}

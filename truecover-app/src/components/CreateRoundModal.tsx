@@ -41,7 +41,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Per-area selection: area_id -> sampling config
-  const [selectedAreas, setSelectedAreas] = useState<Map<string, { sampleCount: number; buildingsPerPixel: number }>>(new Map());
+  const [selectedAreas, setSelectedAreas] = useState<Map<string, { sampleCount: number; buildingsPerPixel: number; generateReplacements: boolean }>>(new Map());
 
   // Auto-select first indicator when indicators load
   useEffect(() => {
@@ -56,7 +56,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       if (next.has(areaId)) {
         next.delete(areaId);
       } else {
-        next.set(areaId, { sampleCount: 50, buildingsPerPixel: 5 });
+        next.set(areaId, { sampleCount: 50, buildingsPerPixel: 5, generateReplacements: true });
       }
       return next;
     });
@@ -79,6 +79,17 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
       const current = next.get(areaId);
       if (current) {
         next.set(areaId, { ...current, buildingsPerPixel: count });
+      }
+      return next;
+    });
+  };
+
+  const toggleGenerateReplacements = (areaId: string) => {
+    setSelectedAreas(prev => {
+      const next = new Map(prev);
+      const current = next.get(areaId);
+      if (current) {
+        next.set(areaId, { ...current, generateReplacements: !current.generateReplacements });
       }
       return next;
     });
@@ -109,6 +120,7 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
         sample_count: config.sampleCount,
         sample_target: 'pixels',
         buildings_per_pixel: config.buildingsPerPixel,
+        generate_replacements: config.generateReplacements,
       }));
 
       const response = await axios.post(
@@ -265,7 +277,8 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
                     <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">Pixels</th>
                     <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider">Population</th>
                     <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-28">Sample Count</th>
-                    <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-28">Bldgs/Pixel</th>
+                    <th className="px-3 py-2 text-right text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-28" title="Minimum buildings required for a pixel to qualify for sampling or replacement. 0 disables the check entirely.">Bldgs/Pixel</th>
+                    <th className="px-3 py-2 text-center text-xs font-mono font-bold text-tactical-text-primary uppercase tracking-wider w-24" title="Create a backup neighbor pixel for each sampled primary">Replacements</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -322,6 +335,19 @@ const CreateRoundModal: React.FC<CreateRoundModalProps> = ({
                               onChange={(e) => updateBuildingsPerPixel(area.id, parseInt(e.target.value) || 0)}
                               disabled={isSubmitting}
                               className="w-24 px-2 py-1 text-sm font-mono text-right bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary focus:border-tactical-accent-orange focus:outline-none"
+                            />
+                          ) : (
+                            <span className="text-sm font-mono text-tactical-text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {isSelected ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedAreas.get(area.id)?.generateReplacements ?? true}
+                              onChange={() => toggleGenerateReplacements(area.id)}
+                              disabled={isSubmitting}
+                              className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
                             />
                           ) : (
                             <span className="text-sm font-mono text-tactical-text-muted">—</span>
