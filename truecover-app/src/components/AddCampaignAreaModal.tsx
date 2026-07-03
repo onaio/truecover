@@ -15,7 +15,8 @@ interface AddCampaignAreaModalProps {
   campaignId: string;
   mode: 'admin_boundary' | 'drawn';
   adminBoundary?: {
-    pcode: string;
+    pcode?: string;
+    id?: string;
     name: string;
   } | null;
   drawnGeometry?: any;
@@ -58,7 +59,11 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
       };
 
       if (mode === 'admin_boundary' && adminBoundary) {
-        areaData.pcode = adminBoundary.pcode;
+        if (adminBoundary.id) {
+          areaData.admin_boundary_id = adminBoundary.id;
+        } else {
+          areaData.pcode = adminBoundary.pcode;
+        }
       } else if (mode === 'drawn' && drawnGeometry) {
         areaData.geometry = drawnGeometry;
       }
@@ -81,16 +86,20 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
       if (extractBuildings) {
         try {
           const pcode = mode === 'admin_boundary' ? adminBoundary?.pcode : undefined;
-          const geometry = mode === 'drawn' ? drawnGeometry : undefined;
+          if (mode === 'admin_boundary' && !adminBoundary?.pcode) {
+            tacticalToast.warning('Overture building extraction is not yet available for this boundary type; skipping.');
+          } else {
+            const geometry = mode === 'drawn' ? drawnGeometry : undefined;
 
-          const importResult = await adminBoundariesApi.importOvertureBuildingsAsync(
-            pcode || 'drawn_area',
-            campaignId,
-            token,
-            geometry
-          );
-          buildingWorkflowId = importResult.workflow_id;
-          tacticalToast.info('Building extraction started...');
+            const importResult = await adminBoundariesApi.importOvertureBuildingsAsync(
+              pcode || 'drawn_area',
+              campaignId,
+              token,
+              geometry
+            );
+            buildingWorkflowId = importResult.workflow_id;
+            tacticalToast.info('Building extraction started...');
+          }
         } catch (buildingErr: any) {
           console.error('Failed to start building extraction:', buildingErr);
           tacticalToast.warning('Area added, but building extraction failed to start.');
@@ -139,7 +148,7 @@ const AddCampaignAreaModal: React.FC<AddCampaignAreaModalProps> = ({
               {adminBoundary.name}
             </p>
             <p className="text-xs text-tactical-text-muted mt-1">
-              Code: {adminBoundary.pcode}
+              {adminBoundary?.pcode ? `Code: ${adminBoundary.pcode}` : `ID: ${adminBoundary?.id}`}
             </p>
           </div>
         )}
