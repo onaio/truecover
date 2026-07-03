@@ -266,7 +266,8 @@ export const campaignAreasApi = {
     campaignId: string,
     data: {
       area_type: 'admin_boundary' | 'drawn';
-      pcode?: string;  // For admin_boundary type
+      pcode?: string;  // For admin_boundary type (legacy, pcode-bearing rows)
+      admin_boundary_id?: string;  // For admin_boundary type (any row, including id-only ones)
       geometry?: any;  // For drawn type
       name?: string;
     },
@@ -726,17 +727,18 @@ export const enrichmentApi = {
 
 // Admin Boundaries API calls
 export const adminBoundariesApi = {
-  async getChildren(pcode: string, token: string): Promise<{
+  async getChildren(identifier: string, token: string): Promise<{
     children: Array<{
-      pcode: string;
+      id: string;
+      pcode: string | null;
       name: string;
       level: number;
-      parent_pcode: string;
+      parent_pcode: string | null;
       population: number;
     }>;
   }> {
     const response = await axios.get(
-      `${API_URL}/api/admin-boundaries/${pcode}/children`,
+      `${API_URL}/api/admin-boundaries/${identifier}/children`,
       {
         headers: {
           'Authorization': `Bearer ${token}`

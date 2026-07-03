@@ -198,7 +198,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
         high_risk: [],
         low_risk: [],
         hard_to_reach: [],
-        uncategorized: upazilas.map((u) => u.pcode),
+        uncategorized: upazilas.filter(u => u.pcode !== null).map((u) => u.pcode as string),
       });
     }
   }, [upazilas, step]);
@@ -334,7 +334,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                 <TacticalSelect
                   value={selectedDivision}
                   onChange={setSelectedDivision}
-                  options={divisions.map(d => ({ value: d.pcode, label: d.name }))}
+                  options={divisions.filter(d => d.pcode !== null).map(d => ({ value: d.pcode as string, label: d.name }))}
                   placeholder="Select a division..."
                 />
               )}
@@ -351,7 +351,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   <TacticalSelect
                     value={selectedDistrict}
                     onChange={handleDistrictSelect}
-                    options={districts.map(d => ({ value: d.pcode, label: d.name }))}
+                    options={districts.filter(d => d.pcode !== null).map(d => ({ value: d.pcode as string, label: d.name }))}
                     placeholder="Select a district..."
                   />
                 )}
