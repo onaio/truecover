@@ -254,18 +254,20 @@ async def save_cluster_sampling_config(
 
 
 @activity.defn
-async def create_campaign_areas_for_unions(
+async def create_campaign_areas_for_boundaries(
     campaign_id: str,
-    union_pcodes: List[str],
-    union_category_map: Optional[Dict[str, str]] = None
+    boundary_ids: List[str],
+    boundary_category_map: Optional[Dict[str, str]] = None
 ) -> List[str]:
     """
-    Create campaign_areas for each selected union.
+    Create campaign_areas for each selected boundary (union, ward, or any
+    admin_boundaries row - looked up by id, not pcode, since city
+    corporation/zone/ward rows have no pcode).
 
     Args:
         campaign_id: Campaign to add areas to
-        union_pcodes: List of union pcodes to add as campaign areas
-        union_category_map: Optional mapping of pcode -> category name
+        boundary_ids: List of admin_boundaries.id values to add as campaign areas
+        boundary_category_map: Optional mapping of boundary id -> category name
 
     Returns:
         List of created campaign_area IDs
@@ -277,20 +279,18 @@ async def create_campaign_areas_for_unions(
 
         created_ids = []
 
-        for pcode in union_pcodes:
-            # Get admin boundary info for this pcode
+        for boundary_id in boundary_ids:
             cursor.execute("""
                 SELECT id, name, ST_AsText(geometry),
                        ST_XMin(geometry), ST_YMin(geometry),
                        ST_XMax(geometry), ST_YMax(geometry)
                 FROM admin_boundaries
-                WHERE adm4_pcode = %s
-                LIMIT 1
-            """, (pcode,))
+                WHERE id = %s
+            """, (boundary_id,))
 
             row = cursor.fetchone()
             if not row:
-                activity.logger.warning(f"Admin boundary not found for pcode {pcode}")
+                activity.logger.warning(f"Admin boundary not found for id {boundary_id}")
                 continue
 
             admin_boundary_id = str(row[0])
@@ -300,9 +300,8 @@ async def create_campaign_areas_for_unions(
             bbox_min_lat = row[4]
             bbox_max_lng = row[5]
             bbox_max_lat = row[6]
-            category = union_category_map.get(pcode) if union_category_map else None
+            category = boundary_category_map.get(boundary_id) if boundary_category_map else None
 
-            # Check if this area already exists for the campaign
             cursor.execute("""
                 SELECT id FROM campaign_areas
                 WHERE campaign_id = %s AND admin_boundary_id = %s
@@ -310,14 +309,12 @@ async def create_campaign_areas_for_unions(
 
             existing = cursor.fetchone()
             if existing:
-                # Update category and set status to sampling
                 cursor.execute("""
                     UPDATE campaign_areas SET category = %s, status = 'sampling' WHERE id = %s
                 """, (category, str(existing[0])))
                 created_ids.append(str(existing[0]))
                 continue
 
-            # Create the campaign_area
             cursor.execute("""
                 INSERT INTO campaign_areas (
                     campaign_id, name, area_type, admin_boundary_id, geometry,
@@ -336,7 +333,7 @@ async def create_campaign_areas_for_unions(
             created_ids.append(area_id)
 
         conn.commit()
-        activity.logger.info(f"Created {len(created_ids)} campaign areas for unions")
+        activity.logger.info(f"Created {len(created_ids)} campaign areas for boundaries")
         return created_ids
 
     finally:

@@ -223,3 +223,50 @@ class TestSelectClustersPopulationWeighting:
             picks[result[0]] += 1
 
         assert picks[heavy_id] > picks[light_id]
+
+
+class TestCreateCampaignAreasForBoundaries:
+    def test_creates_campaign_area_for_boundary_with_no_pcode(self, db_conn, monkeypatch):
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import create_campaign_areas_for_boundaries
+        import asyncio, uuid as uuid_mod
+
+        # create_campaign_areas_for_boundaries commits internally, so it must
+        # operate on the fixture's own db_conn (not a separate pooled
+        # connection) to see the uncommitted org/project/campaign/boundary
+        # rows below. Because it commits on this connection, the fixture's
+        # rollback() at teardown won't undo it - clean up explicitly.
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("INSERT INTO organizations (name) VALUES (%s) RETURNING id", (f"test-org-{uuid_mod.uuid4().hex[:8]}",))
+        org_id = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO projects (organization_id, title) VALUES (%s, %s) RETURNING id", (org_id, "test-proj"))
+        project_id = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO campaigns (project_id, name) VALUES (%s, %s) RETURNING id", (project_id, "test-campaign"))
+        campaign_id = str(cursor.fetchone()[0])
+
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type, geometry)
+            VALUES ('Test Ward CCAFB', 'BD', 5, 'ward',
+                    ST_GeomFromText('POLYGON((90 23, 91 23, 91 24, 90 24, 90 23))', 4326))
+            RETURNING id
+        """)
+        ward_id = str(cursor.fetchone()[0])
+
+        try:
+            result = asyncio.get_event_loop().run_until_complete(
+                create_campaign_areas_for_boundaries(campaign_id, [ward_id], {ward_id: 'high_risk'})
+            )
+
+            assert len(result) == 1
+            cursor.execute("SELECT admin_boundary_id, category, status FROM campaign_areas WHERE id = %s", (result[0],))
+            row = cursor.fetchone()
+            assert str(row[0]) == ward_id
+            assert row[1] == 'high_risk'
+            assert row[2] == 'sampling'
+        finally:
+            cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
+            cursor.execute("DELETE FROM admin_boundaries WHERE id = %s", (ward_id,))
+            db_conn.commit()
