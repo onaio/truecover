@@ -183,6 +183,54 @@ class TestSelectClustersPopulationWeighting:
         )
         assert result == [zone_id]
 
+    def test_population_weighting_by_boundary_id_with_own_pcode_uses_pcode_population(self, db_conn, monkeypatch):
+        # A rural upazila/union boundary id has a real pcode and real
+        # pixels.adm{n}_pcode population data, but no admin_boundary_pixels
+        # rows (that table is only populated for the new ward/block/zone/
+        # city_corporation levels). Population weighting must resolve each
+        # boundary's own pcode and use the pixels.adm4_pcode query, not fall
+        # through to the empty admin_boundary_pixels join (which would give
+        # both boundaries population 0, i.e. uniform selection).
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import select_clusters
+        import asyncio
+        from collections import Counter
+
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, adm4_pcode, boundary_type)
+            VALUES ('Test Heavy Union SCPW', 'BD', 4, 'BDSCPWUNIONHVY', 'union') RETURNING id
+        """)
+        heavy_id = str(cursor.fetchone()[0])
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, adm4_pcode, boundary_type)
+            VALUES ('Test Light Union SCPW', 'BD', 4, 'BDSCPWUNIONLGT', 'union') RETURNING id
+        """)
+        light_id = str(cursor.fetchone()[0])
+
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, adm4_pcode, population)
+            VALUES ('test_scpw_union_heavy', ST_GeomFromText('POLYGON((94 27, 94.01 27, 94.01 27.01, 94 27.01, 94 27))', 4326), 27, 94, 18, 'BDSCPWUNIONHVY', 10000)
+        """)
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, adm4_pcode, population)
+            VALUES ('test_scpw_union_light', ST_GeomFromText('POLYGON((95 28, 95.01 28, 95.01 28.01, 95 28.01, 95 28))', 4326), 28, 95, 18, 'BDSCPWUNIONLGT', 1)
+        """)
+
+        # No admin_boundary_pixels rows for either union - the empty path
+        # would give both population 0, so weighting would be uniform.
+        picks = Counter()
+        for _ in range(30):
+            result = asyncio.get_event_loop().run_until_complete(
+                select_clusters([heavy_id, light_id], {'high_risk': [heavy_id, light_id]}, 1, True, None)
+            )
+            picks[result[0]] += 1
+
+        assert picks[heavy_id] > picks[light_id]
+
     def test_boundary_id_with_more_pixels_is_weighted_higher(self, db_conn, monkeypatch):
         from temporal.activities import cluster_sampling
         from temporal.activities.cluster_sampling import select_clusters

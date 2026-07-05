@@ -19,30 +19,54 @@ def _is_uuid(value: str) -> bool:
 
 def _population_for_identifier(cursor, identifier: str) -> float:
     """
-    Population for a pcode (existing pixels.adm{n}_pcode match) or a boundary
-    id (admin_boundary_pixels -> pixels.population). Defaults to 0 for a
-    boundary id with no admin_boundary_pixels rows yet (that table isn't
-    populated for the new ward/block/zone/city_corporation levels in
-    production yet) - not 1, since 0 correctly means "unweighted, not
-    silently favored" rather than pretending a nonzero population exists.
+    Population for a pcode (pixels.adm{n}_pcode match) or a boundary id.
+
+    A boundary id is resolved to its own pcode first, if it has one (rural
+    upazila/union rows do, and pixels.population is populated at that
+    level) - only a boundary id with no pcode at all (ward/block/zone/
+    city_corporation) falls back to admin_boundary_pixels, defaulting to 0
+    when that table has no rows yet for it, since 0 correctly means
+    "unweighted, not silently favored" rather than pretending a nonzero
+    population exists.
     """
+    resolved_pcode = identifier
     if _is_uuid(identifier):
         cursor.execute("""
-            SELECT COALESCE(SUM(p.population), 0)
-            FROM admin_boundary_pixels abp
-            JOIN pixels p ON abp.quadkey = p.quadkey
-            WHERE abp.admin_boundary_id = %s AND p.population IS NOT NULL
+            SELECT adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode, level
+            FROM admin_boundaries WHERE id = %s
         """, (identifier,))
-    else:
-        cursor.execute("""
-            SELECT COALESCE(SUM(p.population), 1)
-            FROM pixels p
-            WHERE (p.adm1_pcode = %s OR p.adm2_pcode = %s
-                   OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-              AND p.population IS NOT NULL
-        """, (identifier, identifier, identifier, identifier))
+        row = cursor.fetchone()
+        # Use the pcode column matching this boundary's own level, not the
+        # first non-null column - ancestor pcodes are cascaded onto lower
+        # adm{n}_pcode columns too (e.g. a level-3 upazila row also carries
+        # its parent division's adm1_pcode and district's adm2_pcode), so
+        # picking the first non-null would resolve to an ancestor's pcode
+        # and sum population for the whole ancestor area instead of just
+        # this boundary.
+        level = row[4] if row else None
+        own_pcode = row[level - 1] if row and level and 1 <= level <= 4 else None
+
+        if own_pcode is None:
+            cursor.execute("""
+                SELECT COALESCE(SUM(p.population), 0)
+                FROM admin_boundary_pixels abp
+                JOIN pixels p ON abp.quadkey = p.quadkey
+                WHERE abp.admin_boundary_id = %s AND p.population IS NOT NULL
+            """, (identifier,))
+            result = cursor.fetchone()
+            return float(result[0]) if result and result[0] else 0.0
+
+        resolved_pcode = own_pcode
+
+    cursor.execute("""
+        SELECT COALESCE(SUM(p.population), 1)
+        FROM pixels p
+        WHERE (p.adm1_pcode = %s OR p.adm2_pcode = %s
+               OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
+          AND p.population IS NOT NULL
+    """, (resolved_pcode, resolved_pcode, resolved_pcode, resolved_pcode))
     result = cursor.fetchone()
-    return float(result[0]) if result and result[0] else (0.0 if _is_uuid(identifier) else 1.0)
+    return float(result[0]) if result and result[0] else 1.0
 
 
 @activity.defn
