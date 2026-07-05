@@ -19,6 +19,7 @@ with workflow.unsafe.imports_passed_through():
         clear_round_from_buildings,
         sample_buildings_within_pixels,
         create_replacement_pixels,
+        ensure_coverage_pixels_for_locations,
     )
     from ..activities.rounds import create_round_record
 
@@ -60,7 +61,8 @@ class CampaignAreaSamplingWorkflow:
         round_number: Optional[int] = None,
         round_name: Optional[str] = None,
         sample_target: str = 'pixels',  # 'pixels' or 'buildings'
-        buildings_per_pixel: int = 0
+        buildings_per_pixel: int = 0,
+        generate_replacements: bool = True
     ) -> Dict[str, Any]:
         """Run sampling for a campaign area."""
 
@@ -149,6 +151,25 @@ class CampaignAreaSamplingWorkflow:
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy
             )
+
+            if generate_replacements:
+                self.status = "creating_replacements"
+                primary_pixel_ids = await workflow.execute_activity(
+                    ensure_coverage_pixels_for_locations,
+                    args=[campaign_id, indicator_id, selected_ids, self.round_number],
+                    start_to_close_timeout=timedelta(minutes=2),
+                    retry_policy=retry_policy
+                )
+                replacement_result = await workflow.execute_activity(
+                    create_replacement_pixels,
+                    args=[campaign_id, indicator_id, primary_pixel_ids, self.round_number,
+                          buildings_per_pixel],
+                    start_to_close_timeout=timedelta(minutes=5),
+                    retry_policy=retry_policy
+                )
+                workflow.logger.info(
+                    f"Created {replacement_result.get('replacement_count', 0)} replacement pixels for building-target round"
+                )
         else:
             # Pixel sampling: use coverage_pixel table
             # Step 3: Create coverage_pixel records if they don't exist
@@ -214,7 +235,7 @@ class CampaignAreaSamplingWorkflow:
                 )
 
             # Create replacement pixels for sampled primaries
-            if selected_ids and self.pixels_sampled > 0:
+            if generate_replacements and selected_ids and self.pixels_sampled > 0:
                 self.status = "creating_replacements"
                 # Use only pixels that passed the building count filter
                 primary_ids = building_result.get('qualified_pixel_ids', selected_ids) if buildings_per_pixel > 0 else selected_ids

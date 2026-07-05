@@ -71,6 +71,7 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
   const [buildingsPerPixel, setBuildingsPerPixel] = useState<number>(5);
   const [selectedRoundId, setSelectedRoundId] = useState<string>('');
   const [sampleTarget, setSampleTarget] = useState<SampleTarget>('pixels');
+  const [generateReplacements, setGenerateReplacements] = useState<boolean>(true);
   const [isSampling, setIsSampling] = useState(false);
   const [samplingWorkflows, setSamplingWorkflows] = useState<Map<string, { workflowId: string; status: string }>>(new Map());
   const [buildingExtractionWorkflows, setBuildingExtractionWorkflows] = useState<Map<string, { workflowId: string; status: string }>>(new Map());
@@ -298,7 +299,8 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
           resample,
           round_id: selectedRoundId,
           sample_target: sampleTarget,
-          ...(sampleTarget === 'pixels' && buildingsPerPixel > 0 ? { buildings_per_pixel: buildingsPerPixel } : {}),
+          ...(buildingsPerPixel > 0 ? { buildings_per_pixel: buildingsPerPixel } : {}),
+          generate_replacements: generateReplacements,
         },
         token
       );
@@ -768,24 +770,42 @@ const CampaignAreasManager: React.FC<CampaignAreasManagerProps> = ({
                   />
                 </div>
 
-                {/* Buildings per Pixel (only for pixel sampling) */}
-                {sampleTarget === 'pixels' && (
-                  <div>
-                    <label className="block text-xs text-tactical-text-muted mb-1">
-                      Buildings per Pixel
-                    </label>
-                    <input
-                      type="number"
-                      value={buildingsPerPixel}
-                      onChange={(e) => setBuildingsPerPixel(Math.max(0, parseInt(e.target.value) || 0))}
-                      min={0}
-                      className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
-                    />
-                    <p className="text-xs text-tactical-text-muted mt-1">
-                      {buildingsPerPixel === 0 ? 'No building sampling' : `Up to ${buildingsPerPixel} buildings selected per sampled pixel`}
-                    </p>
-                  </div>
-                )}
+                {/* Buildings per Pixel */}
+                <div>
+                  <label className="block text-xs text-tactical-text-muted mb-1">
+                    Buildings per Pixel
+                  </label>
+                  <input
+                    type="number"
+                    value={buildingsPerPixel}
+                    onChange={(e) => setBuildingsPerPixel(Math.max(0, parseInt(e.target.value) || 0))}
+                    min={0}
+                    className="w-full px-3 py-2 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-text-primary font-mono text-sm focus:border-tactical-accent-primary focus:outline-none"
+                  />
+                  <p className="text-xs text-tactical-text-muted mt-1">
+                    {sampleTarget === 'pixels'
+                      ? (buildingsPerPixel === 0
+                          ? 'No building sampling; 0 also skips the building-count check for replacement pixels'
+                          : `Up to ${buildingsPerPixel} buildings selected per sampled pixel; same threshold used to qualify replacement pixels`)
+                      : (buildingsPerPixel === 0
+                          ? 'No building-count check on replacement pixels'
+                          : `Replacement pixels must have at least ${buildingsPerPixel} buildings`)}
+                  </p>
+                </div>
+
+                {/* Generate Replacement Pixels */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="generate-replacements"
+                    checked={generateReplacements}
+                    onChange={(e) => setGenerateReplacements(e.target.checked)}
+                    className="w-4 h-4 bg-tactical-bg-tertiary border border-tactical-border-medium text-tactical-accent-orange focus:ring-tactical-accent-orange focus:ring-2"
+                  />
+                  <label htmlFor="generate-replacements" className="text-xs text-tactical-text-muted">
+                    Generate replacement pixels (backup neighbor per sampled {sampleTarget === 'buildings' ? "building's pixel" : 'pixel'})
+                  </label>
+                </div>
               </div>
             )}
 

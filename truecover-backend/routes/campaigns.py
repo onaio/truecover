@@ -276,6 +276,24 @@ def list_campaign_areas(user, campaign_id):
 
         # Use cached statistics columns for fast loading
         cursor.execute("""
+            WITH RECURSIVE ancestors AS (
+                SELECT ab.id as leaf_id, ab.id, ab.name, ab.boundary_type, ab.parent_id, 0 as depth
+                FROM admin_boundaries ab
+                JOIN campaign_areas ca ON ca.admin_boundary_id = ab.id
+                WHERE ca.campaign_id = %s
+                UNION ALL
+                SELECT a.leaf_id, ab.id, ab.name, ab.boundary_type, ab.parent_id, a.depth + 1
+                FROM admin_boundaries ab JOIN ancestors a ON ab.id = a.parent_id
+            ),
+            ancestor_names AS (
+                SELECT leaf_id,
+                    MAX(name) FILTER (WHERE boundary_type = 'city_corporation') as city_corporation_name,
+                    MAX(name) FILTER (WHERE boundary_type = 'zone') as zone_name,
+                    MAX(name) FILTER (WHERE boundary_type = 'ward') as ward_name,
+                    MAX(name) FILTER (WHERE boundary_type = 'block') as block_name
+                FROM ancestors
+                GROUP BY leaf_id
+            )
             SELECT
                 ca.id, ca.campaign_id, ca.name, ca.area_type,
                 ca.admin_boundary_id,
@@ -290,6 +308,10 @@ def list_campaign_areas(user, campaign_id):
                 dist.name as district_name,
                 upz.name as upazila_name,
                 uni.name as union_name,
+                an.city_corporation_name,
+                an.zone_name,
+                an.ward_name,
+                an.block_name,
                 COALESCE(ca.cached_sampled_count, 0) as sampled_count,
                 COALESCE(ca.cached_sampled_population, 0) as sampled_population,
                 ca.category,
@@ -301,9 +323,10 @@ def list_campaign_areas(user, campaign_id):
             LEFT JOIN admin_boundaries dist ON dist.adm2_pcode = ab.adm2_pcode AND dist.level = 2
             LEFT JOIN admin_boundaries upz ON upz.adm3_pcode = ab.adm3_pcode AND upz.level = 3
             LEFT JOIN admin_boundaries uni ON uni.adm4_pcode = ab.adm4_pcode AND uni.level = 4
+            LEFT JOIN ancestor_names an ON an.leaf_id = ab.id
             WHERE ca.campaign_id = %s
             ORDER BY ca.created_at DESC
-        """, (campaign_id,))
+        """, (campaign_id, campaign_id))
 
         areas = []
         for row in cursor.fetchall():
@@ -330,10 +353,14 @@ def list_campaign_areas(user, campaign_id):
                 'district_name': row[17],
                 'upazila_name': row[18],
                 'union_name': row[19],
-                'sampled_count': row[20] or 0,
-                'sampled_population': int(row[21]) if row[21] else 0,
-                'category': row[22],
-                'status': row[23]
+                'city_corporation_name': row[20],
+                'zone_name': row[21],
+                'ward_name': row[22],
+                'block_name': row[23],
+                'sampled_count': row[24] or 0,
+                'sampled_population': int(row[25]) if row[25] else 0,
+                'category': row[26],
+                'status': row[27]
             }
             areas.append(area)
 
@@ -360,12 +387,13 @@ def add_campaign_area(user, campaign_id):
         data = request.get_json()
 
         area_type = data.get('area_type', 'admin_boundary')
-        admin_boundary_pcode = data.get('pcode')  # Use pcode from frontend
+        admin_boundary_pcode = data.get('pcode')
+        admin_boundary_id_param = data.get('admin_boundary_id')
         geometry = data.get('geometry')
         name = data.get('name')
 
-        if area_type == 'admin_boundary' and not admin_boundary_pcode:
-            return jsonify({'error': 'pcode is required for admin_boundary type'}), 400
+        if area_type == 'admin_boundary' and not admin_boundary_pcode and not admin_boundary_id_param:
+            return jsonify({'error': 'pcode or admin_boundary_id is required for admin_boundary type'}), 400
         if area_type == 'drawn' and not geometry:
             return jsonify({'error': 'geometry is required for drawn type'}), 400
 
@@ -380,27 +408,40 @@ def add_campaign_area(user, campaign_id):
         cached_population = 0
 
         if area_type == 'admin_boundary':
-            # Get geometry, name, id, and pre-computed stats from admin_boundaries table by pcode
-            cursor.execute("""
-                SELECT ab.id, ab.name, ST_AsText(ab.geometry),
-                       ST_XMin(ab.geometry), ST_YMin(ab.geometry),
-                       ST_XMax(ab.geometry), ST_YMax(ab.geometry),
-                       COALESCE(abs.pixel_count, 0),
-                       COALESCE(abs.population, 0)
-                FROM admin_boundaries ab
-                LEFT JOIN admin_boundary_stats abs ON abs.admin_boundary_id = ab.id
-                WHERE ab.adm0_pcode = %s
-                   OR ab.adm1_pcode = %s
-                   OR ab.adm2_pcode = %s
-                   OR ab.adm3_pcode = %s
-                   OR ab.adm4_pcode = %s
-                LIMIT 1
-            """, (admin_boundary_pcode, admin_boundary_pcode, admin_boundary_pcode,
-                  admin_boundary_pcode, admin_boundary_pcode))
+            # Get geometry, name, id, and pre-computed stats from admin_boundaries table by id or pcode
+            if admin_boundary_id_param:
+                cursor.execute("""
+                    SELECT ab.id, ab.name, ST_AsText(ab.geometry),
+                           ST_XMin(ab.geometry), ST_YMin(ab.geometry),
+                           ST_XMax(ab.geometry), ST_YMax(ab.geometry),
+                           COALESCE(abs.pixel_count, 0),
+                           COALESCE(abs.population, 0)
+                    FROM admin_boundaries ab
+                    LEFT JOIN admin_boundary_stats abs ON abs.admin_boundary_id = ab.id
+                    WHERE ab.id = %s
+                """, (admin_boundary_id_param,))
+            else:
+                cursor.execute("""
+                    SELECT ab.id, ab.name, ST_AsText(ab.geometry),
+                           ST_XMin(ab.geometry), ST_YMin(ab.geometry),
+                           ST_XMax(ab.geometry), ST_YMax(ab.geometry),
+                           COALESCE(abs.pixel_count, 0),
+                           COALESCE(abs.population, 0)
+                    FROM admin_boundaries ab
+                    LEFT JOIN admin_boundary_stats abs ON abs.admin_boundary_id = ab.id
+                    WHERE ab.adm0_pcode = %s
+                       OR ab.adm1_pcode = %s
+                       OR ab.adm2_pcode = %s
+                       OR ab.adm3_pcode = %s
+                       OR ab.adm4_pcode = %s
+                    LIMIT 1
+                """, (admin_boundary_pcode, admin_boundary_pcode, admin_boundary_pcode,
+                      admin_boundary_pcode, admin_boundary_pcode))
             ab_data = cursor.fetchone()
             if not ab_data:
                 cursor.close()
-                return jsonify({'error': f'Admin boundary not found for pcode: {admin_boundary_pcode}'}), 404
+                identifier = admin_boundary_id_param or admin_boundary_pcode
+                return jsonify({'error': f'Admin boundary not found for: {identifier}'}), 404
             admin_boundary_id = str(ab_data[0])
             if not name:
                 name = ab_data[1]
@@ -826,6 +867,7 @@ def sample_campaign_area(user, area_id):
         round_id = data.get('round_id')
         sample_target = data.get('sample_target', 'pixels')  # 'pixels' or 'buildings'
         buildings_per_pixel = data.get('buildings_per_pixel', 0)
+        generate_replacements = data.get('generate_replacements', True)
 
         if not indicator_id:
             return jsonify({'error': 'indicator_id is required'}), 400
@@ -863,7 +905,8 @@ def sample_campaign_area(user, area_id):
                     round_number,
                     None,  # round_name (not needed since round exists)
                     sample_target,
-                    buildings_per_pixel
+                    buildings_per_pixel,
+                    generate_replacements
                 ],
                 id=workflow_id,
                 task_queue="truecover-tasks"

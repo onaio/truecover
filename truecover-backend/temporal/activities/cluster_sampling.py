@@ -1095,6 +1095,70 @@ async def assign_buildings_to_round(
 
 
 @activity.defn
+async def ensure_coverage_pixels_for_locations(
+    campaign_id: str,
+    indicator_id: str,
+    location_ids: List[str],
+    round_number: int
+) -> List[str]:
+    """
+    Ensure a coverage_pixel row exists and is marked sampled for this round for
+    each distinct quadkey among the given locations.
+
+    Building-target sampling assigns individual locations to a round and never
+    touches coverage_pixel — this gives it a pixel anchor so
+    create_replacement_pixels (which operates on coverage_pixel ids) can be
+    reused for building-target rounds too.
+
+    Returns the coverage_pixel ids for those quadkeys.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if not location_ids:
+            return []
+
+        cursor.execute("""
+            SELECT DISTINCT quadkey FROM locations
+            WHERE id = ANY(%s::uuid[]) AND quadkey IS NOT NULL
+        """, (location_ids,))
+        quadkeys = [row[0] for row in cursor.fetchall()]
+
+        pixel_ids = []
+        for quadkey in quadkeys:
+            cursor.execute("""
+                INSERT INTO coverage_pixel (
+                    quadkey, campaign_id, indicator_id, version, n_trials, n_covered, rounds
+                )
+                VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s])
+                ON CONFLICT (quadkey, indicator_id, campaign_id) DO UPDATE SET
+                    rounds = array_append(COALESCE(coverage_pixel.rounds, '{}'), %s),
+                    updated_at = NOW()
+                WHERE NOT (%s = ANY(COALESCE(coverage_pixel.rounds, '{}')))
+                RETURNING id
+            """, (quadkey, campaign_id, indicator_id, round_number, round_number, round_number))
+            row = cursor.fetchone()
+            if not row:
+                cursor.execute("""
+                    SELECT id FROM coverage_pixel
+                    WHERE quadkey = %s AND campaign_id = %s AND indicator_id = %s
+                """, (quadkey, campaign_id, indicator_id))
+                row = cursor.fetchone()
+            if row:
+                pixel_ids.append(str(row[0]))
+
+        conn.commit()
+        return pixel_ids
+
+    finally:
+        if conn:
+            cursor.close()
+            return_db_connection(conn)
+
+
+@activity.defn
 async def sample_buildings_within_pixels(
     campaign_id: str,
     indicator_id: str,
@@ -1489,6 +1553,32 @@ async def clear_round_from_pixels(
             return_db_connection(conn)
 
 
+def upsert_replacement_pixel(cursor, quadkey: str, campaign_id: str, indicator_id: str,
+                              round_number: int, primary_pixel_id: str) -> bool:
+    """
+    Claim a quadkey as the replacement for a primary pixel.
+
+    Returns True if this call actually claimed the pixel, False if it was
+    already claimed as someone else's replacement or already sampled as a
+    primary (a lost race, or a stale candidate) — the caller should not
+    count a False result as a created replacement.
+    """
+    cursor.execute("""
+        INSERT INTO coverage_pixel (
+            quadkey, campaign_id, indicator_id, version,
+            n_trials, n_covered, rounds, replacement_for
+        )
+        VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s], %s)
+        ON CONFLICT (quadkey, indicator_id, campaign_id) DO UPDATE SET
+            replacement_for = EXCLUDED.replacement_for,
+            rounds = array_append(COALESCE(coverage_pixel.rounds, '{}'), %s),
+            updated_at = NOW()
+        WHERE coverage_pixel.replacement_for IS NULL
+          AND (coverage_pixel.rounds IS NULL OR array_length(coverage_pixel.rounds, 1) IS NULL)
+    """, (quadkey, campaign_id, indicator_id, round_number, primary_pixel_id, round_number))
+    return cursor.rowcount > 0
+
+
 @activity.defn
 async def create_replacement_pixels(
     campaign_id: str,
@@ -1599,46 +1689,43 @@ async def create_replacement_pixels(
                 activity.logger.info(f"No qualifying replacement for pixel {pixel_id}")
                 continue
 
-            replacement_qk = random.choice(candidates)
-            used_replacement_quadkeys.add(replacement_qk)
-
-            # Ensure pixel exists in pixels table
-            cursor.execute("""
-                SELECT quadkey FROM pixels WHERE quadkey = %s
-            """, (replacement_qk,))
-            if not cursor.fetchone():
-                tile = mercantile.quadkey_to_tile(replacement_qk)
-                bounds = mercantile.bounds(tile)
-                centroid_lng = (bounds.west + bounds.east) / 2
-                centroid_lat = (bounds.south + bounds.north) / 2
-                geometry_wkt = (
-                    f"POLYGON(({bounds.west} {bounds.south}, "
-                    f"{bounds.west} {bounds.north}, "
-                    f"{bounds.east} {bounds.north}, "
-                    f"{bounds.east} {bounds.south}, "
-                    f"{bounds.west} {bounds.south}))"
-                )
+            random.shuffle(candidates)
+            claimed = False
+            for replacement_qk in candidates:
+                # Ensure pixel exists in pixels table
                 cursor.execute("""
-                    INSERT INTO pixels (quadkey, geometry, latitude, longitude, level)
-                    VALUES (%s, ST_GeomFromText(%s, 4326), %s, %s, %s)
-                    ON CONFLICT (quadkey) DO NOTHING
-                """, (replacement_qk, geometry_wkt, centroid_lat, centroid_lng, tile.z))
+                    SELECT quadkey FROM pixels WHERE quadkey = %s
+                """, (replacement_qk,))
+                if not cursor.fetchone():
+                    tile = mercantile.quadkey_to_tile(replacement_qk)
+                    bounds = mercantile.bounds(tile)
+                    centroid_lng = (bounds.west + bounds.east) / 2
+                    centroid_lat = (bounds.south + bounds.north) / 2
+                    geometry_wkt = (
+                        f"POLYGON(({bounds.west} {bounds.south}, "
+                        f"{bounds.west} {bounds.north}, "
+                        f"{bounds.east} {bounds.north}, "
+                        f"{bounds.east} {bounds.south}, "
+                        f"{bounds.west} {bounds.south}))"
+                    )
+                    cursor.execute("""
+                        INSERT INTO pixels (quadkey, geometry, latitude, longitude, level)
+                        VALUES (%s, ST_GeomFromText(%s, 4326), %s, %s, %s)
+                        ON CONFLICT (quadkey) DO NOTHING
+                    """, (replacement_qk, geometry_wkt, centroid_lat, centroid_lng, tile.z))
 
-            # Insert or update coverage_pixel for replacement
-            cursor.execute("""
-                INSERT INTO coverage_pixel (
-                    quadkey, campaign_id, indicator_id, version,
-                    n_trials, n_covered, rounds, replacement_for
+                claimed = upsert_replacement_pixel(
+                    cursor, replacement_qk, campaign_id, indicator_id, round_number, pixel_id
                 )
-                VALUES (%s, %s, %s, 0, 0, 0, ARRAY[%s], %s)
-                ON CONFLICT (quadkey, indicator_id, campaign_id) DO UPDATE SET
-                    replacement_for = EXCLUDED.replacement_for,
-                    rounds = array_append(COALESCE(coverage_pixel.rounds, '{}'), %s),
-                    updated_at = NOW()
-                WHERE coverage_pixel.replacement_for IS NULL
-                  AND (coverage_pixel.rounds IS NULL OR array_length(coverage_pixel.rounds, 1) IS NULL)
-            """, (replacement_qk, campaign_id, indicator_id, round_number, pixel_id, round_number))
-            replacement_count += 1
+                if claimed:
+                    used_replacement_quadkeys.add(replacement_qk)
+                    break
+                activity.logger.info(f"Lost race for replacement candidate {replacement_qk}, trying next")
+
+            if claimed:
+                replacement_count += 1
+            else:
+                activity.logger.info(f"No qualifying replacement for pixel {pixel_id} after exhausting candidates")
 
         conn.commit()
         activity.logger.info(f"Created {replacement_count} replacement pixels for {len(primary_pixel_ids)} primaries")

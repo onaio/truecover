@@ -18,6 +18,7 @@ import RoundsManager from '../components/RoundsManager';
 import PredictedCoverageSection from '../components/PredictedCoverageSection';
 import CampaignAreasManager from '../components/CampaignAreasManager';
 import AddCampaignAreaModal from '../components/AddCampaignAreaModal';
+import { AdminBoundaryDrillPicker } from '../components/AdminBoundaryDrillPicker';
 import DistributionHistogram from '../components/DistributionHistogram';
 import CondensedStatsBar from '../components/CondensedStatsBar';
 import HistogramDrawer from '../components/HistogramDrawer';
@@ -80,8 +81,9 @@ const LocationsPage: React.FC = () => {
   const [histogramDrawerOpen, setHistogramDrawerOpen] = useState<boolean>(false);
   const [selectedAdminBoundary, setSelectedAdminBoundary] = useState<{ pcode: string; name: string } | null>(null);
   const [isAddCampaignAreaModalOpen, setIsAddCampaignAreaModalOpen] = useState(false);
+  const [isDrillPickerOpen, setIsDrillPickerOpen] = useState(false);
   const [campaignAreaMode, setCampaignAreaMode] = useState<'admin_boundary' | 'drawn'>('admin_boundary');
-  const [selectedAdminBoundaryForCampaign, setSelectedAdminBoundaryForCampaign] = useState<{ pcode: string; name: string } | null>(null);
+  const [selectedAdminBoundaryForCampaign, setSelectedAdminBoundaryForCampaign] = useState<{ pcode?: string; id?: string; name: string } | null>(null);
   const [drawnGeometryForCampaign, setDrawnGeometryForCampaign] = useState<any>(null);
   const [campaignAreasRefreshKey, setCampaignAreasRefreshKey] = useState(0);
   const [buildingWorkflows, setBuildingWorkflows] = useState<Map<string, string>>(new Map()); // areaId -> workflowId
@@ -1029,6 +1031,11 @@ const LocationsPage: React.FC = () => {
             />
 
             {/* Campaign Areas Section - Primary workflow entry point */}
+            <div className="flex justify-end mb-2">
+              <TacticalButton size="sm" variant="secondary" onClick={() => setIsDrillPickerOpen(true)}>
+                Add Area by Drilling Down
+              </TacticalButton>
+            </div>
             <CampaignAreasManager
               key={campaignAreasRefreshKey}
               campaignId={selectedCampaign?.id || ''}
@@ -1140,6 +1147,16 @@ const LocationsPage: React.FC = () => {
         pixelCount={pixelStats?.count || 0}
         onJobCreated={(jobId) => {
           console.log('Enrichment job created:', jobId);
+        }}
+      />
+
+      <AdminBoundaryDrillPicker
+        isOpen={isDrillPickerOpen}
+        onClose={() => setIsDrillPickerOpen(false)}
+        onSelect={(boundary) => {
+          setSelectedAdminBoundaryForCampaign({ id: boundary.id, name: boundary.name });
+          setCampaignAreaMode('admin_boundary');
+          setIsAddCampaignAreaModalOpen(true);
         }}
       />
 

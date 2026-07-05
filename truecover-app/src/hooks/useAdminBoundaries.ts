@@ -6,10 +6,11 @@ import { useAuth } from '@clerk/clerk-react';
 import { adminBoundariesApi } from '../services/api';
 
 interface AdminBoundaryChild {
-  pcode: string;
+  id: string;
+  pcode: string | null;
   name: string;
   level: number;
-  parent_pcode: string;
+  parent_pcode: string | null;
   population: number;
 }
 
