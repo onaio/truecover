@@ -50,6 +50,7 @@ def get_admin_boundary_bounds(user, pcode):
         # Check all PCODE columns since we don't know the level
         cursor.execute("""
             SELECT
+                id,
                 name,
                 level,
                 ST_XMin(geometry) as min_lng,
@@ -71,9 +72,10 @@ def get_admin_boundary_bounds(user, pcode):
             return jsonify({'error': f'Admin boundary not found for PCODE: {pcode}'}), 404
 
         return jsonify({
-            'name': result[0],
-            'level': result[1],
-            'bbox': [result[2], result[3], result[4], result[5]]  # [minLng, minLat, maxLng, maxLat]
+            'id': str(result[0]),
+            'name': result[1],
+            'level': result[2],
+            'bbox': [result[3], result[4], result[5], result[6]]  # [minLng, minLat, maxLng, maxLat]
         }), 200
 
     except Exception as e:
