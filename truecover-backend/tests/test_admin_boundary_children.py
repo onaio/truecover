@@ -4,7 +4,7 @@
 import flask
 import pytest
 from db.connection import get_db_connection, return_db_connection
-from routes.admin_boundaries import get_admin_boundary_children
+from routes.admin_boundaries import get_admin_boundary_children, get_city_corporations
 
 
 @pytest.fixture
@@ -120,3 +120,43 @@ class TestChildrenEndpointNoChildLevel:
         body = response.get_json()
         assert body['children'] == []
         assert body['message'] == 'No child level exists'
+
+
+class TestCityCorporationsEndpoint:
+    def test_returns_only_city_corporations_sorted_by_name(self, db_conn, app_context, monkeypatch):
+        monkeypatch.setattr('routes.admin_boundaries.get_db_connection', lambda: db_conn)
+        monkeypatch.setattr('routes.admin_boundaries.return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Zeta City Corporation', 'BD', 3, 'city_corporation') RETURNING id
+        """)
+        zeta_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Alpha City Corporation', 'BD', 3, 'city_corporation') RETURNING id
+        """)
+        alpha_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Upazila', 'BD', 3, 'upazila')
+        """)
+
+        response, status = get_city_corporations.__wrapped__(user={'id': 'test-user'})
+
+        assert status == 200
+        body = response.get_json()
+        results = body['city_corporations']
+
+        names = [row['name'] for row in results]
+        assert 'Test Upazila' not in names
+
+        alpha_entry = {'id': str(alpha_id), 'name': 'Test Alpha City Corporation'}
+        zeta_entry = {'id': str(zeta_id), 'name': 'Test Zeta City Corporation'}
+        assert alpha_entry in results
+        assert zeta_entry in results
+        assert results.index(alpha_entry) < results.index(zeta_entry)
+        assert names == sorted(names)

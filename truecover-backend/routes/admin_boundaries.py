@@ -195,6 +195,36 @@ def get_admin_boundary_children(user, identifier):
             return_db_connection(conn)
 
 
+@admin_boundaries_bp.route('/api/admin-boundaries/city-corporations', methods=['GET'])
+@require_auth
+def get_city_corporations(user):
+    """Get a flat list of all city corporations"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, name FROM admin_boundaries
+            WHERE boundary_type = 'city_corporation'
+            ORDER BY name
+        """)
+        rows = cursor.fetchall()
+
+        return jsonify({
+            'city_corporations': [
+                {'id': str(row[0]), 'name': row[1]} for row in rows
+            ]
+        }), 200
+
+    except Exception as e:
+        print(f"Error fetching city corporations: {e}")
+        return jsonify({'error': 'Failed to fetch city corporations'}), 500
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
 @admin_boundaries_bp.route('/api/admin-boundaries/<pcode>/pixel-summary', methods=['GET'])
 @require_auth
 def get_pixel_summary(user, pcode):
