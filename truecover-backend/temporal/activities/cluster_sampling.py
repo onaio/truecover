@@ -206,11 +206,11 @@ async def get_children_for_boundary_ids(
 async def save_cluster_sampling_config(
     round_id: str,
     campaign_id: str,
-    starting_pcode: str,
+    starting_boundary_id: str,
     categories: Dict[str, List[str]],
-    upazila_count: int,
-    unions_per_upazila: int,
-    pixels_per_union: int,
+    stage1_count: int,
+    stage2_count: int,
+    pixels_per_stage2: int,
     population_weighted: bool,
     category_weights: Optional[Dict[str, float]],
     min_population: Optional[int]
@@ -221,21 +221,20 @@ async def save_cluster_sampling_config(
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        import json
         cursor.execute("""
             INSERT INTO cluster_sampling_config
-            (round_id, campaign_id, starting_pcode, categories, upazila_count, unions_per_upazila,
-             pixels_per_union, population_weighted, category_weights, min_population)
+            (round_id, campaign_id, starting_boundary_id, categories, stage1_count, stage2_count,
+             pixels_per_stage2, population_weighted, category_weights, min_population)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             round_id,
             campaign_id,
-            starting_pcode,
+            starting_boundary_id,
             json.dumps(categories),
-            upazila_count,
-            unions_per_upazila,
-            pixels_per_union,
+            stage1_count,
+            stage2_count,
+            pixels_per_stage2,
             population_weighted,
             json.dumps(category_weights) if category_weights else None,
             min_population
@@ -417,63 +416,6 @@ async def compute_pixels_for_campaign_areas(
         conn.commit()
         activity.logger.info(f"Computed {total_pixels} pixel associations for {len(campaign_area_ids)} areas")
         return total_pixels
-
-    finally:
-        if conn:
-            cursor.close()
-            return_db_connection(conn)
-
-
-@activity.defn
-async def create_coverage_pixels_for_union(
-    campaign_id: str,
-    indicator_id: str,
-    union_pcode: str,
-    min_population: Optional[int] = None
-) -> int:
-    """
-    Create coverage_pixel records for all pixels in a union.
-    This prepares the union for adaptive sampling.
-
-    Args:
-        campaign_id: Campaign ID
-        indicator_id: Indicator ID
-        union_pcode: Union pcode to create coverage_pixel records for
-        min_population: Optional minimum population filter
-
-    Returns:
-        Number of coverage_pixel records created
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Build population filter
-        pop_filter = ""
-        if min_population is not None:
-            pop_filter = f"AND p.population >= {int(min_population)}"
-
-        # Insert coverage_pixel records for all pixels in this union, skipping duplicates
-        cursor.execute(f"""
-            INSERT INTO coverage_pixel (
-                campaign_id, indicator_id, quadkey, version,
-                n_trials, n_covered,
-                exceedance_probability, exceedance_uncertainty,
-                prevalence_prediction, prevalence_bci_width
-            )
-            SELECT %s, %s, p.quadkey, 0, 0, 0, 0.5, 0.5, 0.5, 0.5
-            FROM pixels p
-            WHERE p.adm4_pcode = %s
-              {pop_filter}
-            ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
-        """, (campaign_id, indicator_id, union_pcode))
-
-        created_count = cursor.rowcount
-        conn.commit()
-
-        activity.logger.info(f"Created {created_count} coverage_pixel records for union {union_pcode}")
-        return created_count
 
     finally:
         if conn:
@@ -742,83 +684,6 @@ async def assign_pixels_to_round(
 
         activity.logger.info(f"Assigned {len(selected_ids)} pixels to round {round_number} for campaign_area {campaign_area_id}")
         return len(selected_ids)
-
-    finally:
-        if conn:
-            cursor.close()
-            return_db_connection(conn)
-
-
-@activity.defn
-async def update_campaign_area_sampled_count_for_union(
-    campaign_id: str,
-    indicator_id: str,
-    union_pcode: str,
-) -> Optional[str]:
-    """
-    Update cached_sampled_count for the campaign area matching a union pcode.
-    Counts all pixels with rounds assigned in coverage_pixel.
-
-    Args:
-        campaign_id: Campaign ID
-        indicator_id: Indicator ID
-        union_pcode: Union pcode to find campaign_area for
-
-    Returns:
-        Campaign area ID if found and updated, None otherwise
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Find campaign_area for this union
-        cursor.execute("""
-            SELECT ca.id
-            FROM campaign_areas ca
-            JOIN admin_boundaries ab ON ca.admin_boundary_id = ab.id
-            WHERE ca.campaign_id = %s AND ab.adm4_pcode = %s
-            LIMIT 1
-        """, (campaign_id, union_pcode))
-
-        row = cursor.fetchone()
-        if not row:
-            activity.logger.warning(f"No campaign_area found for union {union_pcode}")
-            return None
-
-        area_id = str(row[0])
-
-        # Count pixels and population with rounds assigned
-        cursor.execute("""
-            WITH sampled AS (
-                SELECT
-                    COUNT(DISTINCT cp.quadkey) as cnt,
-                    COALESCE(SUM(p.population), 0) as sampled_pop
-                FROM coverage_pixel cp
-                JOIN pixel_area pa ON cp.quadkey = pa.quadkey
-                JOIN pixels p ON cp.quadkey = p.quadkey
-                WHERE pa.campaign_area_id = %s
-                  AND cp.campaign_id = %s
-                  AND cp.indicator_id = %s
-                  AND cp.rounds IS NOT NULL
-                  AND array_length(cp.rounds, 1) > 0
-            )
-            UPDATE campaign_areas
-            SET cached_sampled_count = (SELECT cnt FROM sampled),
-                cached_sampled_population = (SELECT sampled_pop FROM sampled),
-                status = NULL,
-                updated_at = NOW()
-            WHERE id = %s
-            RETURNING cached_sampled_count
-        """, (area_id, campaign_id, indicator_id, area_id))
-
-        result = cursor.fetchone()
-        sampled_count = result[0] if result else 0
-
-        conn.commit()
-
-        activity.logger.info(f"Updated cached_sampled_count={sampled_count} for campaign_area {area_id}")
-        return area_id
 
     finally:
         if conn:

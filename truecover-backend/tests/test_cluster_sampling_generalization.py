@@ -270,3 +270,50 @@ class TestCreateCampaignAreasForBoundaries:
             cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
             cursor.execute("DELETE FROM admin_boundaries WHERE id = %s", (ward_id,))
             db_conn.commit()
+
+
+class TestSaveClusterSamplingConfig:
+    def test_saves_with_generic_column_names(self, db_conn, monkeypatch):
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import save_cluster_sampling_config
+        import asyncio, uuid as uuid_mod
+
+        # save_cluster_sampling_config commits internally, so it must operate
+        # on the fixture's own db_conn (not a separate pooled connection) to
+        # see the uncommitted org/project/campaign/round/boundary rows below.
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("INSERT INTO organizations (name) VALUES (%s) RETURNING id", (f"test-org-{uuid_mod.uuid4().hex[:8]}",))
+        org_id = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO projects (organization_id, title) VALUES (%s, %s) RETURNING id", (org_id, "test-proj"))
+        project_id = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO campaigns (project_id, name) VALUES (%s, %s) RETURNING id", (project_id, "test-campaign"))
+        campaign_id = str(cursor.fetchone()[0])
+        cursor.execute("INSERT INTO indicators (project_id, name) VALUES (%s, %s) RETURNING id", (project_id, "test-indicator"))
+        indicator_id = str(cursor.fetchone()[0])
+        cursor.execute("""
+            INSERT INTO rounds (campaign_id, round_number, name, indicator_id, sampling_target, sampling_method)
+            VALUES (%s, 1, 'Test Round', %s, 'pixels', 'stratified_cluster') RETURNING id
+        """, (campaign_id, indicator_id))
+        round_id = str(cursor.fetchone()[0])
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test CC SCSC', 'BD', 3, 'city_corporation') RETURNING id
+        """)
+        cc_id = str(cursor.fetchone()[0])
+
+        config_id = asyncio.get_event_loop().run_until_complete(
+            save_cluster_sampling_config(
+                round_id, campaign_id, cc_id, {'high_risk': [cc_id]}, 3, 2, 50, False, None, None
+            )
+        )
+
+        cursor.execute("""
+            SELECT starting_boundary_id, stage1_count, stage2_count, pixels_per_stage2
+            FROM cluster_sampling_config WHERE id = %s
+        """, (config_id,))
+        row = cursor.fetchone()
+        assert str(row[0]) == cc_id
+        assert row[1:] == (3, 2, 50)
