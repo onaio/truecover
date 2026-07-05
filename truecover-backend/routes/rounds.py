@@ -309,11 +309,11 @@ def create_stratified_cluster_round(user, campaign_id):
 
         # Required fields
         name = data.get('name')
-        starting_pcode = data.get('starting_pcode')
+        starting_boundary_id = data.get('starting_boundary_id')
         categories = data.get('categories', {})
-        upazila_count = data.get('upazila_count', 3)
-        unions_per_upazila = data.get('unions_per_upazila', 2)
-        pixels_per_union = data.get('pixels_per_union', 50)
+        stage1_count = data.get('stage1_count', 3)
+        stage2_count = data.get('stage2_count', 2)
+        pixels_per_stage2 = data.get('pixels_per_stage2', 50)
         indicator_id = data.get('indicator_id')
 
         # Optional fields
@@ -328,8 +328,8 @@ def create_stratified_cluster_round(user, campaign_id):
         # Validation
         if not name:
             return jsonify({'error': 'Round name is required'}), 400
-        if not starting_pcode:
-            return jsonify({'error': 'Starting PCODE is required'}), 400
+        if not starting_boundary_id:
+            return jsonify({'error': 'starting_boundary_id is required'}), 400
         if not indicator_id:
             return jsonify({'error': 'Indicator ID is required'}), 400
         if not categories or all(len(v) == 0 for v in categories.values()):
@@ -350,11 +350,11 @@ def create_stratified_cluster_round(user, campaign_id):
                     start_date,
                     end_date,
                     indicator_id,
-                    starting_pcode,
+                    starting_boundary_id,
                     categories,
-                    upazila_count,
-                    unions_per_upazila,
-                    pixels_per_union,
+                    stage1_count,
+                    stage2_count,
+                    pixels_per_stage2,
                     population_weighted,
                     category_weights,
                     min_population,

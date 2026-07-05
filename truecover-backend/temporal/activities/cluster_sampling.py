@@ -8,9 +8,70 @@ import json
 from typing import List, Dict, Any, Optional
 
 
+def _is_uuid(value: str) -> bool:
+    import uuid
+    try:
+        uuid.UUID(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _population_for_identifier(cursor, identifier: str) -> float:
+    """
+    Population for a pcode (pixels.adm{n}_pcode match) or a boundary id.
+
+    A boundary id is resolved to its own pcode first, if it has one (rural
+    upazila/union rows do, and pixels.population is populated at that
+    level) - only a boundary id with no pcode at all (ward/block/zone/
+    city_corporation) falls back to admin_boundary_pixels, defaulting to 0
+    when that table has no rows yet for it, since 0 correctly means
+    "unweighted, not silently favored" rather than pretending a nonzero
+    population exists.
+    """
+    resolved_pcode = identifier
+    if _is_uuid(identifier):
+        cursor.execute("""
+            SELECT adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode, level
+            FROM admin_boundaries WHERE id = %s
+        """, (identifier,))
+        row = cursor.fetchone()
+        # Use the pcode column matching this boundary's own level, not the
+        # first non-null column - ancestor pcodes are cascaded onto lower
+        # adm{n}_pcode columns too (e.g. a level-3 upazila row also carries
+        # its parent division's adm1_pcode and district's adm2_pcode), so
+        # picking the first non-null would resolve to an ancestor's pcode
+        # and sum population for the whole ancestor area instead of just
+        # this boundary.
+        level = row[4] if row else None
+        own_pcode = row[level - 1] if row and level and 1 <= level <= 4 else None
+
+        if own_pcode is None:
+            cursor.execute("""
+                SELECT COALESCE(SUM(p.population), 0)
+                FROM admin_boundary_pixels abp
+                JOIN pixels p ON abp.quadkey = p.quadkey
+                WHERE abp.admin_boundary_id = %s AND p.population IS NOT NULL
+            """, (identifier,))
+            result = cursor.fetchone()
+            return float(result[0]) if result and result[0] else 0.0
+
+        resolved_pcode = own_pcode
+
+    cursor.execute("""
+        SELECT COALESCE(SUM(p.population), 1)
+        FROM pixels p
+        WHERE (p.adm1_pcode = %s OR p.adm2_pcode = %s
+               OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
+          AND p.population IS NOT NULL
+    """, (resolved_pcode, resolved_pcode, resolved_pcode, resolved_pcode))
+    result = cursor.fetchone()
+    return float(result[0]) if result and result[0] else 1.0
+
+
 @activity.defn
 async def select_clusters(
-    pcodes: List[str],
+    ids: List[str],
     categories: Dict[str, List[str]],
     count: int,
     population_weighted: bool,
@@ -20,14 +81,14 @@ async def select_clusters(
     Select clusters (upazilas or unions) from categorized areas.
 
     Args:
-        pcodes: All available pcodes to select from
-        categories: Dict mapping category name to list of pcodes
+        ids: All available pcodes or admin_boundaries.id values to select from
+        categories: Dict mapping category name to list of pcodes or boundary ids
         count: Number of clusters to select
         population_weighted: Whether to weight by population
         category_weights: Optional multipliers per category
 
     Returns:
-        List of selected pcodes
+        List of selected pcodes or boundary ids
     """
     conn = None
     try:
@@ -45,16 +106,7 @@ async def select_clusters(
                 weight = category_weight
 
                 if population_weighted:
-                    # Get population for this pcode from pixels
-                    cursor.execute("""
-                        SELECT COALESCE(SUM(p.population), 1)
-                        FROM pixels p
-                        WHERE (p.adm1_pcode = %s OR p.adm2_pcode = %s
-                               OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-                          AND p.population IS NOT NULL
-                    """, (pcode, pcode, pcode, pcode))
-                    pop_result = cursor.fetchone()
-                    population = float(pop_result[0]) if pop_result and pop_result[0] else 1
+                    population = _population_for_identifier(cursor, pcode)
                     weight *= population
 
                 pool.append({'pcode': pcode, 'weight': weight, 'category': category})
@@ -98,19 +150,23 @@ async def select_clusters(
 
 
 @activity.defn
-async def get_children_for_pcodes(
-    parent_pcodes: List[str],
+async def get_children_for_boundary_ids(
+    parent_ids: List[str],
     categories: Dict[str, List[str]]
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Get child boundaries for a list of parent pcodes.
+    Get child boundaries for a list of parent admin_boundaries ids.
+
+    Merges parent_id-linked children (e.g. a district's city corporation)
+    with pcode-derived children (e.g. that district's upazilas) - a boundary
+    can have both simultaneously, they are siblings, not alternatives.
 
     Args:
-        parent_pcodes: List of parent pcodes to get children for
-        categories: Original categories to inherit to children
+        parent_ids: List of parent admin_boundaries.id values
+        categories: Original categories to inherit to children, keyed by parent id
 
     Returns:
-        Dict mapping parent_pcode to {children: [...], category: str}
+        Dict mapping parent_id to {children: [{id, pcode, name}], category: str}
     """
     conn = None
     try:
@@ -119,54 +175,49 @@ async def get_children_for_pcodes(
 
         result = {}
 
-        # Build reverse lookup for category
-        pcode_to_category = {}
-        for category, pcodes in categories.items():
-            for pcode in pcodes:
-                pcode_to_category[pcode] = category
+        id_to_category = {}
+        for category, ids in categories.items():
+            for boundary_id in ids:
+                id_to_category[boundary_id] = category
 
-        for parent_pcode in parent_pcodes:
-            # Find parent level
+        for parent_id in parent_ids:
+            children = []
+
             cursor.execute("""
-                SELECT level FROM admin_boundaries
-                WHERE adm1_pcode = %s OR adm2_pcode = %s
-                   OR adm3_pcode = %s OR adm4_pcode = %s
-                LIMIT 1
-            """, (parent_pcode, parent_pcode, parent_pcode, parent_pcode))
+                SELECT id, name,
+                       adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+                FROM admin_boundaries WHERE parent_id = %s ORDER BY name
+            """, (parent_id,))
+            for row in cursor.fetchall():
+                pcode = next((row[2 + i] for i in range(5) if row[2 + i]), None)
+                children.append({'id': str(row[0]), 'pcode': pcode, 'name': row[1]})
 
-            level_result = cursor.fetchone()
-            if not level_result:
-                continue
+            cursor.execute("""
+                SELECT level, adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+                FROM admin_boundaries WHERE id = %s
+            """, (parent_id,))
+            parent_row = cursor.fetchone()
+            if parent_row:
+                parent_level = parent_row[0]
+                child_level = parent_level + 1
+                if child_level <= 4:
+                    pcode = parent_row[1 + parent_level]
+                    parent_col = f'adm{parent_level}_pcode'
+                    child_col = f'adm{child_level}_pcode'
+                    cursor.execute(f"""
+                        SELECT id, name, {child_col} FROM admin_boundaries
+                        WHERE level = %s AND {parent_col} = %s
+                        ORDER BY name
+                    """, (child_level, pcode))
+                    for row in cursor.fetchall():
+                        children.append({'id': str(row[0]), 'pcode': row[2], 'name': row[1]})
 
-            parent_level = level_result[0]
-            child_level = parent_level + 1
-
-            if child_level > 4:
-                continue
-
-            parent_col = f'adm{parent_level}_pcode'
-
-            cursor.execute(f"""
-                SELECT DISTINCT
-                    CASE
-                        WHEN level = 1 THEN adm1_pcode
-                        WHEN level = 2 THEN adm2_pcode
-                        WHEN level = 3 THEN adm3_pcode
-                        WHEN level = 4 THEN adm4_pcode
-                    END as pcode,
-                    name
-                FROM admin_boundaries
-                WHERE level = %s AND {parent_col} = %s
-            """, (child_level, parent_pcode))
-
-            children = [{'pcode': row[0], 'name': row[1]} for row in cursor.fetchall()]
-
-            result[parent_pcode] = {
+            result[parent_id] = {
                 'children': children,
-                'category': pcode_to_category.get(parent_pcode, 'uncategorized')
+                'category': id_to_category.get(parent_id, 'uncategorized')
             }
 
-        activity.logger.info(f"Fetched children for {len(result)} parent pcodes")
+        activity.logger.info(f"Fetched children for {len(result)} parent boundary ids")
         return result
 
     finally:
@@ -179,11 +230,11 @@ async def get_children_for_pcodes(
 async def save_cluster_sampling_config(
     round_id: str,
     campaign_id: str,
-    starting_pcode: str,
+    starting_boundary_id: str,
     categories: Dict[str, List[str]],
-    upazila_count: int,
-    unions_per_upazila: int,
-    pixels_per_union: int,
+    stage1_count: int,
+    stage2_count: int,
+    pixels_per_stage2: int,
     population_weighted: bool,
     category_weights: Optional[Dict[str, float]],
     min_population: Optional[int]
@@ -194,21 +245,20 @@ async def save_cluster_sampling_config(
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        import json
         cursor.execute("""
             INSERT INTO cluster_sampling_config
-            (round_id, campaign_id, starting_pcode, categories, upazila_count, unions_per_upazila,
-             pixels_per_union, population_weighted, category_weights, min_population)
+            (round_id, campaign_id, starting_boundary_id, categories, stage1_count, stage2_count,
+             pixels_per_stage2, population_weighted, category_weights, min_population)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
             round_id,
             campaign_id,
-            starting_pcode,
+            starting_boundary_id,
             json.dumps(categories),
-            upazila_count,
-            unions_per_upazila,
-            pixels_per_union,
+            stage1_count,
+            stage2_count,
+            pixels_per_stage2,
             population_weighted,
             json.dumps(category_weights) if category_weights else None,
             min_population
@@ -227,18 +277,20 @@ async def save_cluster_sampling_config(
 
 
 @activity.defn
-async def create_campaign_areas_for_unions(
+async def create_campaign_areas_for_boundaries(
     campaign_id: str,
-    union_pcodes: List[str],
-    union_category_map: Optional[Dict[str, str]] = None
+    boundary_ids: List[str],
+    boundary_category_map: Optional[Dict[str, str]] = None
 ) -> List[str]:
     """
-    Create campaign_areas for each selected union.
+    Create campaign_areas for each selected boundary (union, ward, or any
+    admin_boundaries row - looked up by id, not pcode, since city
+    corporation/zone/ward rows have no pcode).
 
     Args:
         campaign_id: Campaign to add areas to
-        union_pcodes: List of union pcodes to add as campaign areas
-        union_category_map: Optional mapping of pcode -> category name
+        boundary_ids: List of admin_boundaries.id values to add as campaign areas
+        boundary_category_map: Optional mapping of boundary id -> category name
 
     Returns:
         List of created campaign_area IDs
@@ -250,20 +302,18 @@ async def create_campaign_areas_for_unions(
 
         created_ids = []
 
-        for pcode in union_pcodes:
-            # Get admin boundary info for this pcode
+        for boundary_id in boundary_ids:
             cursor.execute("""
                 SELECT id, name, ST_AsText(geometry),
                        ST_XMin(geometry), ST_YMin(geometry),
                        ST_XMax(geometry), ST_YMax(geometry)
                 FROM admin_boundaries
-                WHERE adm4_pcode = %s
-                LIMIT 1
-            """, (pcode,))
+                WHERE id = %s
+            """, (boundary_id,))
 
             row = cursor.fetchone()
             if not row:
-                activity.logger.warning(f"Admin boundary not found for pcode {pcode}")
+                activity.logger.warning(f"Admin boundary not found for id {boundary_id}")
                 continue
 
             admin_boundary_id = str(row[0])
@@ -273,7 +323,7 @@ async def create_campaign_areas_for_unions(
             bbox_min_lat = row[4]
             bbox_max_lng = row[5]
             bbox_max_lat = row[6]
-            category = union_category_map.get(pcode) if union_category_map else None
+            category = boundary_category_map.get(boundary_id) if boundary_category_map else None
 
             # Check if this area already exists for the campaign
             cursor.execute("""
@@ -309,7 +359,7 @@ async def create_campaign_areas_for_unions(
             created_ids.append(area_id)
 
         conn.commit()
-        activity.logger.info(f"Created {len(created_ids)} campaign areas for unions")
+        activity.logger.info(f"Created {len(created_ids)} campaign areas for boundaries")
         return created_ids
 
     finally:
@@ -390,63 +440,6 @@ async def compute_pixels_for_campaign_areas(
         conn.commit()
         activity.logger.info(f"Computed {total_pixels} pixel associations for {len(campaign_area_ids)} areas")
         return total_pixels
-
-    finally:
-        if conn:
-            cursor.close()
-            return_db_connection(conn)
-
-
-@activity.defn
-async def create_coverage_pixels_for_union(
-    campaign_id: str,
-    indicator_id: str,
-    union_pcode: str,
-    min_population: Optional[int] = None
-) -> int:
-    """
-    Create coverage_pixel records for all pixels in a union.
-    This prepares the union for adaptive sampling.
-
-    Args:
-        campaign_id: Campaign ID
-        indicator_id: Indicator ID
-        union_pcode: Union pcode to create coverage_pixel records for
-        min_population: Optional minimum population filter
-
-    Returns:
-        Number of coverage_pixel records created
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Build population filter
-        pop_filter = ""
-        if min_population is not None:
-            pop_filter = f"AND p.population >= {int(min_population)}"
-
-        # Insert coverage_pixel records for all pixels in this union, skipping duplicates
-        cursor.execute(f"""
-            INSERT INTO coverage_pixel (
-                campaign_id, indicator_id, quadkey, version,
-                n_trials, n_covered,
-                exceedance_probability, exceedance_uncertainty,
-                prevalence_prediction, prevalence_bci_width
-            )
-            SELECT %s, %s, p.quadkey, 0, 0, 0, 0.5, 0.5, 0.5, 0.5
-            FROM pixels p
-            WHERE p.adm4_pcode = %s
-              {pop_filter}
-            ON CONFLICT (quadkey, indicator_id, campaign_id, version) DO NOTHING
-        """, (campaign_id, indicator_id, union_pcode))
-
-        created_count = cursor.rowcount
-        conn.commit()
-
-        activity.logger.info(f"Created {created_count} coverage_pixel records for union {union_pcode}")
-        return created_count
 
     finally:
         if conn:
@@ -715,83 +708,6 @@ async def assign_pixels_to_round(
 
         activity.logger.info(f"Assigned {len(selected_ids)} pixels to round {round_number} for campaign_area {campaign_area_id}")
         return len(selected_ids)
-
-    finally:
-        if conn:
-            cursor.close()
-            return_db_connection(conn)
-
-
-@activity.defn
-async def update_campaign_area_sampled_count_for_union(
-    campaign_id: str,
-    indicator_id: str,
-    union_pcode: str,
-) -> Optional[str]:
-    """
-    Update cached_sampled_count for the campaign area matching a union pcode.
-    Counts all pixels with rounds assigned in coverage_pixel.
-
-    Args:
-        campaign_id: Campaign ID
-        indicator_id: Indicator ID
-        union_pcode: Union pcode to find campaign_area for
-
-    Returns:
-        Campaign area ID if found and updated, None otherwise
-    """
-    conn = None
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Find campaign_area for this union
-        cursor.execute("""
-            SELECT ca.id
-            FROM campaign_areas ca
-            JOIN admin_boundaries ab ON ca.admin_boundary_id = ab.id
-            WHERE ca.campaign_id = %s AND ab.adm4_pcode = %s
-            LIMIT 1
-        """, (campaign_id, union_pcode))
-
-        row = cursor.fetchone()
-        if not row:
-            activity.logger.warning(f"No campaign_area found for union {union_pcode}")
-            return None
-
-        area_id = str(row[0])
-
-        # Count pixels and population with rounds assigned
-        cursor.execute("""
-            WITH sampled AS (
-                SELECT
-                    COUNT(DISTINCT cp.quadkey) as cnt,
-                    COALESCE(SUM(p.population), 0) as sampled_pop
-                FROM coverage_pixel cp
-                JOIN pixel_area pa ON cp.quadkey = pa.quadkey
-                JOIN pixels p ON cp.quadkey = p.quadkey
-                WHERE pa.campaign_area_id = %s
-                  AND cp.campaign_id = %s
-                  AND cp.indicator_id = %s
-                  AND cp.rounds IS NOT NULL
-                  AND array_length(cp.rounds, 1) > 0
-            )
-            UPDATE campaign_areas
-            SET cached_sampled_count = (SELECT cnt FROM sampled),
-                cached_sampled_population = (SELECT sampled_pop FROM sampled),
-                status = NULL,
-                updated_at = NOW()
-            WHERE id = %s
-            RETURNING cached_sampled_count
-        """, (area_id, campaign_id, indicator_id, area_id))
-
-        result = cursor.fetchone()
-        sampled_count = result[0] if result else 0
-
-        conn.commit()
-
-        activity.logger.info(f"Updated cached_sampled_count={sampled_count} for campaign_area {area_id}")
-        return area_id
 
     finally:
         if conn:

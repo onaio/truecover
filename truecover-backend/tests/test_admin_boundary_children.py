@@ -4,7 +4,11 @@
 import flask
 import pytest
 from db.connection import get_db_connection, return_db_connection
-from routes.admin_boundaries import get_admin_boundary_children
+from routes.admin_boundaries import (
+    get_admin_boundary_bounds,
+    get_admin_boundary_children,
+    get_city_corporations,
+)
 
 
 @pytest.fixture
@@ -120,3 +124,72 @@ class TestChildrenEndpointNoChildLevel:
         body = response.get_json()
         assert body['children'] == []
         assert body['message'] == 'No child level exists'
+
+
+class TestBoundaryBoundsEndpointReturnsId:
+    def test_bounds_response_includes_matching_boundary_id(self, db_conn, app_context, monkeypatch):
+        """Legacy map-click flows only ever have a pcode, never an id. The
+        stratified sampling wizard needs to resolve that pcode to the real
+        admin_boundaries.id (a uuid) so it can pass an id-based
+        starting_boundary_id to the backend, so this endpoint must expose it.
+        """
+        monkeypatch.setattr('routes.admin_boundaries.get_db_connection', lambda: db_conn)
+        monkeypatch.setattr('routes.admin_boundaries.return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, adm2_pcode, geometry)
+            VALUES ('Test Bounds District', 'BD', 2, 'BDBOUNDSTEST',
+                    ST_GeomFromText('POLYGON((90 23, 90.1 23, 90.1 23.1, 90 23.1, 90 23))', 4326))
+            RETURNING id
+        """)
+        district_id = cursor.fetchone()[0]
+
+        response, status = get_admin_boundary_bounds.__wrapped__(
+            user={'id': 'test-user'}, pcode='BDBOUNDSTEST'
+        )
+
+        assert status == 200
+        body = response.get_json()
+        assert body['id'] == str(district_id)
+        assert body['name'] == 'Test Bounds District'
+
+
+class TestCityCorporationsEndpoint:
+    def test_returns_only_city_corporations_sorted_by_name(self, db_conn, app_context, monkeypatch):
+        monkeypatch.setattr('routes.admin_boundaries.get_db_connection', lambda: db_conn)
+        monkeypatch.setattr('routes.admin_boundaries.return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Zeta City Corporation', 'BD', 3, 'city_corporation') RETURNING id
+        """)
+        zeta_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Alpha City Corporation', 'BD', 3, 'city_corporation') RETURNING id
+        """)
+        alpha_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Upazila', 'BD', 3, 'upazila')
+        """)
+
+        response, status = get_city_corporations.__wrapped__(user={'id': 'test-user'})
+
+        assert status == 200
+        body = response.get_json()
+        results = body['city_corporations']
+
+        names = [row['name'] for row in results]
+        assert 'Test Upazila' not in names
+
+        alpha_entry = {'id': str(alpha_id), 'name': 'Test Alpha City Corporation'}
+        zeta_entry = {'id': str(zeta_id), 'name': 'Test Zeta City Corporation'}
+        assert alpha_entry in results
+        assert zeta_entry in results
+        assert results.index(alpha_entry) < results.index(zeta_entry)
+        assert names == sorted(names)

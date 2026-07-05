@@ -1,5 +1,5 @@
 # ABOUTME: Temporal workflow for stratified cluster sampling
-# ABOUTME: Orchestrates multi-stage cluster selection with adaptive sampling
+# ABOUTME: Orchestrates multi-stage cluster selection with adaptive sampling, rural or city-corporation branch
 
 from datetime import timedelta
 from temporalio import workflow
@@ -10,28 +10,28 @@ from typing import Dict, Any, List, Optional
 with workflow.unsafe.imports_passed_through():
     from ..activities.cluster_sampling import (
         select_clusters,
-        get_children_for_pcodes,
+        get_children_for_boundary_ids,
         save_cluster_sampling_config,
-        create_campaign_areas_for_unions,
+        create_campaign_areas_for_boundaries,
         compute_pixels_for_campaign_areas,
-        create_coverage_pixels_for_union,
-        update_campaign_area_sampled_count_for_union,
+        create_coverage_pixels_for_campaign_area,
+        update_campaign_area_sampled_counts,
         create_replacement_pixels,
     )
     from ..activities.rounds import (
         create_round_record,
         delete_round_record,
-        call_adaptive_sampling,
-        update_round_assignments,
         remove_round_assignments,
     )
+    from ..activities.cluster_sampling import sample_pixels_for_campaign_area, assign_pixels_to_round
 
 
 @workflow.defn
-class UnionPixelSamplingWorkflow:
+class AreaPixelSamplingWorkflow:
     """
-    Child workflow for sampling pixels from a single union.
-    Spawned by StratifiedClusterSamplingWorkflow for each selected union.
+    Child workflow for sampling pixels from a single campaign area
+    (a selected union, or a selected ward under a city corporation zone).
+    Spawned by StratifiedClusterSamplingWorkflow for each selected stage-2 boundary.
     """
 
     def __init__(self):
@@ -50,15 +50,15 @@ class UnionPixelSamplingWorkflow:
         self,
         campaign_id: str,
         indicator_id: str,
-        union_pcode: str,
+        campaign_area_id: str,
         round_number: int,
-        pixels_per_union: int,
-        uncertainty_field: str,
-        min_population: Optional[int]
+        pixels_per_stage2: int,
+        min_population: Optional[int],
+        uncertainty_field: str = 'prevalence_bci_width'
     ) -> Dict[str, Any]:
-        """Run pixel sampling for a single union."""
+        """Run pixel sampling for a single campaign area."""
 
-        workflow.logger.info(f"Starting pixel sampling for union {union_pcode}")
+        workflow.logger.info(f"Starting pixel sampling for campaign_area {campaign_area_id}")
 
         retry_policy = RetryPolicy(
             initial_interval=timedelta(seconds=1),
@@ -69,30 +69,18 @@ class UnionPixelSamplingWorkflow:
         selected_ids = []
 
         try:
-            # Step 1: Create coverage_pixel records for this union
             self.status = "creating_coverage_pixels"
             await workflow.execute_activity(
-                create_coverage_pixels_for_union,
-                args=[campaign_id, indicator_id, union_pcode, min_population],
+                create_coverage_pixels_for_campaign_area,
+                args=[campaign_id, indicator_id, campaign_area_id, min_population],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=retry_policy
             )
 
-            # Step 2: Run adaptive sampling
             self.status = "adaptive_sampling"
             sampling_result = await workflow.execute_activity(
-                call_adaptive_sampling,
-                args=[
-                    campaign_id,
-                    indicator_id,
-                    'pixels',
-                    pixels_per_union,
-                    uncertainty_field,
-                    False,  # allow_revisit
-                    union_pcode,  # admin_pcode filter
-                    min_population,
-                    'population'  # population_field
-                ],
+                sample_pixels_for_campaign_area,
+                args=[campaign_id, indicator_id, campaign_area_id, pixels_per_stage2, uncertainty_field],
                 start_to_close_timeout=timedelta(minutes=5),
                 retry_policy=retry_policy
             )
@@ -101,34 +89,31 @@ class UnionPixelSamplingWorkflow:
             self.pixels_selected = len(selected_ids)
 
             if not selected_ids:
-                workflow.logger.warning(f"No pixels selected for union {union_pcode}")
+                workflow.logger.warning(f"No pixels selected for campaign_area {campaign_area_id}")
                 self.status = "completed_empty"
                 return {
-                    'union_pcode': union_pcode,
+                    'campaign_area_id': campaign_area_id,
                     'selected_ids': [],
                     'pixels_selected': 0,
                     'status': 'completed_empty'
                 }
 
-            # Step 3: Update round assignments for this union's pixels
-            self.status = "updating_assignments"
+            self.status = "assigning_to_round"
             await workflow.execute_activity(
-                update_round_assignments,
-                args=[selected_ids, round_number, 'pixels'],
+                assign_pixels_to_round,
+                args=[campaign_area_id, selected_ids, round_number],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy
             )
 
-            # Step 4: Update cached_sampled_count for the campaign_area
             self.status = "updating_sampled_count"
             await workflow.execute_activity(
-                update_campaign_area_sampled_count_for_union,
-                args=[campaign_id, indicator_id, union_pcode],
+                update_campaign_area_sampled_counts,
+                args=[[campaign_area_id], campaign_id, indicator_id],
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=retry_policy
             )
 
-            # Step 5: Create replacement pixels
             self.status = "creating_replacements"
             replacement_result = await workflow.execute_activity(
                 create_replacement_pixels,
@@ -137,24 +122,23 @@ class UnionPixelSamplingWorkflow:
                 retry_policy=retry_policy
             )
             workflow.logger.info(
-                f"Created {replacement_result.get('replacement_count', 0)} replacement pixels for union {union_pcode}"
+                f"Created {replacement_result.get('replacement_count', 0)} replacement pixels for campaign_area {campaign_area_id}"
             )
 
             self.status = "completed"
-            workflow.logger.info(f"Completed sampling for union {union_pcode}: {self.pixels_selected} pixels")
+            workflow.logger.info(f"Completed sampling for campaign_area {campaign_area_id}: {self.pixels_selected} pixels")
 
             return {
-                'union_pcode': union_pcode,
+                'campaign_area_id': campaign_area_id,
                 'selected_ids': selected_ids,
                 'pixels_selected': self.pixels_selected,
                 'status': 'completed'
             }
 
         except Exception as e:
-            workflow.logger.error(f"Union pixel sampling failed for {union_pcode}: {e}")
+            workflow.logger.error(f"Area pixel sampling failed for {campaign_area_id}: {e}")
             self.status = "failed"
 
-            # Compensation: remove round assignments if any were made
             if selected_ids:
                 try:
                     await workflow.execute_activity(
@@ -164,14 +148,14 @@ class UnionPixelSamplingWorkflow:
                         retry_policy=retry_policy
                     )
                     await workflow.execute_activity(
-                        update_campaign_area_sampled_count_for_union,
-                        args=[campaign_id, indicator_id, union_pcode],
+                        update_campaign_area_sampled_counts,
+                        args=[[campaign_area_id], campaign_id, indicator_id],
                         start_to_close_timeout=timedelta(seconds=30),
                         retry_policy=retry_policy
                     )
-                    workflow.logger.info(f"Compensation complete for union {union_pcode}")
+                    workflow.logger.info(f"Compensation complete for campaign_area {campaign_area_id}")
                 except Exception as comp_error:
-                    workflow.logger.error(f"Compensation failed for union {union_pcode}: {comp_error}")
+                    workflow.logger.error(f"Compensation failed for campaign_area {campaign_area_id}: {comp_error}")
 
             raise
 
@@ -179,23 +163,25 @@ class UnionPixelSamplingWorkflow:
 @workflow.defn
 class StratifiedClusterSamplingWorkflow:
     """
-    Workflow for stratified cluster sampling.
+    Workflow for stratified cluster sampling, generic across the rural
+    (district -> upazila -> union) and city-corporation (city corp -> zone ->
+    ward) branches - the starting boundary determines which children exist.
 
     Phase 1 (this workflow):
     1. Create round record
-    2. Select upazilas from categorized areas
-    3. For each upazila, select unions
-    4. Create campaign_areas for selected unions
+    2. Select stage-1 boundaries (upazilas or zones) from categorized areas
+    3. For each stage-1 boundary, select stage-2 boundaries (unions or wards)
+    4. Create campaign_areas for selected stage-2 boundaries
     5. Spawn child workflows for pixel sampling
 
-    Phase 2 (child workflows - UnionPixelSamplingWorkflow):
-    - Each union gets its own workflow for pixel sampling
+    Phase 2 (child workflows - AreaPixelSamplingWorkflow):
+    - Each stage-2 boundary gets its own workflow for pixel sampling
     - Runs in parallel, continues independently
     """
 
     def __init__(self):
-        self.selected_upazilas = []
-        self.selected_unions = []
+        self.selected_stage1 = []
+        self.selected_stage2 = []
         self.status = "initializing"
         self.child_workflows_started = 0
 
@@ -203,8 +189,8 @@ class StratifiedClusterSamplingWorkflow:
     def get_progress(self) -> Dict[str, Any]:
         return {
             'status': self.status,
-            'selected_upazilas': len(self.selected_upazilas),
-            'selected_unions': len(self.selected_unions),
+            'selected_stage1': len(self.selected_stage1),
+            'selected_stage2': len(self.selected_stage2),
             'child_workflows_started': self.child_workflows_started
         }
 
@@ -217,11 +203,11 @@ class StratifiedClusterSamplingWorkflow:
         start_date: Optional[str],
         end_date: Optional[str],
         indicator_id: str,
-        starting_pcode: str,
+        starting_boundary_id: str,
         categories: Dict[str, List[str]],
-        upazila_count: int,
-        unions_per_upazila: int,
-        pixels_per_union: int,
+        stage1_count: int,
+        stage2_count: int,
+        pixels_per_stage2: int,
         population_weighted: bool,
         category_weights: Optional[Dict[str, float]],
         min_population: Optional[int],
@@ -238,7 +224,6 @@ class StratifiedClusterSamplingWorkflow:
             maximum_attempts=3
         )
 
-        # Step 1: Create round record
         round_data = await workflow.execute_activity(
             create_round_record,
             args=[campaign_id, name, description, start_date, end_date,
@@ -251,93 +236,85 @@ class StratifiedClusterSamplingWorkflow:
         round_number = round_data['round_number']
 
         try:
-            # Step 2: Select upazilas
-            self.status = "selecting_upazilas"
-            all_upazilas = []
-            for category_pcodes in categories.values():
-                all_upazilas.extend(category_pcodes)
+            self.status = "selecting_stage1"
+            all_stage1 = []
+            for category_ids in categories.values():
+                all_stage1.extend(category_ids)
 
-            self.selected_upazilas = await workflow.execute_activity(
+            self.selected_stage1 = await workflow.execute_activity(
                 select_clusters,
-                args=[all_upazilas, categories, upazila_count,
+                args=[all_stage1, categories, stage1_count,
                       population_weighted, category_weights],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy
             )
 
-            if not self.selected_upazilas:
-                raise ValueError("No upazilas selected - check category assignments")
+            if not self.selected_stage1:
+                raise ValueError("No stage-1 areas selected - check category assignments")
 
-            workflow.logger.info(f"Selected {len(self.selected_upazilas)} upazilas")
+            workflow.logger.info(f"Selected {len(self.selected_stage1)} stage-1 areas")
 
-            # Step 3: Get unions for each upazila and select
-            self.status = "selecting_unions"
-            upazila_children = await workflow.execute_activity(
-                get_children_for_pcodes,
-                args=[self.selected_upazilas, categories],
+            self.status = "selecting_stage2"
+            stage1_children = await workflow.execute_activity(
+                get_children_for_boundary_ids,
+                args=[self.selected_stage1, categories],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy
             )
 
-            # Build union categories (inherit from parent upazila)
-            union_categories: Dict[str, List[str]] = {
+            stage2_categories: Dict[str, List[str]] = {
                 'high_risk': [], 'low_risk': [], 'hard_to_reach': []
             }
 
-            for upazila_pcode, data in upazila_children.items():
+            for stage1_id, data in stage1_children.items():
                 parent_category = data['category']
-                child_pcodes = [c['pcode'] for c in data['children']]
-                if parent_category in union_categories:
-                    union_categories[parent_category].extend(child_pcodes)
+                child_ids = [c['id'] for c in data['children']]
+                if parent_category in stage2_categories:
+                    stage2_categories[parent_category].extend(child_ids)
                 else:
-                    union_categories['low_risk'].extend(child_pcodes)
+                    stage2_categories['low_risk'].extend(child_ids)
 
-            # Select unions for each upazila
-            for upazila_pcode, data in upazila_children.items():
-                union_pcodes = [c['pcode'] for c in data['children']]
-                if not union_pcodes:
+            for stage1_id, data in stage1_children.items():
+                stage2_ids = [c['id'] for c in data['children']]
+                if not stage2_ids:
                     continue
 
-                # Build mini-categories for this upazila's unions
-                upazila_union_categories = {}
-                for cat, pcodes in union_categories.items():
-                    matching = [p for p in pcodes if p in union_pcodes]
+                stage1_stage2_categories = {}
+                for cat, ids in stage2_categories.items():
+                    matching = [i for i in ids if i in stage2_ids]
                     if matching:
-                        upazila_union_categories[cat] = matching
+                        stage1_stage2_categories[cat] = matching
 
                 selected = await workflow.execute_activity(
                     select_clusters,
-                    args=[union_pcodes, upazila_union_categories, unions_per_upazila,
+                    args=[stage2_ids, stage1_stage2_categories, stage2_count,
                           population_weighted, category_weights],
                     start_to_close_timeout=timedelta(minutes=1),
                     retry_policy=retry_policy
                 )
-                self.selected_unions.extend(selected)
+                self.selected_stage2.extend(selected)
 
-            workflow.logger.info(f"Selected {len(self.selected_unions)} unions total")
+            workflow.logger.info(f"Selected {len(self.selected_stage2)} stage-2 areas total")
 
-            if not self.selected_unions:
-                raise ValueError("No unions selected")
+            if not self.selected_stage2:
+                raise ValueError("No stage-2 areas selected")
 
-            # Step 4: Create campaign_areas for selected unions
             self.status = "creating_campaign_areas"
-            # Build pcode → category mapping for storage
-            union_category_map = {}
-            for cat, pcodes in union_categories.items():
-                for pcode in pcodes:
-                    if pcode in self.selected_unions:
-                        union_category_map[pcode] = cat
+            stage2_category_map = {}
+            for cat, ids in stage2_categories.items():
+                for boundary_id in ids:
+                    if boundary_id in self.selected_stage2:
+                        stage2_category_map[boundary_id] = cat
 
             campaign_area_ids = await workflow.execute_activity(
-                create_campaign_areas_for_unions,
-                args=[campaign_id, self.selected_unions, union_category_map],
+                create_campaign_areas_for_boundaries,
+                args=[campaign_id, self.selected_stage2, stage2_category_map],
                 start_to_close_timeout=timedelta(minutes=2),
                 retry_policy=retry_policy
             )
 
             workflow.logger.info(f"Created {len(campaign_area_ids)} campaign areas")
 
-            # Step 5: Compute pixels for the new campaign areas
             self.status = "computing_pixels"
             await workflow.execute_activity(
                 compute_pixels_for_campaign_areas,
@@ -346,34 +323,32 @@ class StratifiedClusterSamplingWorkflow:
                 retry_policy=retry_policy
             )
 
-            # Step 6: Save config
             await workflow.execute_activity(
                 save_cluster_sampling_config,
-                args=[round_id, campaign_id, starting_pcode, categories, upazila_count,
-                      unions_per_upazila, pixels_per_union, population_weighted,
+                args=[round_id, campaign_id, starting_boundary_id, categories, stage1_count,
+                      stage2_count, pixels_per_stage2, population_weighted,
                       category_weights, min_population],
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=retry_policy
             )
 
-            # Step 7: Spawn child workflows for each union's pixel sampling
             self.status = "spawning_sampling_workflows"
             child_workflow_ids = []
 
-            for union_pcode in self.selected_unions:
-                child_workflow_id = f"union-sampling-{campaign_id}-{round_number}-{union_pcode}"
+            for campaign_area_id in campaign_area_ids:
+                child_workflow_id = f"area-sampling-{campaign_id}-{round_number}-{campaign_area_id}"
 
                 # Start child workflow - continues even if parent completes
                 await workflow.start_child_workflow(
-                    UnionPixelSamplingWorkflow.run,
+                    AreaPixelSamplingWorkflow.run,
                     args=[
                         campaign_id,
                         indicator_id,
-                        union_pcode,
+                        campaign_area_id,
                         round_number,
-                        pixels_per_union,
-                        uncertainty_field,
-                        min_population
+                        pixels_per_stage2,
+                        min_population,
+                        uncertainty_field
                     ],
                     id=child_workflow_id,
                     task_queue="truecover-tasks",
@@ -392,8 +367,8 @@ class StratifiedClusterSamplingWorkflow:
             return {
                 'round_id': round_id,
                 'round_number': round_number,
-                'selected_upazilas': self.selected_upazilas,
-                'selected_unions': self.selected_unions,
+                'selected_stage1': self.selected_stage1,
+                'selected_stage2': self.selected_stage2,
                 'campaign_area_ids': campaign_area_ids,
                 'child_workflow_ids': child_workflow_ids,
                 'area_workflow_map': dict(zip(campaign_area_ids, child_workflow_ids)),
@@ -404,7 +379,6 @@ class StratifiedClusterSamplingWorkflow:
             workflow.logger.error(f"Workflow failed: {e}")
             self.status = "failed"
 
-            # Compensation: delete the round
             try:
                 await workflow.execute_activity(
                     delete_round_record,

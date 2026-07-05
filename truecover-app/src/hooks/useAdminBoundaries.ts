@@ -61,3 +61,28 @@ export function useDistricts(divisionPcode: string | undefined) {
 export function useUpazilas(districtPcode: string | undefined) {
   return useAdminBoundaryChildren(districtPcode);
 }
+
+/**
+ * Hook to fetch all Bangladesh city corporations (flat list, ~8 total)
+ */
+export function useCityCorporations() {
+  const { getToken, isSignedIn } = useAuth();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['cityCorporations'],
+    queryFn: async (): Promise<Array<{ id: string; name: string }>> => {
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+
+      const response = await adminBoundariesApi.getCityCorporations(token);
+      return response.city_corporations;
+    },
+    enabled: isSignedIn,
+    staleTime: 600000, // Fresh for 10 minutes (rarely changes)
+    gcTime: 1800000, // Keep in cache for 30 minutes
+  });
+
+  return { data: data ?? [], isLoading };
+}

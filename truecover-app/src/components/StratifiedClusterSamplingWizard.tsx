@@ -13,20 +13,22 @@ import {
 } from '../tactical-ui';
 import { DraggableAreaCard } from './DraggableAreaCard';
 import { CategoryColumn } from './CategoryColumn';
-import { useDivisions, useDistricts, useAdminBoundaryChildren } from '../hooks/useAdminBoundaries';
+import { useDivisions, useDistricts, useAdminBoundaryChildren, useCityCorporations } from '../hooks/useAdminBoundaries';
+import { adminBoundariesApi } from '../services/api';
 import { env } from '../config/env';
 
 const API_URL = env.VITE_API_URL;
 
 interface WorkflowProgress {
   status: string;
-  selected_upazilas: number;
-  selected_unions: number;
+  selected_stage1: number;
+  selected_stage2: number;
   child_workflows_started: number;
 }
 
 interface AdminBoundary {
-  pcode: string;
+  id: string;
+  pcode: string | null;
   name: string;
   level: number;
   population: number;
@@ -81,6 +83,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
   const [selectedDivision, setSelectedDivision] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedDistrictName, setSelectedDistrictName] = useState('');
+  const [branch, setBranch] = useState<'rural' | 'city'>('rural');
+  const [selectedCityCorporation, setSelectedCityCorporation] = useState('');
+  const [selectedCityCorporationName, setSelectedCityCorporationName] = useState('');
 
   // Step 1 state - categorization
   const [categories, setCategories] = useState<Categories>({
@@ -95,9 +100,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
   // Step 2 state - parameters
   const [roundName, setRoundName] = useState('');
-  const [upazilaCount, setUpazilaCount] = useState('3');
-  const [unionsPerUpazila, setUnionsPerUpazila] = useState('2');
-  const [pixelsPerUnion, setPixelsPerUnion] = useState('50');
+  const [stage1Count, setStage1Count] = useState('3');
+  const [stage2Count, setStage2Count] = useState('2');
+  const [pixelsPerStage2, setPixelsPerStage2] = useState('50');
   const [populationWeighted, setPopulationWeighted] = useState(false);
   const [minPopulation, setMinPopulation] = useState('');
 
@@ -106,8 +111,17 @@ export const StratifiedClusterSamplingWizard: React.FC<
   const { data: districts = [], isLoading: districtsLoading } = useDistricts(
     selectedDivision || undefined
   );
+  const { data: cityCorporations = [], isLoading: cityCorporationsLoading } = useCityCorporations();
+
+  const startingBoundaryId = branch === 'rural' ? selectedDistrict : selectedCityCorporation;
+  const startingBoundaryName = branch === 'rural' ? selectedDistrictName : selectedCityCorporationName;
+
+  const vocabulary = branch === 'rural'
+    ? { stage1: 'Upazilas', stage2: 'Unions', stage1Singular: 'Upazila', stage2Singular: 'Union', pixelUnit: 'Union' }
+    : { stage1: 'Zones', stage2: 'Wards', stage1Singular: 'Zone', stage2Singular: 'Ward', pixelUnit: 'Ward' };
+
   const { data: upazilas = [], isLoading: upazilasLoading } = useAdminBoundaryChildren(
-    selectedDistrict || undefined
+    startingBoundaryId || undefined
   );
 
   // Polling function for workflow status
@@ -162,11 +176,23 @@ export const StratifiedClusterSamplingWizard: React.FC<
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      // If we have an initial pcode, skip to step 1
+      // If we have an initial pcode (legacy map-click flow), resolve it to
+      // the real admin_boundaries.id before skipping to step 1
       if (initialPcode) {
-        setSelectedDistrict(initialPcode);
-        setSelectedDistrictName(initialName || '');
-        setStep(1);
+        const resolveStartingBoundary = async () => {
+          try {
+            const token = await getToken();
+            if (!token) return;
+            const bounds = await adminBoundariesApi.getBounds(initialPcode, token);
+            setSelectedDistrict(bounds.id);
+            setSelectedDistrictName(initialName || bounds.name);
+            setStep(1);
+          } catch (error) {
+            console.error('Error resolving starting boundary:', error);
+            tacticalToast.error('Failed to resolve starting area');
+          }
+        };
+        resolveStartingBoundary();
       } else {
         setStep(0);
       }
@@ -176,6 +202,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
       setSelectedDivision('');
       setSelectedDistrict('');
       setSelectedDistrictName('');
+      setBranch('rural');
+      setSelectedCityCorporation('');
+      setSelectedCityCorporationName('');
       setCategories({ high_risk: [], low_risk: [], hard_to_reach: [], uncategorized: [] });
       setRoundName('');
       // Reset workflow tracking state
@@ -189,7 +218,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
         pollingRef.current = null;
       }
     }
-  }, [isOpen, initialPcode, initialName]);
+  }, [isOpen, initialPcode, initialName, getToken]);
 
   // Update categories when upazilas load
   useEffect(() => {
@@ -198,19 +227,19 @@ export const StratifiedClusterSamplingWizard: React.FC<
         high_risk: [],
         low_risk: [],
         hard_to_reach: [],
-        uncategorized: upazilas.filter(u => u.pcode !== null).map((u) => u.pcode as string),
+        uncategorized: upazilas.map((u) => u.id),
       });
     }
   }, [upazilas, step]);
 
-  const handleDistrictSelect = (pcode: string) => {
-    setSelectedDistrict(pcode);
-    const district = districts.find(d => d.pcode === pcode);
+  const handleDistrictSelect = (id: string) => {
+    setSelectedDistrict(id);
+    const district = districts.find(d => d.id === id);
     setSelectedDistrictName(district?.name || '');
   };
 
   const handleProceedToStep1 = () => {
-    if (selectedDistrict) {
+    if (startingBoundaryId) {
       setStep(1);
     }
   };
@@ -225,26 +254,26 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
     if (!over) return;
 
-    const draggedPcode = active.id as string;
+    const draggedId = active.id as string;
     const targetCategory = over.id as keyof Categories;
 
     const newCategories = { ...categories };
     for (const cat of Object.keys(newCategories) as (keyof Categories)[]) {
-      newCategories[cat] = newCategories[cat].filter((p) => p !== draggedPcode);
+      newCategories[cat] = newCategories[cat].filter((p) => p !== draggedId);
     }
-    newCategories[targetCategory].push(draggedPcode);
+    newCategories[targetCategory].push(draggedId);
     setCategories(newCategories);
   };
 
-  const getAreaByPcode = (pcode: string): AdminBoundary | undefined =>
-    upazilas.find((c) => c.pcode === pcode) as AdminBoundary | undefined;
+  const getAreaById = (id: string): AdminBoundary | undefined =>
+    upazilas.find((c) => c.id === id) as AdminBoundary | undefined;
 
   const canProceedStep1 = categories.uncategorized.length === 0;
 
   const estimatedPixels =
-    parseInt(upazilaCount || '0') *
-    parseInt(unionsPerUpazila || '0') *
-    parseInt(pixelsPerUnion || '0');
+    parseInt(stage1Count || '0') *
+    parseInt(stage2Count || '0') *
+    parseInt(pixelsPerStage2 || '0');
 
   const handleSubmit = async () => {
     if (!roundName.trim()) {
@@ -259,15 +288,15 @@ export const StratifiedClusterSamplingWizard: React.FC<
         `${API_URL}/api/campaigns/${campaignId}/rounds/stratified-cluster`,
         {
           name: roundName.trim(),
-          starting_pcode: selectedDistrict,
+          starting_boundary_id: startingBoundaryId,
           categories: {
             high_risk: categories.high_risk,
             low_risk: categories.low_risk,
             hard_to_reach: categories.hard_to_reach,
           },
-          upazila_count: parseInt(upazilaCount),
-          unions_per_upazila: parseInt(unionsPerUpazila),
-          pixels_per_union: parseInt(pixelsPerUnion),
+          stage1_count: parseInt(stage1Count),
+          stage2_count: parseInt(stage2Count),
+          pixels_per_stage2: parseInt(pixelsPerStage2),
           population_weighted: populationWeighted,
           min_population: minPopulation ? parseInt(minPopulation) : null,
           indicator_id: indicatorId,
@@ -299,9 +328,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
   };
 
   // Calculate population totals for each category
-  const getPopulationForCategory = (pcodes: string[]): number => {
-    return pcodes.reduce((sum, pcode) => {
-      const area = getAreaByPcode(pcode);
+  const getPopulationForCategory = (ids: string[]): number => {
+    return ids.reduce((sum, id) => {
+      const area = getAreaById(id);
       return sum + (area?.population || 0);
     }, 0);
   };
@@ -316,48 +345,85 @@ export const StratifiedClusterSamplingWizard: React.FC<
       title="Stratified Round"
       size={modalSize}
     >
-      {/* Step 0: Select Division and District */}
+      {/* Step 0: Select Branch and Starting Boundary */}
       {step === 0 && (
         <div>
           <div className="mb-6 text-zinc-300">
-            Select the division and district to sample from.
+            Select where to sample from.
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                Division
-              </label>
-              {divisionsLoading ? (
-                <div className="text-zinc-500">Loading divisions...</div>
-              ) : (
-                <TacticalSelect
-                  value={selectedDivision}
-                  onChange={setSelectedDivision}
-                  options={divisions.filter(d => d.pcode !== null).map(d => ({ value: d.pcode as string, label: d.name }))}
-                  placeholder="Select a division..."
-                />
-              )}
-            </div>
+          <div className="flex gap-2 mb-6">
+            <TacticalButton
+              variant={branch === 'rural' ? 'primary' : 'secondary'}
+              onClick={() => setBranch('rural')}
+            >
+              Rural (District → Upazila → Union)
+            </TacticalButton>
+            <TacticalButton
+              variant={branch === 'city' ? 'primary' : 'secondary'}
+              onClick={() => setBranch('city')}
+            >
+              City Corporation (Zone → Ward)
+            </TacticalButton>
+          </div>
 
-            {selectedDivision && (
+          {branch === 'rural' ? (
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-2">
-                  District
+                  Division
                 </label>
-                {districtsLoading ? (
-                  <div className="text-zinc-500">Loading districts...</div>
+                {divisionsLoading ? (
+                  <div className="text-zinc-500">Loading divisions...</div>
                 ) : (
                   <TacticalSelect
-                    value={selectedDistrict}
-                    onChange={handleDistrictSelect}
-                    options={districts.filter(d => d.pcode !== null).map(d => ({ value: d.pcode as string, label: d.name }))}
-                    placeholder="Select a district..."
+                    value={selectedDivision}
+                    onChange={setSelectedDivision}
+                    options={divisions.filter(d => d.id).map(d => ({ value: d.id, label: d.name }))}
+                    placeholder="Select a division..."
                   />
                 )}
               </div>
-            )}
-          </div>
+
+              {selectedDivision && (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-2">
+                    District
+                  </label>
+                  {districtsLoading ? (
+                    <div className="text-zinc-500">Loading districts...</div>
+                  ) : (
+                    <TacticalSelect
+                      value={selectedDistrict}
+                      onChange={handleDistrictSelect}
+                      options={districts.filter(d => d.id).map(d => ({ value: d.id, label: d.name }))}
+                      placeholder="Select a district..."
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">
+                City Corporation
+              </label>
+              {cityCorporationsLoading ? (
+                <div className="text-zinc-500">Loading city corporations...</div>
+              ) : (
+                <TacticalSelect
+                  value={selectedCityCorporation}
+                  onChange={(id) => {
+                    setSelectedCityCorporation(id);
+                    const cc = cityCorporations.find(c => c.id === id);
+                    setSelectedCityCorporationName(cc?.name || '');
+                  }}
+                  options={cityCorporations.map(c => ({ value: c.id, label: c.name }))}
+                  placeholder="Select a city corporation..."
+                />
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end mt-6">
             <TacticalButton onClick={onClose} variant="secondary">
@@ -365,7 +431,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
             </TacticalButton>
             <TacticalButton
               onClick={handleProceedToStep1}
-              disabled={!selectedDistrict}
+              disabled={branch === 'rural' ? !selectedDistrict : !selectedCityCorporation}
               className="ml-2"
             >
               Next
@@ -378,7 +444,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
       {step === 1 && (
         <div>
           <div className="mb-4 text-zinc-300">
-            <span className="text-cyan-400">{selectedDistrictName}</span> - Drag upazilas
+            <span className="text-cyan-400">{startingBoundaryName}</span> - Drag {vocabulary.stage1.toLowerCase()}
             into categories. All must be categorized to proceed.
           </div>
 
@@ -398,14 +464,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="gray"
                   totalPopulation={getPopulationForCategory(categories.uncategorized)}
                 >
-                  {categories.uncategorized.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.uncategorized.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -419,14 +485,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="red"
                   totalPopulation={getPopulationForCategory(categories.high_risk)}
                 >
-                  {categories.high_risk.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.high_risk.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -440,14 +506,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="green"
                   totalPopulation={getPopulationForCategory(categories.low_risk)}
                 >
-                  {categories.low_risk.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.low_risk.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -461,14 +527,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="yellow"
                   totalPopulation={getPopulationForCategory(categories.hard_to_reach)}
                 >
-                  {categories.hard_to_reach.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.hard_to_reach.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -479,11 +545,11 @@ export const StratifiedClusterSamplingWizard: React.FC<
               <DragOverlay>
                 {activeDragId ? (
                   (() => {
-                    const area = getAreaByPcode(activeDragId);
+                    const area = getAreaById(activeDragId);
                     return area ? (
                       <div className="p-2 bg-zinc-800 border-2 border-cyan-500 rounded shadow-xl cursor-grabbing">
                         <div className="text-sm font-medium text-zinc-100">{area.name}</div>
-                        <div className="text-xs text-zinc-400">{area.pcode}</div>
+                        {area.pcode && <div className="text-xs text-zinc-400">{area.pcode}</div>}
                         {area.population !== undefined && area.population > 0 && (
                           <div className="text-xs text-cyan-400 mt-1">
                             Pop: {area.population.toLocaleString()}
@@ -530,22 +596,22 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
             <div className="grid grid-cols-3 gap-4">
               <TacticalInput
-                label="Upazilas to Select"
+                label={`${vocabulary.stage1} to Select`}
                 type="number"
-                value={upazilaCount}
-                onChange={setUpazilaCount}
+                value={stage1Count}
+                onChange={setStage1Count}
               />
               <TacticalInput
-                label="Unions per Upazila"
+                label={`${vocabulary.stage2} per ${vocabulary.stage1Singular}`}
                 type="number"
-                value={unionsPerUpazila}
-                onChange={setUnionsPerUpazila}
+                value={stage2Count}
+                onChange={setStage2Count}
               />
               <TacticalInput
-                label="Pixels per Union"
+                label={`Pixels per ${vocabulary.pixelUnit}`}
                 type="number"
-                value={pixelsPerUnion}
-                onChange={setPixelsPerUnion}
+                value={pixelsPerStage2}
+                onChange={setPixelsPerStage2}
               />
             </div>
 
@@ -572,8 +638,8 @@ export const StratifiedClusterSamplingWizard: React.FC<
             <div className="mt-4 p-3 bg-zinc-800 rounded border border-zinc-700">
               <div className="text-sm text-zinc-300">
                 <strong>Summary:</strong> ~{estimatedPixels.toLocaleString()}{' '}
-                pixels across {parseInt(upazilaCount || '0') * parseInt(unionsPerUpazila || '0')}{' '}
-                unions in {upazilaCount} upazilas
+                pixels across {parseInt(stage1Count || '0') * parseInt(stage2Count || '0')}{' '}
+                {vocabulary.stage2.toLowerCase()} in {stage1Count} {vocabulary.stage1.toLowerCase()}
               </div>
             </div>
           </div>
@@ -641,12 +707,12 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   <span className="text-cyan-400 font-mono">{workflowProgress.status}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Upazilas Selected:</span>
-                  <span className="text-cyan-400">{workflowProgress.selected_upazilas}</span>
+                  <span>{vocabulary.stage1} Selected:</span>
+                  <span className="text-cyan-400">{workflowProgress.selected_stage1}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Unions Selected:</span>
-                  <span className="text-cyan-400">{workflowProgress.selected_unions}</span>
+                  <span>{vocabulary.stage2} Selected:</span>
+                  <span className="text-cyan-400">{workflowProgress.selected_stage2}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
                   <span>Sampling Workflows Started:</span>
@@ -671,12 +737,12 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   <span className="text-green-400">{workflowResult.round_number}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Selected Upazilas:</span>
-                  <span className="text-green-400">{workflowResult.selected_upazilas?.length || 0}</span>
+                  <span>Selected {vocabulary.stage1}:</span>
+                  <span className="text-green-400">{workflowResult.selected_stage1?.length || 0}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Selected Unions:</span>
-                  <span className="text-green-400">{workflowResult.selected_unions?.length || 0}</span>
+                  <span>Selected {vocabulary.stage2}:</span>
+                  <span className="text-green-400">{workflowResult.selected_stage2?.length || 0}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
                   <span>Campaign Areas Created:</span>
