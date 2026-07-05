@@ -8,9 +8,46 @@ import json
 from typing import List, Dict, Any, Optional
 
 
+def _is_uuid(value: str) -> bool:
+    import uuid
+    try:
+        uuid.UUID(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _population_for_identifier(cursor, identifier: str) -> float:
+    """
+    Population for a pcode (existing pixels.adm{n}_pcode match) or a boundary
+    id (admin_boundary_pixels -> pixels.population). Defaults to 0 for a
+    boundary id with no admin_boundary_pixels rows yet (that table isn't
+    populated for the new ward/block/zone/city_corporation levels in
+    production yet) - not 1, since 0 correctly means "unweighted, not
+    silently favored" rather than pretending a nonzero population exists.
+    """
+    if _is_uuid(identifier):
+        cursor.execute("""
+            SELECT COALESCE(SUM(p.population), 0)
+            FROM admin_boundary_pixels abp
+            JOIN pixels p ON abp.quadkey = p.quadkey
+            WHERE abp.admin_boundary_id = %s AND p.population IS NOT NULL
+        """, (identifier,))
+    else:
+        cursor.execute("""
+            SELECT COALESCE(SUM(p.population), 1)
+            FROM pixels p
+            WHERE (p.adm1_pcode = %s OR p.adm2_pcode = %s
+                   OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
+              AND p.population IS NOT NULL
+        """, (identifier, identifier, identifier, identifier))
+    result = cursor.fetchone()
+    return float(result[0]) if result and result[0] else (0.0 if _is_uuid(identifier) else 1.0)
+
+
 @activity.defn
 async def select_clusters(
-    pcodes: List[str],
+    ids: List[str],
     categories: Dict[str, List[str]],
     count: int,
     population_weighted: bool,
@@ -20,14 +57,14 @@ async def select_clusters(
     Select clusters (upazilas or unions) from categorized areas.
 
     Args:
-        pcodes: All available pcodes to select from
-        categories: Dict mapping category name to list of pcodes
+        ids: All available pcodes or admin_boundaries.id values to select from
+        categories: Dict mapping category name to list of pcodes or boundary ids
         count: Number of clusters to select
         population_weighted: Whether to weight by population
         category_weights: Optional multipliers per category
 
     Returns:
-        List of selected pcodes
+        List of selected pcodes or boundary ids
     """
     conn = None
     try:
@@ -45,16 +82,7 @@ async def select_clusters(
                 weight = category_weight
 
                 if population_weighted:
-                    # Get population for this pcode from pixels
-                    cursor.execute("""
-                        SELECT COALESCE(SUM(p.population), 1)
-                        FROM pixels p
-                        WHERE (p.adm1_pcode = %s OR p.adm2_pcode = %s
-                               OR p.adm3_pcode = %s OR p.adm4_pcode = %s)
-                          AND p.population IS NOT NULL
-                    """, (pcode, pcode, pcode, pcode))
-                    pop_result = cursor.fetchone()
-                    population = float(pop_result[0]) if pop_result and pop_result[0] else 1
+                    population = _population_for_identifier(cursor, pcode)
                     weight *= population
 
                 pool.append({'pcode': pcode, 'weight': weight, 'category': category})

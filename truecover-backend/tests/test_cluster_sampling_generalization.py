@@ -112,3 +112,114 @@ class TestGetChildrenForBoundaryIds:
             get_children_for_boundary_ids([leaf_id], {})
         )
         assert result[leaf_id]['children'] == []
+
+
+class TestSelectClustersPopulationWeighting:
+    def test_population_weighting_by_pcode_still_works(self, db_conn, monkeypatch):
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import select_clusters
+        import asyncio
+
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, adm4_pcode, population)
+            VALUES ('test_scpw_pcode', ST_GeomFromText('POLYGON((90 23, 90.01 23, 90.01 23.01, 90 23.01, 90 23))', 4326), 23, 90, 18, 'BDSCPWPCODE', 500)
+        """)
+
+        result = asyncio.get_event_loop().run_until_complete(
+            select_clusters(['BDSCPWPCODE'], {'high_risk': ['BDSCPWPCODE']}, 1, True, None)
+        )
+        assert result == ['BDSCPWPCODE']
+
+    def test_population_weighting_by_boundary_id_uses_admin_boundary_pixels(self, db_conn, monkeypatch):
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import select_clusters
+        import asyncio
+
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Zone SCPW', 'BD', 4, 'zone') RETURNING id
+        """)
+        zone_id = str(cursor.fetchone()[0])
+
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, population)
+            VALUES ('test_scpw_id', ST_GeomFromText('POLYGON((91 24, 91.01 24, 91.01 24.01, 91 24.01, 91 24))', 4326), 24, 91, 18, 300)
+        """)
+        cursor.execute("""
+            INSERT INTO admin_boundary_pixels (admin_boundary_id, quadkey) VALUES (%s, 'test_scpw_id')
+        """, (zone_id,))
+
+        result = asyncio.get_event_loop().run_until_complete(
+            select_clusters([zone_id], {'high_risk': [zone_id]}, 1, True, None)
+        )
+        assert result == [zone_id]
+
+    def test_population_weighting_by_boundary_id_with_no_pixels_defaults_to_zero(self, db_conn, monkeypatch):
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import select_clusters
+        import asyncio
+
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Empty Zone SCPW', 'BD', 4, 'zone') RETURNING id
+        """)
+        zone_id = str(cursor.fetchone()[0])
+
+        # No admin_boundary_pixels rows for this zone - must not error, must still select it
+        result = asyncio.get_event_loop().run_until_complete(
+            select_clusters([zone_id], {'high_risk': [zone_id]}, 1, True, None)
+        )
+        assert result == [zone_id]
+
+    def test_boundary_id_with_more_pixels_is_weighted_higher(self, db_conn, monkeypatch):
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import select_clusters
+        import asyncio
+        from collections import Counter
+
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Heavy Zone SCPW', 'BD', 4, 'zone') RETURNING id
+        """)
+        heavy_id = str(cursor.fetchone()[0])
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, boundary_type)
+            VALUES ('Test Light Zone SCPW', 'BD', 4, 'zone') RETURNING id
+        """)
+        light_id = str(cursor.fetchone()[0])
+
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, population)
+            VALUES ('test_scpw_heavy', ST_GeomFromText('POLYGON((92 25, 92.01 25, 92.01 25.01, 92 25.01, 92 25))', 4326), 25, 92, 18, 10000)
+        """)
+        cursor.execute("INSERT INTO admin_boundary_pixels (admin_boundary_id, quadkey) VALUES (%s, 'test_scpw_heavy')", (heavy_id,))
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, population)
+            VALUES ('test_scpw_light', ST_GeomFromText('POLYGON((93 26, 93.01 26, 93.01 26.01, 93 26.01, 93 26))', 4326), 26, 93, 18, 1)
+        """)
+        cursor.execute("INSERT INTO admin_boundary_pixels (admin_boundary_id, quadkey) VALUES (%s, 'test_scpw_light')", (light_id,))
+
+        picks = Counter()
+        for _ in range(30):
+            result = asyncio.get_event_loop().run_until_complete(
+                select_clusters([heavy_id, light_id], {'high_risk': [heavy_id, light_id]}, 1, True, None)
+            )
+            picks[result[0]] += 1
+
+        assert picks[heavy_id] > picks[light_id]
