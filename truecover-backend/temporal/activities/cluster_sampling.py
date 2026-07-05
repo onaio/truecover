@@ -302,6 +302,7 @@ async def create_campaign_areas_for_boundaries(
             bbox_max_lat = row[6]
             category = boundary_category_map.get(boundary_id) if boundary_category_map else None
 
+            # Check if this area already exists for the campaign
             cursor.execute("""
                 SELECT id FROM campaign_areas
                 WHERE campaign_id = %s AND admin_boundary_id = %s
@@ -309,12 +310,14 @@ async def create_campaign_areas_for_boundaries(
 
             existing = cursor.fetchone()
             if existing:
+                # Update category and set status to sampling
                 cursor.execute("""
                     UPDATE campaign_areas SET category = %s, status = 'sampling' WHERE id = %s
                 """, (category, str(existing[0])))
                 created_ids.append(str(existing[0]))
                 continue
 
+            # Create the campaign_area
             cursor.execute("""
                 INSERT INTO campaign_areas (
                     campaign_id, name, area_type, admin_boundary_id, geometry,
