@@ -760,7 +760,7 @@ export const adminBoundariesApi = {
     return response.data;
   },
 
-  async getBounds(pcode: string, token: string): Promise<{ name: string; level: number; bbox: [number, number, number, number] }> {
+  async getBounds(pcode: string, token: string): Promise<{ id: string; name: string; level: number; bbox: [number, number, number, number] }> {
     const response = await axios.get(
       `${API_URL}/api/admin-boundaries/${pcode}/bounds`,
       {

@@ -14,6 +14,7 @@ import {
 import { DraggableAreaCard } from './DraggableAreaCard';
 import { CategoryColumn } from './CategoryColumn';
 import { useDivisions, useDistricts, useAdminBoundaryChildren, useCityCorporations } from '../hooks/useAdminBoundaries';
+import { adminBoundariesApi } from '../services/api';
 import { env } from '../config/env';
 
 const API_URL = env.VITE_API_URL;
@@ -26,6 +27,7 @@ interface WorkflowProgress {
 }
 
 interface AdminBoundary {
+  id: string;
   pcode: string;
   name: string;
   level: number;
@@ -174,11 +176,23 @@ export const StratifiedClusterSamplingWizard: React.FC<
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      // If we have an initial pcode, skip to step 1
+      // If we have an initial pcode (legacy map-click flow), resolve it to
+      // the real admin_boundaries.id before skipping to step 1
       if (initialPcode) {
-        setSelectedDistrict(initialPcode);
-        setSelectedDistrictName(initialName || '');
-        setStep(1);
+        const resolveStartingBoundary = async () => {
+          try {
+            const token = await getToken();
+            if (!token) return;
+            const bounds = await adminBoundariesApi.getBounds(initialPcode, token);
+            setSelectedDistrict(bounds.id);
+            setSelectedDistrictName(initialName || bounds.name);
+            setStep(1);
+          } catch (error) {
+            console.error('Error resolving starting boundary:', error);
+            tacticalToast.error('Failed to resolve starting area');
+          }
+        };
+        resolveStartingBoundary();
       } else {
         setStep(0);
       }
@@ -204,7 +218,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
         pollingRef.current = null;
       }
     }
-  }, [isOpen, initialPcode, initialName]);
+  }, [isOpen, initialPcode, initialName, getToken]);
 
   // Update categories when upazilas load
   useEffect(() => {
@@ -213,7 +227,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
         high_risk: [],
         low_risk: [],
         hard_to_reach: [],
-        uncategorized: upazilas.filter(u => u.pcode !== null).map((u) => u.pcode as string),
+        uncategorized: upazilas.map((u) => u.id),
       });
     }
   }, [upazilas, step]);
@@ -240,19 +254,19 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
     if (!over) return;
 
-    const draggedPcode = active.id as string;
+    const draggedId = active.id as string;
     const targetCategory = over.id as keyof Categories;
 
     const newCategories = { ...categories };
     for (const cat of Object.keys(newCategories) as (keyof Categories)[]) {
-      newCategories[cat] = newCategories[cat].filter((p) => p !== draggedPcode);
+      newCategories[cat] = newCategories[cat].filter((p) => p !== draggedId);
     }
-    newCategories[targetCategory].push(draggedPcode);
+    newCategories[targetCategory].push(draggedId);
     setCategories(newCategories);
   };
 
-  const getAreaByPcode = (pcode: string): AdminBoundary | undefined =>
-    upazilas.find((c) => c.pcode === pcode) as AdminBoundary | undefined;
+  const getAreaById = (id: string): AdminBoundary | undefined =>
+    upazilas.find((c) => c.id === id) as AdminBoundary | undefined;
 
   const canProceedStep1 = categories.uncategorized.length === 0;
 
@@ -314,9 +328,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
   };
 
   // Calculate population totals for each category
-  const getPopulationForCategory = (pcodes: string[]): number => {
-    return pcodes.reduce((sum, pcode) => {
-      const area = getAreaByPcode(pcode);
+  const getPopulationForCategory = (ids: string[]): number => {
+    return ids.reduce((sum, id) => {
+      const area = getAreaById(id);
       return sum + (area?.population || 0);
     }, 0);
   };
@@ -450,14 +464,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="gray"
                   totalPopulation={getPopulationForCategory(categories.uncategorized)}
                 >
-                  {categories.uncategorized.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.uncategorized.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || area.id}
                         population={area.population}
                       />
                     ) : null;
@@ -471,14 +485,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="red"
                   totalPopulation={getPopulationForCategory(categories.high_risk)}
                 >
-                  {categories.high_risk.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.high_risk.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || area.id}
                         population={area.population}
                       />
                     ) : null;
@@ -492,14 +506,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="green"
                   totalPopulation={getPopulationForCategory(categories.low_risk)}
                 >
-                  {categories.low_risk.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.low_risk.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || area.id}
                         population={area.population}
                       />
                     ) : null;
@@ -513,14 +527,14 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   color="yellow"
                   totalPopulation={getPopulationForCategory(categories.hard_to_reach)}
                 >
-                  {categories.hard_to_reach.map((pcode) => {
-                    const area = getAreaByPcode(pcode);
+                  {categories.hard_to_reach.map((id) => {
+                    const area = getAreaById(id);
                     return area ? (
                       <DraggableAreaCard
-                        key={pcode}
-                        id={pcode}
+                        key={id}
+                        id={id}
                         name={area.name}
-                        pcode={pcode}
+                        pcode={area.pcode || area.id}
                         population={area.population}
                       />
                     ) : null;
@@ -531,11 +545,11 @@ export const StratifiedClusterSamplingWizard: React.FC<
               <DragOverlay>
                 {activeDragId ? (
                   (() => {
-                    const area = getAreaByPcode(activeDragId);
+                    const area = getAreaById(activeDragId);
                     return area ? (
                       <div className="p-2 bg-zinc-800 border-2 border-cyan-500 rounded shadow-xl cursor-grabbing">
                         <div className="text-sm font-medium text-zinc-100">{area.name}</div>
-                        <div className="text-xs text-zinc-400">{area.pcode}</div>
+                        <div className="text-xs text-zinc-400">{area.pcode || area.id}</div>
                         {area.population !== undefined && area.population > 0 && (
                           <div className="text-xs text-cyan-400 mt-1">
                             Pop: {area.population.toLocaleString()}
