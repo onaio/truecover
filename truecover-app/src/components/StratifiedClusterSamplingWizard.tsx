@@ -20,8 +20,8 @@ const API_URL = env.VITE_API_URL;
 
 interface WorkflowProgress {
   status: string;
-  selected_upazilas: number;
-  selected_unions: number;
+  selected_stage1: number;
+  selected_stage2: number;
   child_workflows_started: number;
 }
 
@@ -98,9 +98,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
   // Step 2 state - parameters
   const [roundName, setRoundName] = useState('');
-  const [upazilaCount, setUpazilaCount] = useState('3');
-  const [unionsPerUpazila, setUnionsPerUpazila] = useState('2');
-  const [pixelsPerUnion, setPixelsPerUnion] = useState('50');
+  const [stage1Count, setStage1Count] = useState('3');
+  const [stage2Count, setStage2Count] = useState('2');
+  const [pixelsPerStage2, setPixelsPerStage2] = useState('50');
   const [populationWeighted, setPopulationWeighted] = useState(false);
   const [minPopulation, setMinPopulation] = useState('');
 
@@ -113,6 +113,10 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
   const startingBoundaryId = branch === 'rural' ? selectedDistrict : selectedCityCorporation;
   const startingBoundaryName = branch === 'rural' ? selectedDistrictName : selectedCityCorporationName;
+
+  const vocabulary = branch === 'rural'
+    ? { stage1: 'Upazilas', stage2: 'Unions', stage1Singular: 'Upazila', stage2Singular: 'Union', pixelUnit: 'Union' }
+    : { stage1: 'Zones', stage2: 'Wards', stage1Singular: 'Zone', stage2Singular: 'Ward', pixelUnit: 'Ward' };
 
   const { data: upazilas = [], isLoading: upazilasLoading } = useAdminBoundaryChildren(
     startingBoundaryId || undefined
@@ -253,9 +257,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
   const canProceedStep1 = categories.uncategorized.length === 0;
 
   const estimatedPixels =
-    parseInt(upazilaCount || '0') *
-    parseInt(unionsPerUpazila || '0') *
-    parseInt(pixelsPerUnion || '0');
+    parseInt(stage1Count || '0') *
+    parseInt(stage2Count || '0') *
+    parseInt(pixelsPerStage2 || '0');
 
   const handleSubmit = async () => {
     if (!roundName.trim()) {
@@ -276,9 +280,9 @@ export const StratifiedClusterSamplingWizard: React.FC<
             low_risk: categories.low_risk,
             hard_to_reach: categories.hard_to_reach,
           },
-          upazila_count: parseInt(upazilaCount),
-          unions_per_upazila: parseInt(unionsPerUpazila),
-          pixels_per_union: parseInt(pixelsPerUnion),
+          stage1_count: parseInt(stage1Count),
+          stage2_count: parseInt(stage2Count),
+          pixels_per_stage2: parseInt(pixelsPerStage2),
           population_weighted: populationWeighted,
           min_population: minPopulation ? parseInt(minPopulation) : null,
           indicator_id: indicatorId,
@@ -426,7 +430,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
       {step === 1 && (
         <div>
           <div className="mb-4 text-zinc-300">
-            <span className="text-cyan-400">{startingBoundaryName}</span> - Drag upazilas
+            <span className="text-cyan-400">{startingBoundaryName}</span> - Drag {vocabulary.stage1.toLowerCase()}
             into categories. All must be categorized to proceed.
           </div>
 
@@ -578,22 +582,22 @@ export const StratifiedClusterSamplingWizard: React.FC<
 
             <div className="grid grid-cols-3 gap-4">
               <TacticalInput
-                label="Upazilas to Select"
+                label={`${vocabulary.stage1} to Select`}
                 type="number"
-                value={upazilaCount}
-                onChange={setUpazilaCount}
+                value={stage1Count}
+                onChange={setStage1Count}
               />
               <TacticalInput
-                label="Unions per Upazila"
+                label={`${vocabulary.stage2} per ${vocabulary.stage1Singular}`}
                 type="number"
-                value={unionsPerUpazila}
-                onChange={setUnionsPerUpazila}
+                value={stage2Count}
+                onChange={setStage2Count}
               />
               <TacticalInput
-                label="Pixels per Union"
+                label={`Pixels per ${vocabulary.pixelUnit}`}
                 type="number"
-                value={pixelsPerUnion}
-                onChange={setPixelsPerUnion}
+                value={pixelsPerStage2}
+                onChange={setPixelsPerStage2}
               />
             </div>
 
@@ -620,8 +624,8 @@ export const StratifiedClusterSamplingWizard: React.FC<
             <div className="mt-4 p-3 bg-zinc-800 rounded border border-zinc-700">
               <div className="text-sm text-zinc-300">
                 <strong>Summary:</strong> ~{estimatedPixels.toLocaleString()}{' '}
-                pixels across {parseInt(upazilaCount || '0') * parseInt(unionsPerUpazila || '0')}{' '}
-                unions in {upazilaCount} upazilas
+                pixels across {parseInt(stage1Count || '0') * parseInt(stage2Count || '0')}{' '}
+                {vocabulary.stage2.toLowerCase()} in {stage1Count} {vocabulary.stage1.toLowerCase()}
               </div>
             </div>
           </div>
@@ -689,12 +693,12 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   <span className="text-cyan-400 font-mono">{workflowProgress.status}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Upazilas Selected:</span>
-                  <span className="text-cyan-400">{workflowProgress.selected_upazilas}</span>
+                  <span>{vocabulary.stage1} Selected:</span>
+                  <span className="text-cyan-400">{workflowProgress.selected_stage1}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Unions Selected:</span>
-                  <span className="text-cyan-400">{workflowProgress.selected_unions}</span>
+                  <span>{vocabulary.stage2} Selected:</span>
+                  <span className="text-cyan-400">{workflowProgress.selected_stage2}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
                   <span>Sampling Workflows Started:</span>
@@ -719,12 +723,12 @@ export const StratifiedClusterSamplingWizard: React.FC<
                   <span className="text-green-400">{workflowResult.round_number}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Selected Upazilas:</span>
-                  <span className="text-green-400">{workflowResult.selected_upazilas?.length || 0}</span>
+                  <span>Selected {vocabulary.stage1}:</span>
+                  <span className="text-green-400">{workflowResult.selected_stage1?.length || 0}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
-                  <span>Selected Unions:</span>
-                  <span className="text-green-400">{workflowResult.selected_unions?.length || 0}</span>
+                  <span>Selected {vocabulary.stage2}:</span>
+                  <span className="text-green-400">{workflowResult.selected_stage2?.length || 0}</span>
                 </div>
                 <div className="flex justify-between text-zinc-300">
                   <span>Campaign Areas Created:</span>
