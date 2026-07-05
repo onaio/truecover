@@ -21,8 +21,6 @@ with workflow.unsafe.imports_passed_through():
     from ..activities.rounds import (
         create_round_record,
         delete_round_record,
-        call_adaptive_sampling,
-        update_round_assignments,
         remove_round_assignments,
     )
     from ..activities.cluster_sampling import sample_pixels_for_campaign_area, assign_pixels_to_round
@@ -340,6 +338,7 @@ class StratifiedClusterSamplingWorkflow:
             for campaign_area_id in campaign_area_ids:
                 child_workflow_id = f"area-sampling-{campaign_id}-{round_number}-{campaign_area_id}"
 
+                # Start child workflow - continues even if parent completes
                 await workflow.start_child_workflow(
                     AreaPixelSamplingWorkflow.run,
                     args=[
