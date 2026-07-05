@@ -28,7 +28,7 @@ interface WorkflowProgress {
 
 interface AdminBoundary {
   id: string;
-  pcode: string;
+  pcode: string | null;
   name: string;
   level: number;
   population: number;
@@ -471,7 +471,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                         key={id}
                         id={id}
                         name={area.name}
-                        pcode={area.pcode || area.id}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -492,7 +492,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                         key={id}
                         id={id}
                         name={area.name}
-                        pcode={area.pcode || area.id}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -513,7 +513,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                         key={id}
                         id={id}
                         name={area.name}
-                        pcode={area.pcode || area.id}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -534,7 +534,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                         key={id}
                         id={id}
                         name={area.name}
-                        pcode={area.pcode || area.id}
+                        pcode={area.pcode || undefined}
                         population={area.population}
                       />
                     ) : null;
@@ -549,7 +549,7 @@ export const StratifiedClusterSamplingWizard: React.FC<
                     return area ? (
                       <div className="p-2 bg-zinc-800 border-2 border-cyan-500 rounded shadow-xl cursor-grabbing">
                         <div className="text-sm font-medium text-zinc-100">{area.name}</div>
-                        <div className="text-xs text-zinc-400">{area.pcode || area.id}</div>
+                        {area.pcode && <div className="text-xs text-zinc-400">{area.pcode}</div>}
                         {area.population !== undefined && area.population > 0 && (
                           <div className="text-xs text-cyan-400 mt-1">
                             Pop: {area.population.toLocaleString()}

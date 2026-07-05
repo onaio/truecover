@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 interface DraggableAreaCardProps {
   id: string;
   name: string;
-  pcode: string;
+  pcode?: string;
   population?: number;
 }
 
@@ -40,7 +40,7 @@ export const DraggableAreaCard: React.FC<DraggableAreaCardProps> = ({
       `}
     >
       <div className="text-sm font-medium text-zinc-100">{name}</div>
-      <div className="text-xs text-zinc-400">{pcode}</div>
+      {pcode && <div className="text-xs text-zinc-400">{pcode}</div>}
       {population !== undefined && population > 0 && (
         <div className="text-xs text-cyan-400 mt-1">
           Pop: {population.toLocaleString()}
