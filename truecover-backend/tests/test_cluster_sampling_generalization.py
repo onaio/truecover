@@ -231,6 +231,45 @@ class TestSelectClustersPopulationWeighting:
 
         assert picks[heavy_id] > picks[light_id]
 
+    def test_population_for_identifier_uses_own_level_pcode_not_ancestor_pcode(self, db_conn, monkeypatch):
+        # A level-3 upazila row carries its own adm3_pcode alongside its
+        # ancestors' adm1_pcode (division) and adm2_pcode (district), which
+        # are cascaded onto every descendant row - this is how real BD
+        # admin_boundaries data looks, not the "only one adm{n}_pcode set"
+        # shape the other tests here use. Resolving "first non-null column"
+        # would grab the division's adm1_pcode and sum the whole division's
+        # population instead of just this upazila's.
+        from temporal.activities import cluster_sampling
+        from temporal.activities.cluster_sampling import _population_for_identifier
+
+        monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
+
+        cursor = db_conn.cursor()
+        cursor.execute("""
+            INSERT INTO admin_boundaries (name, iso3, level, adm1_pcode, adm2_pcode, adm3_pcode, boundary_type)
+            VALUES ('Test Upazila SCPW Cascade', 'BD', 3, 'BDSCPWDIV', 'BDSCPWDIST', 'BDSCPWUPZ', 'upazila')
+            RETURNING id
+        """)
+        upazila_id = str(cursor.fetchone()[0])
+
+        # Division-level pixel: matches the ancestor adm1_pcode cascaded
+        # onto the upazila row, with a large population.
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, adm1_pcode, population)
+            VALUES ('test_scpw_cascade_division', ST_GeomFromText('POLYGON((96 29, 96.01 29, 96.01 29.01, 96 29.01, 96 29))', 4326), 29, 96, 18, 'BDSCPWDIV', 10000000)
+        """)
+        # Upazila's own-level pixel: matches adm3_pcode, with a small,
+        # distinct population.
+        cursor.execute("""
+            INSERT INTO pixels (quadkey, geometry, latitude, longitude, level, adm3_pcode, population)
+            VALUES ('test_scpw_cascade_upazila', ST_GeomFromText('POLYGON((97 30, 97.01 30, 97.01 30.01, 97 30.01, 97 30))', 4326), 30, 97, 18, 'BDSCPWUPZ', 5000)
+        """)
+
+        population = _population_for_identifier(cursor, upazila_id)
+
+        assert population == 5000.0
+
     def test_boundary_id_with_more_pixels_is_weighted_higher(self, db_conn, monkeypatch):
         from temporal.activities import cluster_sampling
         from temporal.activities.cluster_sampling import select_clusters
