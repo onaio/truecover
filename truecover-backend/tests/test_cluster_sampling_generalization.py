@@ -281,6 +281,8 @@ class TestSaveClusterSamplingConfig:
         # save_cluster_sampling_config commits internally, so it must operate
         # on the fixture's own db_conn (not a separate pooled connection) to
         # see the uncommitted org/project/campaign/round/boundary rows below.
+        # Because it commits on this connection, the fixture's rollback() at
+        # teardown won't undo it - clean up explicitly.
         monkeypatch.setattr(cluster_sampling, 'get_db_connection', lambda: db_conn)
         monkeypatch.setattr(cluster_sampling, 'return_db_connection', lambda conn: None)
 
@@ -304,16 +306,24 @@ class TestSaveClusterSamplingConfig:
         """)
         cc_id = str(cursor.fetchone()[0])
 
-        config_id = asyncio.get_event_loop().run_until_complete(
-            save_cluster_sampling_config(
-                round_id, campaign_id, cc_id, {'high_risk': [cc_id]}, 3, 2, 50, False, None, None
+        config_id = None
+        try:
+            config_id = asyncio.get_event_loop().run_until_complete(
+                save_cluster_sampling_config(
+                    round_id, campaign_id, cc_id, {'high_risk': [cc_id]}, 3, 2, 50, False, None, None
+                )
             )
-        )
 
-        cursor.execute("""
-            SELECT starting_boundary_id, stage1_count, stage2_count, pixels_per_stage2
-            FROM cluster_sampling_config WHERE id = %s
-        """, (config_id,))
-        row = cursor.fetchone()
-        assert str(row[0]) == cc_id
-        assert row[1:] == (3, 2, 50)
+            cursor.execute("""
+                SELECT starting_boundary_id, stage1_count, stage2_count, pixels_per_stage2
+                FROM cluster_sampling_config WHERE id = %s
+            """, (config_id,))
+            row = cursor.fetchone()
+            assert str(row[0]) == cc_id
+            assert row[1:] == (3, 2, 50)
+        finally:
+            if config_id is not None:
+                cursor.execute("DELETE FROM cluster_sampling_config WHERE id = %s", (config_id,))
+            cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
+            cursor.execute("DELETE FROM admin_boundaries WHERE id = %s", (cc_id,))
+            db_conn.commit()
