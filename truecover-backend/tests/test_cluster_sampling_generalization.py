@@ -327,3 +327,19 @@ class TestSaveClusterSamplingConfig:
             cursor.execute("DELETE FROM organizations WHERE id = %s", (org_id,))
             cursor.execute("DELETE FROM admin_boundaries WHERE id = %s", (cc_id,))
             db_conn.commit()
+
+
+class TestCreateStratifiedClusterRoundValidation:
+    def test_rejects_missing_starting_boundary_id(self, db_conn, monkeypatch):
+        from routes import rounds as rounds_module
+        from flask import Flask
+
+        monkeypatch.setattr(rounds_module, 'get_db_connection', lambda: db_conn)
+        monkeypatch.setattr(rounds_module, 'return_db_connection', lambda conn: None)
+        monkeypatch.setattr(rounds_module, 'check_campaign_access', lambda user_id, campaign_id: True)
+
+        app = Flask(__name__)
+        with app.test_request_context(json={'name': 'Test Round', 'categories': {'high_risk': ['x']}, 'indicator_id': 'y'}):
+            response, status = rounds_module.create_stratified_cluster_round.__wrapped__({'id': 'test-user'}, 'test-campaign')
+        assert status == 400
+        assert 'starting_boundary_id' in response.get_json()['error'].lower() or 'boundary' in response.get_json()['error'].lower()
