@@ -98,19 +98,23 @@ async def select_clusters(
 
 
 @activity.defn
-async def get_children_for_pcodes(
-    parent_pcodes: List[str],
+async def get_children_for_boundary_ids(
+    parent_ids: List[str],
     categories: Dict[str, List[str]]
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Get child boundaries for a list of parent pcodes.
+    Get child boundaries for a list of parent admin_boundaries ids.
+
+    Merges parent_id-linked children (e.g. a district's city corporation)
+    with pcode-derived children (e.g. that district's upazilas) - a boundary
+    can have both simultaneously, they are siblings, not alternatives.
 
     Args:
-        parent_pcodes: List of parent pcodes to get children for
-        categories: Original categories to inherit to children
+        parent_ids: List of parent admin_boundaries.id values
+        categories: Original categories to inherit to children, keyed by parent id
 
     Returns:
-        Dict mapping parent_pcode to {children: [...], category: str}
+        Dict mapping parent_id to {children: [{id, pcode, name}], category: str}
     """
     conn = None
     try:
@@ -119,54 +123,49 @@ async def get_children_for_pcodes(
 
         result = {}
 
-        # Build reverse lookup for category
-        pcode_to_category = {}
-        for category, pcodes in categories.items():
-            for pcode in pcodes:
-                pcode_to_category[pcode] = category
+        id_to_category = {}
+        for category, ids in categories.items():
+            for boundary_id in ids:
+                id_to_category[boundary_id] = category
 
-        for parent_pcode in parent_pcodes:
-            # Find parent level
+        for parent_id in parent_ids:
+            children = []
+
             cursor.execute("""
-                SELECT level FROM admin_boundaries
-                WHERE adm1_pcode = %s OR adm2_pcode = %s
-                   OR adm3_pcode = %s OR adm4_pcode = %s
-                LIMIT 1
-            """, (parent_pcode, parent_pcode, parent_pcode, parent_pcode))
+                SELECT id, name,
+                       adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+                FROM admin_boundaries WHERE parent_id = %s ORDER BY name
+            """, (parent_id,))
+            for row in cursor.fetchall():
+                pcode = next((row[2 + i] for i in range(5) if row[2 + i]), None)
+                children.append({'id': str(row[0]), 'pcode': pcode, 'name': row[1]})
 
-            level_result = cursor.fetchone()
-            if not level_result:
-                continue
+            cursor.execute("""
+                SELECT level, adm0_pcode, adm1_pcode, adm2_pcode, adm3_pcode, adm4_pcode
+                FROM admin_boundaries WHERE id = %s
+            """, (parent_id,))
+            parent_row = cursor.fetchone()
+            if parent_row:
+                parent_level = parent_row[0]
+                child_level = parent_level + 1
+                if child_level <= 4:
+                    pcode = parent_row[1 + parent_level]
+                    parent_col = f'adm{parent_level}_pcode'
+                    child_col = f'adm{child_level}_pcode'
+                    cursor.execute(f"""
+                        SELECT id, name, {child_col} FROM admin_boundaries
+                        WHERE level = %s AND {parent_col} = %s
+                        ORDER BY name
+                    """, (child_level, pcode))
+                    for row in cursor.fetchall():
+                        children.append({'id': str(row[0]), 'pcode': row[2], 'name': row[1]})
 
-            parent_level = level_result[0]
-            child_level = parent_level + 1
-
-            if child_level > 4:
-                continue
-
-            parent_col = f'adm{parent_level}_pcode'
-
-            cursor.execute(f"""
-                SELECT DISTINCT
-                    CASE
-                        WHEN level = 1 THEN adm1_pcode
-                        WHEN level = 2 THEN adm2_pcode
-                        WHEN level = 3 THEN adm3_pcode
-                        WHEN level = 4 THEN adm4_pcode
-                    END as pcode,
-                    name
-                FROM admin_boundaries
-                WHERE level = %s AND {parent_col} = %s
-            """, (child_level, parent_pcode))
-
-            children = [{'pcode': row[0], 'name': row[1]} for row in cursor.fetchall()]
-
-            result[parent_pcode] = {
+            result[parent_id] = {
                 'children': children,
-                'category': pcode_to_category.get(parent_pcode, 'uncategorized')
+                'category': id_to_category.get(parent_id, 'uncategorized')
             }
 
-        activity.logger.info(f"Fetched children for {len(result)} parent pcodes")
+        activity.logger.info(f"Fetched children for {len(result)} parent boundary ids")
         return result
 
     finally:
