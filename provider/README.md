@@ -28,6 +28,12 @@ credentials and pixel never sees ours.
         "label": "Adaptive sample",
         "description": "Uncertainty-weighted, spatially spread cell sampling with replacement neighbors",
         "source_geometry": "quadkey"
+      },
+      {
+        "id": "coverage-estimate",
+        "label": "Coverage estimate",
+        "description": "Binomial GAM prevalence and uncertainty estimation from survey data",
+        "source_geometry": "quadkey"
       }
     ]
   }
@@ -76,9 +82,50 @@ credentials and pixel never sees ours.
   All validation failures respond `422` with a human-readable `detail` string
   — pixel surfaces that `detail` verbatim in the dataset's error state.
 
+- **`POST /ops/coverage-estimate`** — binomial-GAM prevalence + uncertainty estimation from survey data. Body is pixel's execution-contract shape:
+
+  ```json
+  {
+    "op": "coverage-estimate",
+    "params": {
+      "seed": 0,
+      "n_trials_column": "n_trials",
+      "n_covered_column": "n_covered",
+      "exceedance_threshold": 0.8
+    },
+    "inputs": [
+      {"role": "source", "parquet_url": "https://..."},
+      {"role": "survey", "parquet_url": "https://..."}
+    ],
+    "output": {"parquet_put_url": "https://...", "content_type": "application/vnd.apache.parquet"}
+  }
+  ```
+
+  Reads `inputs[0]` (role: "source", must have a `quadkey` column) as the prediction grid, and `inputs[1]` (role: "survey") as training data. Fits a binomial GAM to the survey data and predicts prevalence + Bayesian credible-interval width for each grid cell. All parameters are optional except the two required inputs.
+
+  `params`:
+  - `n_trials_column` — string, column name in survey data (default: `"n_trials"`). Must be numeric; coerced with `pd.to_numeric(errors="coerce")`.
+  - `n_covered_column` — string, column name in survey data (default: `"n_covered"`). Must be numeric; coerced with `pd.to_numeric(errors="coerce")`.
+  - `seed` — integer, RNG seed (default: `0`).
+  - `exceedance_threshold` — optional float, strictly between 0 and 1. If provided, also computes the probability that prevalence exceeds this threshold and the uncertainty of that exceedance estimate.
+
+  Survey coordinates come from the `survey` input's `quadkey` column (if present) or numeric `lng`/`lat` columns; grid coordinates from the `source` input's `quadkey` column.
+
+  Delegates to `provider/r/coverage_estimate.R` (see that file's header for the posterior-bug fix — a genuine R error found in the original implementation). Runs the R script as a subprocess and returns a parquet with source grid columns plus `prevalence`, `prevalence_bci_width`, optionally `exceedance_probability` and `exceedance_uncertainty`. Returns `{"rows": <int>}`.
+
+  All validation failures respond `422` with a human-readable `detail` string.
+
 ## Running locally
 
-From the repo root:
+### With local R runtime
+
+On macOS with Homebrew:
+
+```bash
+brew install r
+```
+
+Then from the repo root:
 
 ```bash
 PROVIDER_TOKEN=dev-secret PROVIDER_ALLOW_FILE_URLS=1 uv run \
@@ -86,6 +133,23 @@ PROVIDER_TOKEN=dev-secret PROVIDER_ALLOW_FILE_URLS=1 uv run \
   --with pandas --with pyarrow --with numpy --with mercantile \
   uvicorn provider.app:app --port 18090
 ```
+
+The `coverage-estimate` op will work only if `Rscript` is on your PATH.
+
+### Via Docker
+
+From the repo root:
+
+```bash
+docker build -f provider/Dockerfile -t truecover-provider .
+docker run --rm -p 18090:8080 -e PROVIDER_TOKEN=dev-secret truecover-provider
+```
+
+Both `adaptive-sample` and `coverage-estimate` ops are available in the container.
+
+### Testing without local R
+
+The `adaptive-sample` op works without an R runtime. If you need to test `coverage-estimate` without installing R, use the Docker approach above or monkeypatch `provider.app::_run_r` in unit tests (see `provider/tests/` for examples).
 
 `PROVIDER_ALLOW_FILE_URLS=1` is only needed if you want to exercise the
 `file://` path locally (e.g. against a `file://`-URL test payload); omit it
