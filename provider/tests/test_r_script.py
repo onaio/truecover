@@ -173,6 +173,21 @@ def test_exceedance_fields_absent_without_threshold():
 
 
 @requires_r
+def test_exceedance_threshold_explicit_null_matches_omitted():
+    """Sending `"exceedance_threshold": null` explicitly (as pixel's provider
+    route does whenever the caller doesn't set a threshold -- the key is
+    always present in the JSON, just possibly null) must behave identically
+    to omitting the key entirely: exceedance fields stay null."""
+    payload, _, _ = _payload(threshold=None)
+    payload["params"]["exceedance_threshold"] = None
+    body, proc = run_script(payload)
+    assert proc.returncode == 0, proc.stderr
+
+    assert body["exceedance_probability"] is None
+    assert body["exceedance_uncertainty"] is None
+
+
+@requires_r
 def test_exceedance_fields_present_with_threshold():
     payload, near, far = _payload(threshold=0.5)
     body, proc = run_script(payload)

@@ -15,9 +15,13 @@ authorization to its data (we never see pixel credentials).
 
 from __future__ import annotations
 
+import json
 import os
 import secrets
+import shutil
+import subprocess
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -37,6 +41,8 @@ app = FastAPI(title="TrueCover provider")
 
 _HTTP_TIMEOUT_S = 300.0
 
+R_SCRIPT_PATH = Path(__file__).parent / "r" / "coverage_estimate.R"
+
 MANIFEST: dict[str, Any] = {
     "name": "TrueCover",
     "operations": [
@@ -48,7 +54,23 @@ MANIFEST: dict[str, Any] = {
                 "replacement neighbors"
             ),
             "source_geometry": "quadkey",
-        }
+        },
+        {
+            "id": "coverage-estimate",
+            "label": "Coverage estimate",
+            "description": (
+                "Model-based prevalence + uncertainty per cell from survey "
+                "results (GAM)"
+            ),
+            "source_geometry": "quadkey",
+            "extra_inputs": [
+                {
+                    "role": "survey",
+                    "label": "Survey results layer",
+                    "geometry": ["point", "quadkey"],
+                }
+            ],
+        },
     ],
 }
 
@@ -97,6 +119,29 @@ def _write_bytes(url: str, data: bytes, content_type: str) -> None:
         url, content=data, headers={"Content-Type": content_type}, timeout=_HTTP_TIMEOUT_S
     )
     resp.raise_for_status()
+
+
+# --------------------------------------------------------------------------
+# Quadkey -> centroid helper, shared by adaptive-sample and coverage-estimate
+# --------------------------------------------------------------------------
+
+
+def _quadkey_centroids(quadkeys) -> tuple[np.ndarray, np.ndarray]:
+    """Mercantile-midpoint (lng, lat) centroids for a sequence of quadkeys.
+
+    Longitude is the plain tile-bounds midpoint; latitude uses
+    `_row_centroid_lat`'s true Mercator-projected midpoint (not a naive
+    degree-bounds average) — see that function's docstring for why.
+    """
+    quadkeys = list(quadkeys)
+    lngs = np.empty(len(quadkeys), dtype=float)
+    lats = np.empty(len(quadkeys), dtype=float)
+    for i, qk in enumerate(quadkeys):
+        tile = mercantile.quadkey_to_tile(qk)
+        bounds = mercantile.bounds(tile)
+        lngs[i] = (bounds.west + bounds.east) / 2
+        lats[i] = _row_centroid_lat(tile.y, tile.z)
+    return lngs, lats
 
 
 # --------------------------------------------------------------------------
@@ -194,20 +239,177 @@ def adaptive_sample(body: OpRequest) -> dict:
     if (uncertainty < 0).any():
         raise HTTPException(422, detail="uncertainty values must be nonnegative")
 
-    lngs = np.empty(rows, dtype=float)
-    lats = np.empty(rows, dtype=float)
-    for i, qk in enumerate(df["quadkey"]):
-        tile = mercantile.quadkey_to_tile(qk)
-        bounds = mercantile.bounds(tile)
-        lngs[i] = (bounds.west + bounds.east) / 2
-        # Mercator-midpoint latitude, NOT a naive degree-bounds average — see
-        # `_row_centroid_lat`'s docstring / pixel's worker/quadkey.py, the
-        # parity source of truth this must not diverge from.
-        lats[i] = _row_centroid_lat(tile.y, tile.z)
+    lngs, lats = _quadkey_centroids(df["quadkey"])
 
     rng = np.random.default_rng(seed)
     selected = adaptive_sample_indices(lngs, lats, uncertainty, n, rng)
     out = build_sample_frame(df, selected, round_label)
+
+    buf = BytesIO()
+    out.to_parquet(buf, index=False)
+    _write_bytes(body.output.parquet_put_url, buf.getvalue(), body.output.content_type)
+
+    return {"rows": len(out)}
+
+
+# --------------------------------------------------------------------------
+# coverage-estimate: binomial-GAM prevalence + uncertainty, delegated to
+# provider/r/coverage_estimate.R (see that file's header for the exact JSON
+# contract this builds/consumes).
+# --------------------------------------------------------------------------
+
+
+def _run_r(payload: dict) -> dict:
+    """Run `R_SCRIPT_PATH` as a subprocess with `payload` as JSON stdin.
+
+    This is the test seam: tests monkeypatch `_run_r` directly to avoid
+    needing a local R install for every non-R-contract test, and the one
+    real-R end-to-end test exercises this exact function.
+    """
+    rscript = shutil.which("Rscript")
+    if rscript is None:
+        raise HTTPException(500, detail="R runtime unavailable")
+
+    proc = subprocess.run(
+        [rscript, str(R_SCRIPT_PATH)],
+        input=json.dumps(payload).encode(),
+        capture_output=True,
+        timeout=600,
+    )
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode(errors="replace")
+        raise HTTPException(422, detail=stderr[-500:])
+    return json.loads(proc.stdout)
+
+
+_COVERAGE_OUTPUT_COLUMNS = (
+    "prevalence",
+    "prevalence_bci_width",
+    "exceedance_probability",
+    "exceedance_uncertainty",
+)
+
+
+def _survey_coords(survey: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """(lng, lat) arrays for every survey row: quadkey centroids if present,
+    else numeric `lng`/`lat` columns; 422 if neither is available."""
+    if "quadkey" in survey.columns:
+        return _quadkey_centroids(survey["quadkey"])
+    if (
+        "lng" in survey.columns
+        and "lat" in survey.columns
+        and pd.api.types.is_numeric_dtype(survey["lng"])
+        and pd.api.types.is_numeric_dtype(survey["lat"])
+    ):
+        return (
+            survey["lng"].to_numpy(dtype=float),
+            survey["lat"].to_numpy(dtype=float),
+        )
+    raise HTTPException(
+        422,
+        detail="survey input must have a quadkey column or numeric lng and lat columns",
+    )
+
+
+@app.post("/ops/coverage-estimate", dependencies=[Depends(require_token)])
+def coverage_estimate(body: OpRequest) -> dict:
+    if not body.inputs:
+        raise HTTPException(422, detail="inputs[0] is required")
+
+    inputs_by_role = {inp.role: inp for inp in body.inputs}
+
+    source_input = inputs_by_role.get("source")
+    if source_input is None:
+        raise HTTPException(422, detail="source input is required")
+
+    grid = pd.read_parquet(BytesIO(_read_bytes(source_input.parquet_url)))
+    if "quadkey" not in grid.columns:
+        raise HTTPException(422, detail="source input is missing a quadkey column")
+
+    survey_input = inputs_by_role.get("survey")
+    if survey_input is None:
+        raise HTTPException(422, detail="survey input is required")
+
+    survey = pd.read_parquet(BytesIO(_read_bytes(survey_input.parquet_url)))
+    survey_lngs, survey_lats = _survey_coords(survey)
+
+    params = body.params or {}
+
+    n_trials_column = params.get("n_trials_column", "n_trials")
+    n_covered_column = params.get("n_covered_column", "n_covered")
+    if n_trials_column not in survey.columns:
+        raise HTTPException(
+            422, detail=f"n_trials_column {n_trials_column!r} not found in survey input"
+        )
+    if n_covered_column not in survey.columns:
+        raise HTTPException(
+            422, detail=f"n_covered_column {n_covered_column!r} not found in survey input"
+        )
+
+    seed = params.get("seed", 0)
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise HTTPException(422, detail="params.seed must be an integer")
+
+    threshold = params.get("exceedance_threshold")
+    if threshold is not None:
+        if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+            raise HTTPException(422, detail="params.exceedance_threshold must be a number")
+        if not (0 < threshold < 1):
+            raise HTTPException(
+                422, detail="params.exceedance_threshold must be strictly between 0 and 1"
+            )
+
+    n_trials_all = pd.to_numeric(survey[n_trials_column], errors="coerce").to_numpy(dtype=float)
+    n_covered_all = pd.to_numeric(survey[n_covered_column], errors="coerce").to_numpy(dtype=float)
+    valid = ~(np.isnan(n_trials_all) | np.isnan(n_covered_all))
+
+    n_trials = n_trials_all[valid]
+    n_covered = n_covered_all[valid]
+    train_lngs = np.asarray(survey_lngs, dtype=float)[valid]
+    train_lats = np.asarray(survey_lats, dtype=float)[valid]
+
+    if len(n_trials) == 0:
+        raise HTTPException(422, detail="no valid training rows")
+
+    bad = (n_trials < 0) | (n_covered < 0) | (n_covered > n_trials)
+    if bad.any():
+        raise HTTPException(
+            422,
+            detail=f"{int(bad.sum())} training rows have negative counts or n_covered > n_trials",
+        )
+
+    predict_lngs, predict_lats = _quadkey_centroids(grid["quadkey"])
+
+    r_params: dict[str, Any] = {"seed": seed}
+    if threshold is not None:
+        r_params["exceedance_threshold"] = float(threshold)
+
+    payload = {
+        "train": [
+            {
+                "lng": float(lng),
+                "lat": float(lat),
+                "n_trials": float(nt),
+                "n_covered": float(nc),
+            }
+            for lng, lat, nt, nc in zip(train_lngs, train_lats, n_trials, n_covered)
+        ],
+        "predict": [
+            {"lng": float(lng), "lat": float(lat)}
+            for lng, lat in zip(predict_lngs, predict_lats)
+        ],
+        "params": r_params,
+    }
+
+    result = _run_r(payload)
+
+    rename_map = {c: f"src_{c}" for c in _COVERAGE_OUTPUT_COLUMNS if c in grid.columns}
+    out = grid.rename(columns=rename_map).reset_index(drop=True).copy()
+    out["prevalence"] = result["prevalence"]
+    out["prevalence_bci_width"] = result["bci_width"]
+    if threshold is not None:
+        out["exceedance_probability"] = result.get("exceedance_probability")
+        out["exceedance_uncertainty"] = result.get("exceedance_uncertainty")
 
     buf = BytesIO()
     out.to_parquet(buf, index=False)
