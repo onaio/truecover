@@ -16,6 +16,7 @@ authorization to its data (we never see pixel credentials).
 from __future__ import annotations
 
 import os
+import secrets
 from io import BytesIO
 from typing import Any
 
@@ -108,7 +109,11 @@ async def require_token(authorization: str | None = Header(default=None)) -> Non
     provided = None
     if authorization and authorization.startswith("Bearer "):
         provided = authorization[len("Bearer "):]
-    if not expected or provided != expected:
+    # Constant-time comparison — a naive `!=` short-circuits on the first
+    # differing byte, letting a timing attack recover the token one
+    # character at a time. `provided is None` is checked before calling
+    # compare_digest, which requires two str (or two bytes) arguments.
+    if not expected or provided is None or not secrets.compare_digest(provided, expected):
         raise HTTPException(status_code=401, detail="invalid or missing bearer token")
 
 

@@ -18,7 +18,7 @@ import mercantile
 import numpy as np
 import pandas as pd
 
-# Source of truth for both constants below: pixel's worker/quadkey.py.
+# Source of truth for this constant: pixel's worker/quadkey.py.
 EARTH_CIRCUMFERENCE_M = 40_075_016.686
 
 
