@@ -28,6 +28,7 @@ import httpx
 import mercantile
 import numpy as np
 import pandas as pd
+import shapely
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
@@ -291,8 +292,17 @@ _COVERAGE_OUTPUT_COLUMNS = (
 
 
 def _survey_coords(survey: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """(lng, lat) arrays for every survey row: quadkey centroids if present,
-    else numeric `lng`/`lat` columns; 422 if neither is available."""
+    """(lng, lat) arrays for every survey row, tried in order:
+
+    1. a `quadkey` column -> tile centroids.
+    2. numeric `lng`/`lat` columns.
+    3. a `geometry` column of WKB point bytes -> pixel's CSV ingest writes
+       lat/lng into a GeoParquet `geometry` column and drops the original
+       lng/lat columns, so a real point-dataset survey has neither of the
+       above and only this WKB column.
+
+    422 if none of the three is available/valid.
+    """
     if "quadkey" in survey.columns:
         return _quadkey_centroids(survey["quadkey"])
     if (
@@ -305,9 +315,19 @@ def _survey_coords(survey: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
             survey["lng"].to_numpy(dtype=float),
             survey["lat"].to_numpy(dtype=float),
         )
+    if "geometry" in survey.columns:
+        points = shapely.from_wkb(survey["geometry"])
+        if (shapely.get_type_id(points) != shapely.GeometryType.POINT).any():
+            raise HTTPException(
+                422, detail="survey geometry column must contain points"
+            )
+        return shapely.get_x(points), shapely.get_y(points)
     raise HTTPException(
         422,
-        detail="survey input must have a quadkey column or numeric lng and lat columns",
+        detail=(
+            "survey input must have a quadkey column, numeric lng and lat "
+            "columns, or a geometry column of WKB points"
+        ),
     )
 
 

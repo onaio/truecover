@@ -11,6 +11,7 @@ import mercantile
 import numpy as np
 import pandas as pd
 import pytest
+import shapely
 from fastapi.testclient import TestClient
 
 import provider.app as app_module
@@ -381,6 +382,72 @@ def test_coverage_estimate_survey_without_coords_is_422(client, tmp_path):
     survey_df = pd.DataFrame({"n_trials": [50, 50], "n_covered": [10, 20]})
     resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
     assert resp.status_code == 422
+
+
+def test_coverage_estimate_survey_geometry_column_happy_path(client, tmp_path, monkeypatch):
+    """Real pixel point datasets have neither `quadkey` nor `lng`/`lat` —
+    pixel's CSV ingest writes a GeoParquet `geometry` column (WKB points)
+    and drops the original lng/lat columns. This is the third coordinate
+    source `_survey_coords` must fall back to."""
+    grid_df = _grid_df(n_side=2)  # 4 rows
+
+    survey_lngs = [-1.0, 2.0, 5.0]
+    survey_lats = [10.0, 11.0, 12.0]
+    survey_df = pd.DataFrame(
+        {
+            "geometry": shapely.to_wkb(shapely.points(survey_lngs, survey_lats)),
+            "n_trials": [50, 50, 50],
+            "n_covered": [10, 20, 30],
+        }
+    )
+
+    expected_predict_lngs, expected_predict_lats = app_module._quadkey_centroids(
+        grid_df["quadkey"]
+    )
+
+    captured_payload = {}
+
+    def fake_run_r(payload):
+        captured_payload.update(payload)
+        n = len(payload["predict"])
+        return {"prevalence": [0.4] * n, "bci_width": [0.1] * n}
+
+    monkeypatch.setattr(app_module, "_run_r", fake_run_r)
+
+    resp, out_path = _post_coverage_op(client, tmp_path, grid_df, survey_df, {"seed": 1})
+    assert resp.status_code == 200, resp.text
+
+    train = captured_payload["train"]
+    assert len(train) == 3
+    assert [t["lng"] for t in train] == pytest.approx(survey_lngs)
+    assert [t["lat"] for t in train] == pytest.approx(survey_lats)
+
+    predict = captured_payload["predict"]
+    assert [p["lng"] for p in predict] == pytest.approx(list(expected_predict_lngs))
+    assert [p["lat"] for p in predict] == pytest.approx(list(expected_predict_lats))
+
+    out = pd.read_parquet(out_path)
+    assert len(out) == 4
+    assert "prevalence" in out.columns
+
+
+def test_coverage_estimate_survey_non_point_geometry_is_422(client, tmp_path):
+    grid_df = _grid_df(n_side=2)
+    survey_df = pd.DataFrame(
+        {
+            "geometry": shapely.to_wkb(
+                [
+                    shapely.LineString([(0, 0), (1, 1)]),
+                    shapely.Point(2.0, 3.0),
+                ]
+            ),
+            "n_trials": [50, 50],
+            "n_covered": [10, 20],
+        }
+    )
+    resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "survey geometry column must contain points"
 
 
 def test_coverage_estimate_missing_count_column_is_422(client, tmp_path):

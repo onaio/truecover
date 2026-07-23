@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir \
     pandas \
     pyarrow \
     numpy \
-    mercantile
+    mercantile \
+    shapely
 
 COPY provider/ provider/
 

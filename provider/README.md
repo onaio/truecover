@@ -109,7 +109,14 @@ credentials and pixel never sees ours.
   - `seed` — integer, RNG seed (default: `0`).
   - `exceedance_threshold` — optional float, strictly between 0 and 1. If provided, also computes the probability that prevalence exceeds this threshold and the uncertainty of that exceedance estimate.
 
-  Survey coordinates come from the `survey` input's `quadkey` column (if present) or numeric `lng`/`lat` columns; grid coordinates from the `source` input's `quadkey` column.
+  Survey coordinates are resolved in order: the `survey` input's `quadkey`
+  column (if present); else numeric `lng`/`lat` columns; else a `geometry`
+  column of WKB point bytes (via `shapely.from_wkb`) — this is the path a
+  real pixel point dataset takes, since pixel's CSV ingest converts
+  lat/lng into a GeoParquet `geometry` column and drops the original
+  lng/lat columns. A `geometry` column with any non-point (or null)
+  geometry is a `422`. Grid coordinates always come from the `source`
+  input's `quadkey` column.
 
   Delegates to `provider/r/coverage_estimate.R` (see that file's header for the posterior-bug fix — a genuine R error found in the original implementation). Runs the R script as a subprocess and returns a parquet with source grid columns plus `prevalence`, `prevalence_bci_width`, optionally `exceedance_probability` and `exceedance_uncertainty`. Returns `{"rows": <int>}`.
 
@@ -130,7 +137,7 @@ Then from the repo root:
 ```bash
 PROVIDER_TOKEN=dev-secret PROVIDER_ALLOW_FILE_URLS=1 uv run \
   --with fastapi --with 'uvicorn[standard]' --with httpx \
-  --with pandas --with pyarrow --with numpy --with mercantile \
+  --with pandas --with pyarrow --with numpy --with mercantile --with shapely \
   uvicorn provider.app:app --port 18090
 ```
 
@@ -161,5 +168,5 @@ From the repo root:
 
 ```bash
 uv run --with pytest --with fastapi --with httpx --with pandas --with pyarrow \
-  --with numpy --with mercantile python -m pytest provider/tests -q
+  --with numpy --with mercantile --with shapely python -m pytest provider/tests -q
 ```
