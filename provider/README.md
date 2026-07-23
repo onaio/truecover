@@ -10,6 +10,13 @@ credentials and pixel never sees ours.
 
 - **Auth**: every route requires `Authorization: Bearer <PROVIDER_TOKEN>`
   (`PROVIDER_TOKEN` env var). Missing or wrong token → `401`.
+- **`file://` URLs**: `inputs[*].parquet_url` and `output.parquet_put_url`
+  accept a `file://` path only when `PROVIDER_ALLOW_FILE_URLS=1` is set —
+  **dev/test only**, mirroring pixel's `ALLOW_PRIVATE_EXTERNAL_URLS` SSRF-guard
+  precedent (see pixel's `CLAUDE.md`). Whoever holds the bearer token could
+  otherwise make this service read or write arbitrary paths on its own
+  filesystem. Unset (the default) → any `file://` URL is rejected with `422`.
+  Never set this in production; the Dockerfile deliberately does not set it.
 - **`GET /manifest`** → declares the operations this provider supports:
 
   ```json
@@ -42,9 +49,10 @@ credentials and pixel never sees ours.
   }
   ```
 
-  Reads `inputs[0].parquet_url` (a `file://` path is read locally — used by
-  tests and local dev; anything else is fetched with `httpx.get`, 300s
-  timeout) into a pandas DataFrame, which must have a `quadkey` column.
+  Reads `inputs[0].parquet_url` (a `file://` path is read locally when
+  `PROVIDER_ALLOW_FILE_URLS=1`, else rejected — see above; anything else is
+  fetched with `httpx.get`, 300s timeout) into a pandas DataFrame, which must
+  have a `quadkey` column.
 
   `params`:
   - `n` — integer, `1`–`10000`. `n` greater than the number of rows in the
@@ -61,8 +69,9 @@ credentials and pixel never sees ours.
   `worker/quadkey.py::_row_centroid_lat` — not a naive degree-bounds average).
 
   Runs `adaptive_sample_indices` + `build_sample_frame`, writes the resulting
-  parquet to `output.parquet_put_url` (`file://` written locally, else
-  `httpx.put` with the given `Content-Type`), and returns `{"rows": <int>}`.
+  parquet to `output.parquet_put_url` (`file://` written locally when
+  allowed, else `httpx.put` with the given `Content-Type`), and returns
+  `{"rows": <int>}`.
 
   All validation failures respond `422` with a human-readable `detail` string
   — pixel surfaces that `detail` verbatim in the dataset's error state.
@@ -72,11 +81,15 @@ credentials and pixel never sees ours.
 From the repo root:
 
 ```bash
-PROVIDER_TOKEN=dev-secret uv run \
+PROVIDER_TOKEN=dev-secret PROVIDER_ALLOW_FILE_URLS=1 uv run \
   --with fastapi --with 'uvicorn[standard]' --with httpx \
   --with pandas --with pyarrow --with numpy --with mercantile \
   uvicorn provider.app:app --port 18090
 ```
+
+`PROVIDER_ALLOW_FILE_URLS=1` is only needed if you want to exercise the
+`file://` path locally (e.g. against a `file://`-URL test payload); omit it
+to match production behavior, where only real HTTP(S) presigned URLs work.
 
 ## Tests
 

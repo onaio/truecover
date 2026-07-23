@@ -19,6 +19,11 @@ TOKEN = "dev-secret"
 @pytest.fixture(autouse=True)
 def provider_token(monkeypatch):
     monkeypatch.setenv("PROVIDER_TOKEN", TOKEN)
+    # file:// URLs are gated behind PROVIDER_ALLOW_FILE_URLS (dev/test only —
+    # see provider/app.py's _file_urls_allowed); every test here relies on
+    # tmp_path file:// input/output URLs, so enable it by default. The one
+    # test asserting the gate itself overrides this back off.
+    monkeypatch.setenv("PROVIDER_ALLOW_FILE_URLS", "1")
 
 
 @pytest.fixture
@@ -192,3 +197,11 @@ def test_n_out_of_range_is_422(client, tmp_path):
     df = _grid_df()
     resp, _ = _post_op(client, tmp_path, df, {"n": 0, "uncertainty_column": "uncertainty"})
     assert resp.status_code == 422
+
+
+def test_file_url_rejected_without_allow_flag(client, tmp_path, monkeypatch):
+    monkeypatch.delenv("PROVIDER_ALLOW_FILE_URLS", raising=False)
+    df = _grid_df()
+    resp, _ = _post_op(client, tmp_path, df, {"n": 3, "uncertainty_column": "uncertainty"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "file:// URLs are not allowed"

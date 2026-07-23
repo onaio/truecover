@@ -57,11 +57,25 @@ MANIFEST: dict[str, Any] = {
 # presigned URLs pixel hands us. Kept as free functions (not methods) so
 # tests can exercise the real HTTP path against tmp_path file:// URLs without
 # any mocking.
+#
+# The file:// branch is gated behind PROVIDER_ALLOW_FILE_URLS — mirroring
+# pixel's own ALLOW_PRIVATE_EXTERNAL_URLS precedent for its SSRF guard on
+# POST /api/datasets/external (see pixel's CLAUDE.md). Without the gate,
+# whoever holds the bearer token (the same token pixel uses to call us) could
+# hand us a `file://` input/output URL and read or write arbitrary paths on
+# this container's filesystem — an attacker with the token must not gain
+# local filesystem read/write. Off by default; only tests/local dev set it.
 # --------------------------------------------------------------------------
+
+
+def _file_urls_allowed() -> bool:
+    return os.environ.get("PROVIDER_ALLOW_FILE_URLS") == "1"
 
 
 def _read_bytes(url: str) -> bytes:
     if url.startswith("file://"):
+        if not _file_urls_allowed():
+            raise HTTPException(422, detail="file:// URLs are not allowed")
         path = url[len("file://"):]
         with open(path, "rb") as f:
             return f.read()
@@ -72,6 +86,8 @@ def _read_bytes(url: str) -> bytes:
 
 def _write_bytes(url: str, data: bytes, content_type: str) -> None:
     if url.startswith("file://"):
+        if not _file_urls_allowed():
+            raise HTTPException(422, detail="file:// URLs are not allowed")
         path = url[len("file://"):]
         with open(path, "wb") as f:
             f.write(data)
