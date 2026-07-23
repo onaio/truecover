@@ -157,9 +157,18 @@ async def require_token(authorization: str | None = Header(default=None)) -> Non
         provided = authorization[len("Bearer "):]
     # Constant-time comparison — a naive `!=` short-circuits on the first
     # differing byte, letting a timing attack recover the token one
-    # character at a time. `provided is None` is checked before calling
-    # compare_digest, which requires two str (or two bytes) arguments.
-    if not expected or provided is None or not secrets.compare_digest(provided, expected):
+    # character at a time. `secrets.compare_digest` requires two str (ASCII
+    # only!) or two bytes arguments — it raises TypeError for a str
+    # containing non-ASCII characters, so we encode to bytes first (bytes
+    # have no such restriction) and treat any encode/compare error as a
+    # failed auth rather than letting it escape as an uncaught 500.
+    try:
+        match = expected and provided is not None and secrets.compare_digest(
+            provided.encode(), expected.encode()
+        )
+    except Exception:
+        match = False
+    if not match:
         raise HTTPException(status_code=401, detail="invalid or missing bearer token")
 
 
@@ -271,16 +280,22 @@ def _run_r(payload: dict) -> dict:
     if rscript is None:
         raise HTTPException(500, detail="R runtime unavailable")
 
-    proc = subprocess.run(
-        [rscript, str(R_SCRIPT_PATH)],
-        input=json.dumps(payload).encode(),
-        capture_output=True,
-        timeout=600,
-    )
+    try:
+        proc = subprocess.run(
+            [rscript, str(R_SCRIPT_PATH)],
+            input=json.dumps(payload).encode(),
+            capture_output=True,
+            timeout=600,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(422, detail="R computation timed out (600s)") from exc
     if proc.returncode != 0:
         stderr = proc.stderr.decode(errors="replace")
         raise HTTPException(422, detail=stderr[-500:])
-    return json.loads(proc.stdout)
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(422, detail="R produced invalid output") from exc
 
 
 _COVERAGE_OUTPUT_COLUMNS = (
@@ -294,17 +309,46 @@ _COVERAGE_OUTPUT_COLUMNS = (
 def _survey_coords(survey: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
     """(lng, lat) arrays for every survey row, tried in order:
 
-    1. a `quadkey` column -> tile centroids.
-    2. numeric `lng`/`lat` columns.
-    3. a `geometry` column of WKB point bytes -> pixel's CSV ingest writes
+    1. a `geometry` column of WKB point bytes -> pixel's CSV ingest writes
        lat/lng into a GeoParquet `geometry` column and drops the original
-       lng/lat columns, so a real point-dataset survey has neither of the
-       above and only this WKB column.
+       lng/lat columns, so a real point-dataset survey has neither a
+       `quadkey` nor `lng`/`lat` columns and only this WKB column.
+    2. a `quadkey` column -> tile centroids.
+    3. numeric `lng`/`lat` columns.
+
+    Geometry is tried first (not quadkey, despite `quadkey` historically
+    being checked first) because in pixel-land a point dataset's `geometry`
+    column is its spatial truth and may coexist with a stray property
+    literally named `quadkey` (e.g. a survey CSV with a `quadkey` text field
+    that isn't meant as the coordinate source) -- geometry must win when both
+    are present.
 
     422 if none of the three is available/valid.
     """
+    if "geometry" in survey.columns:
+        try:
+            points = shapely.from_wkb(survey["geometry"])
+        except Exception as exc:
+            raise HTTPException(
+                422, detail="survey geometry column must contain WKB points"
+            ) from exc
+        if (shapely.get_type_id(points) != shapely.GeometryType.POINT).any():
+            raise HTTPException(
+                422, detail="survey geometry column must contain WKB points"
+            )
+        return shapely.get_x(points), shapely.get_y(points)
     if "quadkey" in survey.columns:
-        return _quadkey_centroids(survey["quadkey"])
+        quadkeys = survey["quadkey"]
+        if (quadkeys.astype(str) == "").any():
+            raise HTTPException(
+                422, detail="survey quadkey column contains invalid quadkeys"
+            )
+        try:
+            return _quadkey_centroids(quadkeys)
+        except Exception as exc:
+            raise HTTPException(
+                422, detail="survey quadkey column contains invalid quadkeys"
+            ) from exc
     if (
         "lng" in survey.columns
         and "lat" in survey.columns
@@ -315,18 +359,11 @@ def _survey_coords(survey: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
             survey["lng"].to_numpy(dtype=float),
             survey["lat"].to_numpy(dtype=float),
         )
-    if "geometry" in survey.columns:
-        points = shapely.from_wkb(survey["geometry"])
-        if (shapely.get_type_id(points) != shapely.GeometryType.POINT).any():
-            raise HTTPException(
-                422, detail="survey geometry column must contain points"
-            )
-        return shapely.get_x(points), shapely.get_y(points)
     raise HTTPException(
         422,
         detail=(
-            "survey input must have a quadkey column, numeric lng and lat "
-            "columns, or a geometry column of WKB points"
+            "survey input must have a geometry column of WKB points, a "
+            "quadkey column, or numeric lng and lat columns"
         ),
     )
 
@@ -422,6 +459,8 @@ def coverage_estimate(body: OpRequest) -> dict:
     }
 
     result = _run_r(payload)
+    if len(result["prevalence"]) != len(grid):
+        raise HTTPException(422, detail="R output length mismatch")
 
     rename_map = {c: f"src_{c}" for c in _COVERAGE_OUTPUT_COLUMNS if c in grid.columns}
     out = grid.rename(columns=rename_map).reset_index(drop=True).copy()

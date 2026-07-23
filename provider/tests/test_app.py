@@ -6,6 +6,7 @@ seam without mocking httpx.
 """
 
 import shutil
+import subprocess
 
 import mercantile
 import numpy as np
@@ -119,6 +120,23 @@ def test_manifest_requires_token(client):
 
 def test_manifest_rejects_wrong_token(client):
     resp = client.get("/manifest", headers=_auth("wrong-token"))
+    assert resp.status_code == 401
+
+
+def test_manifest_rejects_non_ascii_token(client):
+    """secrets.compare_digest raises TypeError for a str containing
+    non-ASCII characters; require_token must catch that and treat it as a
+    failed auth (401), not let it escape as an uncaught 500.
+
+    httpx/starlette's TestClient encodes str header values as ASCII, which
+    would itself raise before reaching the app -- so the non-ASCII bearer
+    token is passed as a raw bytes header value (valid per HTTP, which
+    allows arbitrary octets in header values) to actually exercise the
+    app's non-ASCII decoding path.
+    """
+    resp = client.get(
+        "/manifest", headers={"Authorization": "Bearer tökén".encode("utf-8")}
+    )
     assert resp.status_code == 401
 
 
@@ -447,7 +465,75 @@ def test_coverage_estimate_survey_non_point_geometry_is_422(client, tmp_path):
     )
     resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
     assert resp.status_code == 422
-    assert resp.json()["detail"] == "survey geometry column must contain points"
+    assert resp.json()["detail"] == "survey geometry column must contain WKB points"
+
+
+def test_coverage_estimate_survey_geometry_wins_over_quadkey(client, tmp_path, monkeypatch):
+    """A survey frame with BOTH a `quadkey` column and a populated `geometry`
+    column must use the geometry coords, not the quadkey centroids -- geometry
+    is pixel's spatial source of truth and wins under the new precedence."""
+    grid_df = _grid_df(n_side=2)  # 4 rows
+
+    survey_lngs = [-1.0, 2.0, 5.0]
+    survey_lats = [10.0, 11.0, 12.0]
+    # Quadkeys deliberately point somewhere else entirely, so the assertion
+    # below can distinguish "used geometry" from "used quadkey".
+    stray_quadkeys = [
+        mercantile.quadkey(500 + i, 500, 10) for i in range(3)
+    ]
+    survey_df = pd.DataFrame(
+        {
+            "quadkey": stray_quadkeys,
+            "geometry": shapely.to_wkb(shapely.points(survey_lngs, survey_lats)),
+            "n_trials": [50, 50, 50],
+            "n_covered": [10, 20, 30],
+        }
+    )
+
+    captured_payload = {}
+
+    def fake_run_r(payload):
+        captured_payload.update(payload)
+        n = len(payload["predict"])
+        return {"prevalence": [0.4] * n, "bci_width": [0.1] * n}
+
+    monkeypatch.setattr(app_module, "_run_r", fake_run_r)
+
+    resp, out_path = _post_coverage_op(client, tmp_path, grid_df, survey_df, {"seed": 1})
+    assert resp.status_code == 200, resp.text
+
+    train = captured_payload["train"]
+    assert len(train) == 3
+    assert [t["lng"] for t in train] == pytest.approx(survey_lngs)
+    assert [t["lat"] for t in train] == pytest.approx(survey_lats)
+
+
+def test_coverage_estimate_survey_invalid_quadkey_is_422(client, tmp_path):
+    grid_df = _grid_df(n_side=2)
+    survey_df = pd.DataFrame(
+        {
+            "quadkey": [mercantile.quadkey(500, 500, 10), "129"],
+            "n_trials": [50, 50],
+            "n_covered": [10, 20],
+        }
+    )
+    resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "survey quadkey column contains invalid quadkeys"
+
+
+def test_coverage_estimate_survey_empty_quadkey_is_422(client, tmp_path):
+    grid_df = _grid_df(n_side=2)
+    survey_df = pd.DataFrame(
+        {
+            "quadkey": [mercantile.quadkey(500, 500, 10), ""],
+            "n_trials": [50, 50],
+            "n_covered": [10, 20],
+        }
+    )
+    resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "survey quadkey column contains invalid quadkeys"
 
 
 def test_coverage_estimate_missing_count_column_is_422(client, tmp_path):
@@ -545,6 +631,51 @@ def test_coverage_estimate_r_failure_is_422_with_stderr_tail(client, tmp_path, m
     assert resp.status_code == 422
     assert resp.json()["detail"] == stderr_msg.decode()[-500:]
     assert len(resp.json()["detail"]) == 500
+
+
+def test_coverage_estimate_r_output_length_mismatch_is_422(client, tmp_path, monkeypatch):
+    grid_df = _grid_df(n_side=2)  # 4 rows
+    survey_df = _survey_df_quadkey(n=3)
+
+    def fake_run_r(payload):
+        # Fewer prevalence values than grid rows.
+        return {"prevalence": [0.1, 0.2, 0.3], "bci_width": [0.05, 0.05, 0.05]}
+
+    monkeypatch.setattr(app_module, "_run_r", fake_run_r)
+
+    resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "R output length mismatch"
+
+
+def test_coverage_estimate_r_timeout_is_422(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module.shutil, "which", lambda name: "/usr/bin/Rscript")
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0] if args else "Rscript", timeout=600)
+
+    monkeypatch.setattr(app_module.subprocess, "run", fake_run)
+
+    grid_df = _grid_df(n_side=2)
+    survey_df = _survey_df_quadkey(n=3)
+    resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "R computation timed out (600s)"
+
+
+def test_coverage_estimate_r_invalid_json_output_is_422(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module.shutil, "which", lambda name: "/usr/bin/Rscript")
+
+    def fake_run(*args, **kwargs):
+        return _FakeCompletedProcess(returncode=0, stdout=b"not json", stderr=b"")
+
+    monkeypatch.setattr(app_module.subprocess, "run", fake_run)
+
+    grid_df = _grid_df(n_side=2)
+    survey_df = _survey_df_quadkey(n=3)
+    resp, _ = _post_coverage_op(client, tmp_path, grid_df, survey_df, {})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "R produced invalid output"
 
 
 # --------------------------------------------------------------------------

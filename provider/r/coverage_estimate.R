@@ -20,7 +20,9 @@ suppressPackageStartupMessages(library(mgcv))
 suppressPackageStartupMessages(library(jsonlite))
 
 input <- fromJSON(file("stdin"))
-set.seed(input$params$seed)
+# pixel seeds are uint32; fold into R's signed-int32 range. Determinism is
+# still preserved per recorded seed (the fold is itself deterministic).
+set.seed(input$params$seed %% .Machine$integer.max)
 
 train <- as.data.frame(input$train)
 pred <- as.data.frame(input$predict)

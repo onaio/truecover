@@ -157,6 +157,21 @@ def test_deterministic_with_same_seed():
     assert body_a == body_b
 
 
+@requires_r
+def test_large_uint32_seed_above_int32_max_does_not_crash():
+    """pixel injects uint32 seeds (up to 2**32-1); R's set.seed() only
+    accepts a signed int32, so a seed >= 2**31 must be folded down rather
+    than crashing the script. 3123456789 is in the failure range: it's
+    greater than 2**31-1 (2147483647) but still a valid uint32 (< 2**32)."""
+    payload, _, _ = _payload(seed=3123456789)
+    body_a, proc_a = run_script(payload)
+    body_b, proc_b = run_script(payload)
+
+    assert proc_a.returncode == 0, proc_a.stderr
+    assert proc_b.returncode == 0, proc_b.stderr
+    assert body_a == body_b
+
+
 # --------------------------------------------------------------------------
 # (d) exceedance fields present iff threshold given
 # --------------------------------------------------------------------------
