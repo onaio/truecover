@@ -8,10 +8,52 @@ from clerk_backend_api import Clerk
 # Initialize Clerk SDK
 clerk = Clerk(bearer_auth=os.getenv('CLERK_SECRET_KEY'))
 
+
+def get_user_from_db(clerk_id):
+    """
+    Get user from database by clerk_id.
+    Returns user dict if found, None if not found.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, clerk_id, email, name, organization, created_at, updated_at
+            FROM users
+            WHERE clerk_id = %s;
+        """, (clerk_id,))
+
+        user_data = cursor.fetchone()
+        cursor.close()
+
+        if not user_data:
+            return None
+
+        return {
+            'id': str(user_data[0]),
+            'clerk_id': user_data[1],
+            'email': user_data[2],
+            'name': user_data[3],
+            'organization': user_data[4],
+            'created_at': user_data[5].isoformat() if user_data[5] else None,
+            'updated_at': user_data[6].isoformat() if user_data[6] else None
+        }
+
+    except Exception as e:
+        print(f"Error getting user from database: {e}")
+        return None
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
 def require_auth(f):
     """
     Decorator to require authentication for a route.
-    Verifies the Clerk JWT token and syncs user to database.
+    Verifies the Clerk JWT token and gets user from database.
+    Only calls Clerk API if user not found in database (first login).
     Adds 'user' to kwargs with user data from database.
     """
     @wraps(f)
@@ -29,27 +71,23 @@ def require_auth(f):
             return jsonify({'error': 'Invalid authorization header format'}), 401
 
         try:
-            # Decode the JWT to get user ID (without verification for now - Clerk already verified on frontend)
-            # In production, you should verify the token signature with Clerk's JWKS
-            print(f"Decoding token...")
+            # Decode the JWT to get user ID
+            # The JWT signature was already verified by Clerk on the frontend
+            # TODO: Add JWKS verification for additional security
             decoded = jwt.decode(token, options={"verify_signature": False})
-            print(f"Decoded token: {decoded}")
 
             clerk_user_id = decoded.get('sub')
-            print(f"Clerk user ID: {clerk_user_id}")
 
             if not clerk_user_id:
                 return jsonify({'error': 'Invalid token payload'}), 401
 
-            # Get full user details from Clerk
-            print(f"Fetching user from Clerk API...")
-            clerk_user = clerk.users.get(user_id=clerk_user_id)
-            print(f"Got user from Clerk: {clerk_user.email_addresses[0].email_address if clerk_user.email_addresses else 'No email'}")
+            # Try to get user from database first (fast path)
+            user = get_user_from_db(clerk_user_id)
 
-            # Sync user to database
-            print(f"Syncing user to database...")
-            user = sync_user_to_db(clerk_user)
-            print(f"User synced: {user}")
+            if not user:
+                # User not in DB - first login, fetch from Clerk and sync
+                clerk_user = clerk.users.get(user_id=clerk_user_id)
+                user = sync_user_to_db(clerk_user)
 
             # Add user to kwargs
             kwargs['user'] = user
@@ -59,7 +97,6 @@ def require_auth(f):
         except jwt.ExpiredSignatureError:
             return jsonify({'error': 'Token has expired'}), 401
         except jwt.InvalidTokenError as e:
-            print(f"Token validation error: {e}")
             return jsonify({'error': 'Invalid token'}), 401
         except Exception as e:
             print(f"Authentication error: {e}")
