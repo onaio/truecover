@@ -81,7 +81,11 @@ def _post_op(client, tmp_path, df, params, name="in"):
 def test_manifest_shape(client):
     resp = client.get("/manifest", headers=_auth())
     assert resp.status_code == 200
-    assert resp.json() == {
+    body = resp.json()
+    # Parameter schemas are checked separately below.
+    params = {op["id"]: op.pop("params") for op in body["operations"]}
+    assert set(params) == {"adaptive-sample", "coverage-estimate"}
+    assert body == {
         "name": "TrueCover",
         "operations": [
             {
@@ -111,6 +115,25 @@ def test_manifest_shape(client):
             },
         ],
     }
+
+
+def test_manifest_param_schemas(client):
+    ops = {op["id"]: op for op in client.get("/manifest", headers=_auth()).json()["operations"]}
+    adaptive = ops["adaptive-sample"]["params"]
+    assert adaptive["required"] == ["n", "uncertainty_column"]
+    assert set(adaptive["properties"]) == {"n", "uncertainty_column", "seed", "round"}
+    assert adaptive["properties"]["n"]["maximum"] == 10000
+    coverage = ops["coverage-estimate"]["params"]
+    assert "required" not in coverage  # every parameter has a default
+    assert set(coverage["properties"]) == {
+        "n_trials_column",
+        "n_covered_column",
+        "seed",
+        "exceedance_threshold",
+    }
+    for schema in (adaptive, coverage):
+        assert schema["type"] == "object"
+        assert schema["additionalProperties"] is False
 
 
 def test_manifest_requires_token(client):
