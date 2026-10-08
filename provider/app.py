@@ -44,6 +44,16 @@ _HTTP_TIMEOUT_S = 300.0
 
 R_SCRIPT_PATH = Path(__file__).parent / "r" / "coverage_estimate.R"
 
+# Each operation's `params` is a JSON schema of what its handler below reads
+# from `body.params`. Pixel passes it on in GET /api/analyses so clients (the
+# `pixel` CLI, agents) know the parameters without hard-coding them. Keep it
+# in step with the handler's own checks; the handlers stay the authority.
+_SEED_PARAM = {
+    "type": "integer",
+    "default": 0,
+    "description": "Random seed, so the same inputs reproduce the same result.",
+}
+
 MANIFEST: dict[str, Any] = {
     "name": "TrueCover",
     "operations": [
@@ -55,6 +65,32 @@ MANIFEST: dict[str, Any] = {
                 "replacement neighbors"
             ),
             "source_geometry": "quadkey",
+            "params": {
+                "type": "object",
+                "required": ["n", "uncertainty_column"],
+                "properties": {
+                    "n": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10000,
+                        "description": "Number of sites to draw.",
+                    },
+                    "uncertainty_column": {
+                        "type": "string",
+                        "description": (
+                            "Column to weight the draw by, e.g. "
+                            "prevalence_bci_width or exceedance_uncertainty."
+                        ),
+                    },
+                    "seed": _SEED_PARAM,
+                    "round": {
+                        "type": "string",
+                        "default": "round-1",
+                        "description": "Round label stored on each output row.",
+                    },
+                },
+                "additionalProperties": False,
+            },
         },
         {
             "id": "coverage-estimate",
@@ -71,6 +107,32 @@ MANIFEST: dict[str, Any] = {
                     "geometry": ["point", "quadkey"],
                 }
             ],
+            "params": {
+                "type": "object",
+                "properties": {
+                    "n_trials_column": {
+                        "type": "string",
+                        "default": "n_trials",
+                        "description": "Survey column: children checked at each site.",
+                    },
+                    "n_covered_column": {
+                        "type": "string",
+                        "default": "n_covered",
+                        "description": "Survey column: children vaccinated at each site.",
+                    },
+                    "seed": _SEED_PARAM,
+                    "exceedance_threshold": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "exclusiveMaximum": 1,
+                        "description": (
+                            "Coverage target, e.g. 0.8. Adds "
+                            "exceedance_probability and exceedance_uncertainty."
+                        ),
+                    },
+                },
+                "additionalProperties": False,
+            },
         },
     ],
 }
